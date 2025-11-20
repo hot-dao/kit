@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+body {
+    box-sizing: border-box;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    color-scheme: light dark;
+    color: rgb(255, 255, 255);
+    background-color: rgb(22, 22, 22);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+    max-width: 1280px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 1rem;
+    text-align: center;
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+}
+
+.view {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 15px;
+    gap: 12px;
+    border: 1px solid rgb(42, 42, 42);
+    background-color: rgb(22, 22, 22);
+    border-radius: 24px;
+}
+
+.view p {
+    margin: 0;
+    font-weight: bold;
+}
+
+.input-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    border: 1px solid rgb(42, 42, 42);
+    padding: 10px;
+    border-radius: 10px;
+    background-color: rgb(25, 25, 26);
+}
+
+.input-form-label {
+    font-size: 0.8rem;
+    color: rgb(255, 255, 255);
+    font-weight: 600;
+    text-transform: uppercase;
+    text-align: left;
+    letter-spacing: 0.03rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+}
+
+.input-label {
+    font-size: 0.65rem;
+    color: rgb(126, 130, 144);
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.input-row {
+    /*display: flex;*/
+    /*flex-direction: row;*/
+    width: 100%;
+    justify-items: center;
+    align-items: end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(var(--spacing) * 4);
+}
+
+.input-row.no-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.input-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background-color: rgb(42, 42, 42);
+    color: rgb(255, 255, 255);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%;
+    max-width: 15em;
+
+    &:hover {
+        background-color: rgb(60, 60, 60);
+    }
+}
+
+.input-text {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgb(42, 42, 42);
+    background-color: rgb(22, 22, 22);
+    color: rgb(255, 255, 255);
+    font-size: 0.8rem;
+}
+
+@media screen and (max-width: 800px) {
+    .view {
+        width: 100%;
+    }
+}

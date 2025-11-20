@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Read version from package.json
+        id: pkg
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./near-connect/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release notes from CHANGELOG.md
+        id: changelog
+        shell: bash
+        run: |
+          VERSION="${{ steps.pkg.outputs.version }}"
+          CHANGELOG="near-connect/CHANGELOG.md"
+          OUT="RELEASE_CHANGELOG.md"
+          awk -v ver="$VERSION" '
+            $0 ~ "^# " ver "$" {print; flag=1; next}
+            flag && $0 ~ "^# " && $0 !~ "^# " ver "$" {flag=0}
+            flag {print}
+          ' "$CHANGELOG" > "$OUT"
+          if [ ! -s "$OUT" ]; then
+            echo "# $VERSION" > "$OUT"
+            echo "" >> "$OUT"
+            cat "$CHANGELOG" >> "$OUT"
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat "$OUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create source ZIP archive
+        id: zip
+        shell: bash
+        run: |
+          ZIP_NAME="near-connect-${{ steps.pkg.outputs.version }}.zip"
+          git archive -o "$ZIP_NAME" HEAD near-connect
+          echo "zip=$ZIP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg.outputs.version }}
+          name: v${{ steps.pkg.outputs.version }}
+          body: ${{ steps.changelog.outputs.notes }}
+          files: |
+            ${{ steps.zip.outputs.zip }}
+            near-connect/CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
