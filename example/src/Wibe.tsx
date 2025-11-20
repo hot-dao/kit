@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useWibe3, HotConnector, Intents, LocalWallet, OmniToken } from "@hot-labs/wibe3";
+import { useWibe3, HotConnector, Intents, LocalWallet, OmniToken } from "../../src";
 
 const wibe3 = new HotConnector();
 
 export const Wibe = () => {
-  const { wallet, address, tradingAddress, connect } = useWibe3(wibe3);
+  const { wallet, connect } = useWibe3(wibe3);
   const [jwt, setJwt] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -26,13 +26,12 @@ export const Wibe = () => {
     try {
       setIsClaiming(true);
       if (!wallet) throw new Error("Wallet not found");
-      if (!tradingAddress) throw new Error("Trading address not found");
 
       const localWallet = new LocalWallet({ privateKey: (import.meta as any).env.VITE_PRIVATE_KEY! });
       await localWallet.transfer({
-        paymentId: `${tradingAddress}-claim1`,
+        paymentId: `${wallet.omniAddress}-claim1`,
         token: OmniToken.USDT,
-        to: tradingAddress,
+        to: wallet.omniAddress,
         amount: 0.01,
       });
 
@@ -60,7 +59,7 @@ export const Wibe = () => {
     }
   };
 
-  if (!address) {
+  if (!wallet) {
     return (
       <div className="view">
         <button className="input-button" onClick={() => connect()}>
@@ -105,13 +104,12 @@ export const Wibe = () => {
 };
 
 const Balances = () => {
-  const { balances, address } = useWibe3(wibe3);
-
-  if (!address) return null;
+  const { balances, wallet } = useWibe3(wibe3);
+  if (!wallet) return null;
 
   return (
     <div style={{ textAlign: "left", marginBottom: 16 }}>
-      <p style={{ margin: 0 }}>Address: {address}</p>
+      <p style={{ margin: 0 }}>Address: {wallet.address}</p>
 
       <p style={{ margin: 0, marginTop: 8 }}>Balances:</p>
       {balances.map((balance) => (
