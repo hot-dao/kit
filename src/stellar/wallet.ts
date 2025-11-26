@@ -1,13 +1,15 @@
 import { base64, base58, hex, base32 } from "@scure/base";
-import { Asset, Networks } from "@stellar/stellar-base";
+import { Asset, Networks, Transaction } from "@stellar/stellar-base";
 
 import { OmniWallet, WalletType } from "../omni/OmniWallet";
 import { OmniConnector } from "../omni/OmniConnector";
 import { formatter, Token } from "../omni/token";
 import { ReviewFee } from "../omni/fee";
 import { Network } from "../omni/chains";
+import { bridge } from "../omni";
 
 interface ProtocolWallet {
+  signTransaction: (transaction: Transaction) => Promise<{ signedTxXdr: string }>;
   signMessage: (message: string) => Promise<{ signedMessage: string }>;
   address: string;
 }
@@ -76,6 +78,13 @@ class StellarWallet extends OmniWallet {
       address: this.address,
       seed,
     };
+  }
+
+  async sendTransaction(transaction: Transaction) {
+    const result = await this.wallet.signTransaction(transaction);
+    const txObject = new Transaction(result.signedTxXdr, Networks.PUBLIC);
+    const { hash } = await bridge.stellar.callHorizon((t) => t.submitTransaction(txObject as any));
+    return hash;
   }
 
   async signMessage(message: string) {

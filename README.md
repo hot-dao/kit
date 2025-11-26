@@ -42,8 +42,8 @@ connector.onDisconnect(({ wallet }) => {});
 
 ```ts
 // Pay to you from any user connected wallet
-const receiver = await omni.account("ton", "EU...");
-await wallet.payment(omni.usdt(), receiver, 1);
+const receiver = await omni.account(Chain.TON, "EU...");
+await wallet.payment(OmniToken.USDT, receiver, 1);
 ```
 
 ## Intents builder
@@ -51,8 +51,8 @@ await wallet.payment(omni.usdt(), receiver, 1);
 ```ts
 await wallet.intents
   .authCall({ attachNear: 10000n, msg: "", contractId: "", tgas: 50n })
-  .transfer({ receiver: await omni.account("stellar", "..."), token: omni.usdc("stellar"), amount: 1 })
-  .tokenDiff({ from: omni.usdt("bnb", 10), to: omni.usdc("sol", 2) })
+  .transfer({ receiver: "root.near", token: OmniToken.USDC, amount: 1 })
+  .tokenDiff({ [OmniToken.USDC]: 10, [OmniToken.NEAR]: -2 })
   .attachHashes([])
   .execute();
 ```

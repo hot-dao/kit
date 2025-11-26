@@ -1,4 +1,5 @@
 import { SignAndSendTransactionParams, SignAndSendTransactionsParams, SignMessageParams } from "@hot-labs/near-connect";
+import { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 
 import { requestWebWallet } from "./hot-wallet/wallet";
@@ -11,9 +12,10 @@ import TonWallet from "./ton/wallet";
 import StellarWallet from "./stellar/wallet";
 
 class GoogleConnector extends OmniConnector<OmniWallet> {
-  name = "Google Wallet";
+  walletTypes = [WalletType.EVM, WalletType.STELLAR, WalletType.TON, WalletType.NEAR, WalletType.SOLANA];
   icon = "https://storage.herewallet.app/upload/0eb073753bd1ddabc3ceb5611ad80dd0cb5ca5a9c6ed066bf89ec4f1364c809d.svg";
   type = ConnectorType.SOCIAL;
+  name = "Google Wallet";
   id = "google";
 
   constructor() {
@@ -42,7 +44,8 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
 
     if (account.type === WalletType.STELLAR) {
       const signMessage = async (message: string) => request("stellar:signMessage", { message });
-      this.wallets.push(new StellarWallet(this, { address: account.address, signMessage }));
+      const signTransaction = async (transaction: Transaction) => request("stellar:signTransaction", { transaction: transaction.toXDR() });
+      this.wallets.push(new StellarWallet(this, { address: account.address, signMessage, signTransaction }));
     }
 
     if (account.type === WalletType.TON) {

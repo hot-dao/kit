@@ -3,6 +3,7 @@ import { Wallet } from "@wallet-standard/base";
 import { runInAction } from "mobx";
 
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
+import { WalletType } from "../omni/OmniWallet";
 
 import { isInjected } from "../hot-wallet/hot";
 import SolanaProtocolWallet from "./protocol";
@@ -23,6 +24,7 @@ const wallets = getWallets();
 
 class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name: string; icon: string; id: string }> {
   type = ConnectorType.WALLET;
+  walletTypes = [WalletType.SOLANA, WalletType.OMNI];
   name = "Solana Wallet";
   icon = "https://storage.herewallet.app/upload/8700f33153ad813e133e5bf9b791b5ecbeea66edca6b8d17aeccb8048eb29ef7.png";
   id = "solana";

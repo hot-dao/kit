@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 
-import { HotConnector } from "../HotConnector";
-import { omni, BridgeReview } from "../omni";
-import { Chains } from "../omni/chains";
-import { Token } from "../omni/token";
+import { HotConnector } from "../../HotConnector";
+import { omni, BridgeReview } from "../../omni";
+import { Token } from "../../omni/token";
+import Popup from "../Popup";
 
-import { TokenCard } from "./TokenCard";
-import Popup from "./Popup";
+import TokenCard from "./TokenCard";
 
 interface PaymentProps {
   connector: HotConnector;
@@ -52,7 +51,11 @@ const Payment = ({ connector, token, amount, receiver, onReject, onSuccess }: Pa
 
   const need = token.usd * token.float(amount);
   const tokens = Object.values(connector.tokens).filter((t) => {
-    if (t.float(t.amount) * t.usd > need) return true;
+    const wallet = connector.wallets.find((w) => w.type === t.type);
+    if (!wallet) return false;
+
+    const balance = connector.balance(wallet, t);
+    if (t.float(balance) * t.usd > need) return true;
     return false;
   });
 
@@ -60,7 +63,7 @@ const Payment = ({ connector, token, amount, receiver, onReject, onSuccess }: Pa
     return (
       <Popup header={<p>Pay ${token.readable(amount, token.usd)}</p>} onClose={() => onReject(new Error("User rejected"))}>
         {tokens.map((token) => (
-          <TokenCard key={token.id} token={token} onSelect={setSelected} />
+          <TokenCard key={token.id} token={token} onSelect={setSelected} hot={connector} wallet={connector.wallets.find((w) => w.type === token.type)!} />
         ))}
       </Popup>
     );
@@ -80,7 +83,7 @@ const Payment = ({ connector, token, amount, receiver, onReject, onSuccess }: Pa
           </div>
 
           <div style={{ display: "flex", flexDirection: "row", gap: 4, width: "100%" }}>
-            <img src={Chains.get(selected.chain).icon} width={18} height={18} style={{ borderRadius: "50%" }} />
+            <img src={selected.chainIcon} width={18} height={18} style={{ borderRadius: "50%" }} />
             <p style={{ marginRight: "auto" }}>Network Fee</p>
 
             <p>

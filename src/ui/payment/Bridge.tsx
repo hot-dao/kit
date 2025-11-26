@@ -1,69 +1,51 @@
 import { useEffect, useState } from "react";
+import { observer } from "mobx-react-lite";
 
-import { formatter, Token } from "../omni/token";
-import { BridgeReview, omni } from "../omni";
-import { HotConnector } from "../HotConnector";
-import { TokenCard } from "./TokenCard";
-import { Chains } from "../omni/chains";
+import { OmniWallet } from "../../omni/OmniWallet";
+import { formatter, Token } from "../../omni/token";
+import { BridgeReview, omni } from "../../omni";
+import { HotConnector } from "../../HotConnector";
 
-import { openConnector, openSelectTokenPopup } from "./router";
-import Popup from "./Popup";
+import Popup from "../Popup";
+import { openSelectTokenPopup, openSelectWallet } from "../router";
+import { TokenIcon } from "./TokenCard";
 
-export const SelectTokenPopup = ({ hot, initialChain, onClose, onSelect }: { hot: HotConnector; initialChain?: number; onClose: () => void; onSelect: (token: Token) => void }) => {
-  const [chain, setChain] = useState<number | null>(initialChain || null);
+export interface BridgeProps {
+  hot: HotConnector;
+  onClose: () => void;
+  setup?: {
+    sender: OmniWallet;
+    receipient: OmniWallet;
+    amount: number;
+    from: Token;
+    to: Token;
+  };
+}
 
-  if (chain == null) {
-    const chains = [...new Set(hot.tokens.map((token) => token.chain))];
-    return (
-      <Popup onClose={onClose} header={<p>Select chain</p>}>
-        {chains.map(
-          (chain) =>
-            !!Chains.get(chain).name && (
-              <div key={chain} className="connect-item" onClick={() => setChain(chain)}>
-                <img src={Chains.get(chain).icon} alt={Chains.get(chain).name} style={{ width: 24, height: 24, objectFit: "cover", borderRadius: "50%" }} />
-                <p style={{ fontSize: 24, fontWeight: "bold" }}>{Chains.get(chain).name}</p>
-              </div>
-            )
-        )}
-      </Popup>
-    );
-  }
-
-  return (
-    <Popup onClose={onClose} header={<p>Select token</p>}>
-      {hot.tokens
-        .filter((token) => token.chain === chain)
-        .map((token) => (
-          <TokenCard key={token.id} token={token} onSelect={onSelect} />
-        ))}
-    </Popup>
-  );
-};
-
-const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
-  const [value, setValue] = useState<string>("");
+const Bridge = ({ hot, setup, onClose }: BridgeProps) => {
   const [isFiat, setIsFiat] = useState(false);
-  const [from, setFrom] = useState<Token>(hot.tokens[0]);
-  const [to, setTo] = useState<Token>(hot.tokens[1]);
+  const [value, setValue] = useState<string>(setup?.amount.toString() ?? "");
+  const [from, setFrom] = useState<Token>(setup?.from || hot.tokens[0]);
+  const [to, setTo] = useState<Token>(setup?.to || hot.tokens[1]);
+
   const [review, setReview] = useState<BridgeReview | null>(null);
-  const [isReviewing, setIsReviewing] = useState(false);
   const [isError, setIsError] = useState<string | null>(null);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | null>(null);
   const [processingResult, setProcessingResult] = useState<BridgeReview | null>(null);
 
-  const sender = hot.wallets.find((w) => w.type === from?.type);
-  const receipient = hot.wallets.find((w) => w.type === to?.type);
+  const [sender, setSender] = useState<OmniWallet | undefined>(setup?.sender || hot.wallets.find((w) => w.type === from.type));
+  const [receipient, setReceipient] = useState<OmniWallet | undefined>(setup?.receipient || hot.wallets.find((w) => w.type === to.type));
   const fromAmount = formatter.fromInput(value);
 
   useEffect(() => {
     let isInvalid = false;
     let debounceTimer: NodeJS.Timeout;
-
     if (+fromAmount <= 0) return;
-    if (receipient == null) return setIsError("Please select a recipient");
-    if (sender == null) return setIsError("Please select a sender");
+    if (sender == null) return;
+    if (receipient == null) return;
 
     setIsReviewing(true);
     debounceTimer = setTimeout(async () => {
@@ -88,16 +70,19 @@ const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =>
       isInvalid = true;
       clearTimeout(debounceTimer);
     };
-  }, [fromAmount, from, to, isFiat]);
+  }, [fromAmount, from, to, isFiat, sender, receipient]);
 
-  const handleConfirm = () => {
-    if (review == null) return;
-    setIsProcessing(true);
-    omni
-      .makeSwap(sender!, review, { log: setProcessingMessage })
-      .then(onClose)
-      .catch((e) => console.error(e))
-      .finally(() => setIsProcessing(false));
+  const handleConfirm = async () => {
+    try {
+      if (review == null) return;
+      setIsProcessing(true);
+      const result = await omni.makeSwap(sender!, review, { log: setProcessingMessage });
+      setProcessingResult(result);
+      setIsProcessing(false);
+    } catch (e) {
+      setIsProcessing(false);
+      console.error(e);
+    }
   };
 
   if (isProcessing) {
@@ -120,6 +105,17 @@ const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =>
     );
   }
 
+  const button = () => {
+    if (sender == null) return <button disabled>Set sender</button>;
+    if (receipient == null) return <button disabled>Set recipient</button>;
+    if (from.float(hot.balance(sender, from)) < +fromAmount) return <button disabled>Insufficient balance</button>;
+    return (
+      <button disabled={isReviewing || isError != null} onClick={handleConfirm}>
+        {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}
+      </button>
+    );
+  };
+
   return (
     <Popup onClose={onClose}>
       <style>{styles}</style>
@@ -127,24 +123,29 @@ const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =>
       <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }} onClick={() => openConnector(hot)}>
-              <p>From</p>
-              <div className="small-button">{formatter.truncateAddress(sender?.address ?? "Connect wallet")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <p style={{ fontWeight: "bold" }}>From</p>
+              <div className="small-button" onClick={() => openSelectWallet(hot, false, from.type, (wallet) => setSender(wallet))}>
+                <p>{formatter.truncateAddress(sender?.address ?? "Connect wallet")}</p>
+              </div>
             </div>
+
             <div className="small-button" onClick={() => setIsFiat(!isFiat)}>
               USD
             </div>
           </div>
+
           <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <TokenPreview token={from} onSelect={() => openSelectTokenPopup({ hot, onSelect: (token) => setFrom(token) })} />
+            <TokenPreview token={from} onSelect={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })} />
             <input className="input" value={isFiat ? `$${fromAmount}` : fromAmount} onChange={(e) => setValue(e.target.value)} placeholder="0" />
           </div>
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
             {isFiat ? (
-              <p>Available: ${from.readable(from.float(from.amount), from.usd)}</p>
+              <p>Available: ${from.readable(hot.balance(sender, from), from.usd)}</p>
             ) : (
               <p>
-                Available: {from.readable(from.float(from.amount))} {from.symbol}
+                Available: {from.readable(hot.balance(sender, from))} {from.symbol}
               </p>
             )}
 
@@ -163,27 +164,22 @@ const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <p>To</p>
-              <div className="small-button" onClick={() => openConnector(hot)}>
-                {formatter.truncateAddress(receipient?.address ?? "Connect wallet")}
+              <p style={{ fontWeight: "bold" }}>To</p>
+              <div className="small-button" onClick={() => openSelectWallet(hot, true, to.type, (wallet) => setReceipient(wallet))}>
+                <p>{formatter.truncateAddress(receipient?.address ?? "Connect wallet")}</p>
               </div>
             </div>
             <p>${to.readable(review?.amountOut ?? 0, to.usd)}</p>
           </div>
+
           <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <TokenPreview token={to} onSelect={() => openSelectTokenPopup({ hot, onSelect: (token) => setTo(token) })} />
+            <TokenPreview token={to} onSelect={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setTo(token), setReceipient(wallet)) })} />
             <h2 style={{ fontSize: 32, lineHeight: "40px", fontWeight: "bold" }}>{to.readable(review?.amountOut ?? 0)}</h2>
           </div>
         </div>
-      </div>
 
-      {from.float(from.amount) < +fromAmount ? (
-        <button disabled>Insufficient balance</button>
-      ) : (
-        <button disabled={isReviewing || isError != null} onClick={handleConfirm}>
-          {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}
-        </button>
-      )}
+        <div style={{ marginTop: 32 }}>{button()}</div>
+      </div>
     </Popup>
   );
 };
@@ -191,10 +187,7 @@ const Bridge = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =>
 const TokenPreview = ({ token, onSelect }: { token: Token; onSelect: (token: Token) => void }) => {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, cursor: "pointer" }} onClick={() => onSelect(token)}>
-      <div style={{ position: "relative" }}>
-        <img src={token.icon} alt={token.symbol} style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
-        <img src={Chains.get(token.chain).icon} alt={token.symbol} style={{ borderRadius: "50%", width: 14, height: 14, position: "absolute", bottom: 0, right: -4 }} />
-      </div>
+      <TokenIcon token={token} />
       <p style={{ fontSize: 24, fontWeight: "bold" }}>{token.symbol}</p>
     </div>
   );
@@ -205,7 +198,7 @@ const styles = /* css */ `
     display: flex;
     width: 100%;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
     width: 100%;
     text-align: left;
     align-items: flex-start;
@@ -243,4 +236,4 @@ const styles = /* css */ `
 }
 `;
 
-export default Bridge;
+export default observer(Bridge);

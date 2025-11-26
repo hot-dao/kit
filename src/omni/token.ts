@@ -1,16 +1,11 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
 
 import { WalletType } from "./OmniWallet";
-import { Network } from "./chains";
-
-export enum OmniToken {
-  USDT = "nep141:usdt.tether-token.near",
-  USDC = "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
-}
+import { Chains, Network } from "./chains";
 
 export const chainsMap: Record<number, string> = {
-  [Network.Juno]: "juno",
-  [Network.Gonka]: "gonka",
+  [Network.Juno]: "juno-1",
+  [Network.Gonka]: "gonka-mainnet",
   [Network.Monad]: "monad",
   [Network.Near]: "near",
   [Network.Eth]: "eth",
@@ -51,15 +46,23 @@ export class Token {
   symbol: string;
   usd: number;
   omniAddress: string;
-  amount = 0n;
+  originalChain: number;
+  originalAddress: string;
 
-  constructor(readonly info: TokenResponse) {
-    this.chain = reverseChainsMap[info.blockchain];
-    this.address = info.contractAddress || "native";
+  constructor(readonly info: TokenResponse & { omni?: true }) {
+    this.originalChain = reverseChainsMap[info.blockchain];
+    this.originalAddress = info.contractAddress || "native";
+    this.chain = info.omni ? -4 : reverseChainsMap[info.blockchain];
+    this.address = info.omni ? info.assetId : info.contractAddress || "native";
     this.decimals = info.decimals;
     this.symbol = info.symbol;
     this.usd = info.price;
     this.omniAddress = info.assetId;
+  }
+
+  get chainIcon() {
+    if (this.chain === Network.Juno) return "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+    return Chains.get(this.chain).icon;
   }
 
   get id() {
@@ -67,6 +70,7 @@ export class Token {
   }
 
   get type() {
+    if (this.chain === Network.Hot) return WalletType.OMNI;
     if (this.chain === Network.Near) return WalletType.NEAR;
     if (this.chain === Network.Solana) return WalletType.SOLANA;
     if (this.chain === Network.OmniTon) return WalletType.TON;
@@ -74,6 +78,14 @@ export class Token {
     if (this.chain === Network.Stellar) return WalletType.STELLAR;
     if (this.chain === Network.Juno) return WalletType.COSMOS;
     if (this.chain === Network.Gonka) return WalletType.COSMOS;
+    if (this.chain === Network.Btc) return WalletType.Btc;
+    if (this.chain === Network.Tron) return WalletType.Tron;
+    if (this.chain === Network.Zcash) return WalletType.Zcash;
+    if (this.chain === Network.Xrp) return WalletType.Xrp;
+    if (this.chain === Network.Doge) return WalletType.Doge;
+    if (this.chain === Network.Ada) return WalletType.Ada;
+    if (this.chain === Network.Aptos) return WalletType.Aptos;
+    if (this.chain === Network.Sui) return WalletType.Sui;
     return WalletType.EVM;
   }
 
@@ -92,12 +104,6 @@ export class Token {
   readable(t: number | bigint | string, rate = 1) {
     const n = typeof t === "number" ? t : formatter.formatAmount(t ?? 0, this.decimals);
     return formatter.amount(n * rate);
-  }
-
-  setAmount(amount: bigint) {
-    const clone = new Token(this.info);
-    clone.amount = amount;
-    return clone;
   }
 }
 

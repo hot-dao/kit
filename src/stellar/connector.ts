@@ -1,15 +1,19 @@
 import { sep43Modules, HotWalletModule, StellarWalletsKit, WalletNetwork, ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
+import { Transaction } from "@stellar/stellar-base";
 
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
+import { WalletType } from "../omni/OmniWallet";
 import { isInjected } from "../hot-wallet/hot";
 import StellarWallet from "./wallet";
 
 type StellarOption = ISupportedWallet & { name: string; icon: string; uuid: string; rdns: string };
 class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
   stellarKit: StellarWalletsKit;
+
+  icon = "https://storage.herewallet.app/upload/1469894e53ca248ac6adceb2194e6950a13a52d972beb378a20bce7815ba01a4.png";
+  walletTypes = [WalletType.STELLAR, WalletType.OMNI];
   type = ConnectorType.WALLET;
   name = "Stellar Wallet";
-  icon = "https://storage.herewallet.app/upload/1469894e53ca248ac6adceb2194e6950a13a52d972beb378a20bce7815ba01a4.png";
   id = "stellar";
 
   constructor(stellarKit?: StellarWalletsKit) {
@@ -27,7 +31,8 @@ class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
 
       this.stellarKit.setWallet(data.id!);
       const signMessage = async (message: string) => this.stellarKit.signMessage(message);
-      this.setWallet(new StellarWallet(this, { address: data.address!, signMessage }));
+      const signTransaction = async (transaction: Transaction) => this.stellarKit.signTransaction(transaction.toXDR());
+      this.setWallet(new StellarWallet(this, { address: data.address!, signMessage, signTransaction }));
     });
   }
 
@@ -45,7 +50,8 @@ class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
     this.stellarKit.setWallet(id);
     const { address } = await this.stellarKit?.getAddress();
     const signMessage = async (message: string) => this.stellarKit.signMessage(message);
-    this.setWallet(new StellarWallet(this, { address, signMessage }));
+    const signTransaction = async (transaction: Transaction) => this.stellarKit.signTransaction(transaction.toXDR());
+    this.setWallet(new StellarWallet(this, { address, signMessage, signTransaction }));
     this.setStorage({ type: "wallet", id, address });
   }
 

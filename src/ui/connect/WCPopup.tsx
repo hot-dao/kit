@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import QRCode, { darkQR } from "./qrcode";
-import Popup, { present } from "./Popup";
+import QRCode, { darkQR } from "../qrcode";
+import Popup, { present } from "../Popup";
 
 interface WalletConnectPopupProps {
   uri: string;

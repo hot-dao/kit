@@ -2,15 +2,18 @@ import { HotConnector } from "../HotConnector";
 import { OmniConnector } from "../omni/OmniConnector";
 import { BridgeReview } from "../omni";
 import { Token } from "../omni/token";
+import { OmniWallet, WalletType } from "../omni/OmniWallet";
 
 import { present } from "./Popup";
-import Payment from "./Payment";
-import LogoutPopup from "./LogoutPopup";
-import Bridge, { SelectTokenPopup } from "./Bridge";
-import Connector from "./ConnectWallet";
-import Deposit from "./OmniDeposit";
-import Withdraw from "./OmniWithdraw";
-import Profile from "./Profile";
+import Payment from "./payment/Payment";
+import LogoutPopup from "./connect/LogoutPopup";
+import Bridge from "./payment/Bridge";
+import Connector from "./connect/ConnectWallet";
+import Profile from "./payment/Profile";
+import SelectTokenPopup from "./payment/SelectToken";
+import WalletPicker from "./connect/WalletPicker";
+import SelectWallet from "./payment/SelectWallet";
+import { BridgeProps } from "./payment/Bridge";
 
 export const openPayment = (connector: HotConnector, token: Token, amount: bigint, receiver: string) => {
   return present<BridgeReview>((resolve, reject) => {
@@ -24,15 +27,15 @@ export const openLogoutPopup = (connector: OmniConnector): Promise<void> => {
   });
 };
 
-export const openBridge = (hot: HotConnector) => {
+export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
   return present<BridgeReview>((resolve, reject) => {
-    return <Bridge onClose={reject} hot={hot} />;
+    return <Bridge onClose={reject} hot={hot} setup={setup} />;
   });
 };
 
 export const openConnector = (hot: HotConnector, connector?: OmniConnector) => {
   return present<void>((resolve, reject) => {
-    return <Connector hot={hot} connector={connector} onClose={() => reject(new Error("User rejected"))} />;
+    return <Connector hot={hot} onClose={() => reject(new Error("User rejected"))} />;
   });
 };
 
@@ -42,20 +45,20 @@ export const openProfile = (hot: HotConnector) => {
   });
 };
 
-export const openSelectTokenPopup = ({ hot, initialChain, onSelect }: { hot: HotConnector; initialChain?: number; onSelect: (token: Token) => void }) => {
+export const openSelectTokenPopup = ({ hot, initialChain, onSelect }: { hot: HotConnector; initialChain?: number; onSelect: (token: Token, wallet?: OmniWallet) => void }) => {
   return present<Token | null>((resolve, reject) => {
-    return <SelectTokenPopup hot={hot} initialChain={initialChain} onClose={reject} onSelect={(t) => (onSelect(t), reject())} />;
+    return <SelectTokenPopup hot={hot} initialChain={initialChain} onClose={reject} onSelect={(t, w) => (onSelect(t, w), reject())} />;
   });
 };
 
-export const openDeposit = (hot: HotConnector, token: Token, amount: number) => {
+export const openWalletPicker = (connector: OmniConnector) => {
   return present<void>((resolve, reject) => {
-    return <Deposit onClose={reject} onSuccess={resolve} hot={hot} token={token} amount={amount} />;
+    return <WalletPicker initialConnector={connector} onClose={reject} />;
   });
 };
 
-export const openWithdraw = (hot: HotConnector, token: Token, amount: number) => {
+export const openSelectWallet = (hot: HotConnector, isRecipient: boolean, type: WalletType, onSelect: (wallet?: OmniWallet) => void) => {
   return present<void>((resolve, reject) => {
-    return <Withdraw onClose={reject} onSuccess={resolve} hot={hot} token={token} amount={amount} />;
+    return <SelectWallet isRecipient={isRecipient} hot={hot} type={type} onSelect={onSelect} onClose={reject} />;
   });
 };

@@ -1,7 +1,7 @@
 import React from "react";
 
-import Popup, { present } from "./Popup";
-import { OmniConnector } from "../omni/OmniConnector";
+import Popup, { present } from "../Popup";
+import { OmniConnector } from "../../omni/OmniConnector";
 
 interface LogoutPopupProps {
   connector: OmniConnector;

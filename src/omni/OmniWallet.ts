@@ -1,11 +1,12 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
-import { openAuthPopup } from "../ui/AuthPopup";
+import { openAuthPopup } from "../ui/connect/AuthPopup";
 import { OmniConnector } from "./OmniConnector";
 import IntentsBuilder from "./builder";
 import { Intents } from "./Intents";
 import { ReviewFee } from "./fee";
 import { Token } from "./token";
+import { OmniToken } from "./chains";
 
 export interface AuthCommitment {
   tradingAddress: string;
@@ -19,10 +20,20 @@ export interface AuthCommitment {
 export enum WalletType {
   NEAR = 1010,
   EVM = 1,
+  OMNI = -4,
   SOLANA = 1001,
   STELLAR = 1100,
   TON = 1111,
-  COSMOS = -20,
+  COSMOS = 4444118,
+
+  Btc = -6,
+  Tron = -7,
+  Zcash = -8,
+  Xrp = -9,
+  Doge = -10,
+  Ada = -11,
+  Aptos = -12,
+  Sui = -13,
 }
 
 export interface SignedAuth {
@@ -63,11 +74,15 @@ export abstract class OmniWallet {
     return true;
   }
 
+  get icon() {
+    return this.connector?.icon;
+  }
+
   get intents() {
     return new IntentsBuilder().attachWallet(this);
   }
 
-  async pay({ token, amount, recipient, paymentId }: { token: Token; amount: number; recipient: string; paymentId: string }) {
+  async pay({ token, amount, recipient, paymentId }: { token: OmniToken; amount: number; recipient: string; paymentId: string }) {
     const nonce = new Uint8Array(sha256(new TextEncoder().encode(paymentId))).slice(0, 32);
     return this.intents.attachNonce(nonce).transfer({ recipient, token, amount }).execute();
   }
@@ -80,6 +95,7 @@ export abstract class OmniWallet {
   }
 
   async getAssets() {
+    if (!this.omniAddress) return {};
     const assets = await Intents.getIntentsAssets(this.omniAddress);
     const balances = await Intents.getIntentsBalances(assets, this.omniAddress);
     return balances;

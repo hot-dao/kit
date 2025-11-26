@@ -3,35 +3,41 @@ import { TxRaw } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
 import { StargateClient } from "@cosmjs/stargate";
 import { hex } from "@scure/base";
 
+import { WalletType } from "../omni/OmniWallet";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import CosmosWallet from "./wallet";
 
 export interface CosmosConnectorOptions {
-  rpcs: Record<string, string>;
-  chains: string[];
+  config: { chain: string; rpc: string; denom: string; prefix: string }[];
 }
 
 export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   type = ConnectorType.WALLET;
+  walletTypes = [WalletType.COSMOS];
   name = "Cosmos Wallet";
   icon = "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
   id = "cosmos";
   isSupported = true;
 
-  chains: string[];
-  rpcs: Record<string, string>;
+  config: { chain: string; rpc: string; denom: string; prefix: string }[];
 
   constructor(options?: CosmosConnectorOptions) {
     super();
 
-    this.rpcs = options?.rpcs || { "juno-1": "https://juno-rpc.publicnode.com" };
-    this.chains = options?.chains || ["cosmoshub-4", "gonka-mainnet", "juno-1"];
     this.options = [{ name: "Keplr", icon: this.icon, id: "keplr" }];
+    this.config = options?.config || [
+      { chain: "juno-1", rpc: "https://juno-rpc.publicnode.com", denom: "ujuno", prefix: "juno" },
+      { chain: "gonka-mainnet", rpc: "https://dev.herewallet.app/api/v1/evm/rpc/4444119", denom: "ngonka", prefix: "gonka" },
+    ];
 
     this.getStorage().then(({ type, address, publicKey }) => {
       if (!address || !publicKey) return;
       if (type === "keplr") this.setKeplrWallet(address, publicKey);
     });
+  }
+
+  getConfig(chain: string) {
+    return this.config.find((c) => c.chain === chain);
   }
 
   async setKeplrWallet(address: string, publicKey: string): Promise<void> {
@@ -44,11 +50,11 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         publicKey: publicKey,
         disconnect: () => keplr.disable(),
         sendTransaction: async (signDoc: any, opts = { preferNoSetFee: true }) => {
-          await keplr.enable(this.chains);
+          await keplr.enable(this.config.map((c) => c.chain));
 
           const account = await keplr.getKey(signDoc.chainId);
           const protoSignResponse = await keplr.signDirect(signDoc.chainId, account.bech32Address, signDoc, opts);
-          const client = await StargateClient.connect(this.rpcs[signDoc.chainId]);
+          const client = await StargateClient.connect(this.getConfig(signDoc.chainId)?.rpc || "");
 
           // Build a TxRaw and serialize it for broadcasting
           const protobufTx = TxRaw.encode({
@@ -69,8 +75,9 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     const keplr = await Keplr.getKeplr();
     if (!keplr) throw new Error("Keplr not found");
 
-    await keplr.enable(this.chains);
-    const account = await keplr.getKey(this.chains[0]);
+    await keplr.enable(this.config.map((c) => c.chain));
+    const account = await keplr.getKey("gonka-mainnet");
+    console.log({ account });
 
     await this.setStorage({ type: "keplr", address: account.bech32Address, publicKey: hex.encode(account.pubKey) });
     this.setKeplrWallet(account.bech32Address, hex.encode(account.pubKey));

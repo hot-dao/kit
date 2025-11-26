@@ -1,7 +1,8 @@
+import { omni } from ".";
 import { TGAS } from "./fee";
 import { Intents } from "./Intents";
 import { OmniWallet } from "./OmniWallet";
-import { Token } from "./token";
+import { OmniToken } from "./chains";
 
 export interface TransferIntent {
   intent: "transfer";
@@ -14,6 +15,25 @@ export interface TokenDiffIntent {
   token_diff: Record<string, string>;
 }
 
+export interface MtWithdrawIntent {
+  intent: "mt_withdraw";
+  amounts: string[];
+  receiver_id: string;
+  token_ids: string[];
+  token: string;
+  memo?: string;
+  msg?: string;
+}
+
+export interface FtWithdrawIntent {
+  intent: "ft_withdraw";
+  memo?: string;
+  receiver_id: string;
+  token: string;
+  amount: string;
+  msg?: string;
+}
+
 export interface AuthCallIntent {
   min_gas: string;
   attached_deposit: string;
@@ -24,7 +44,7 @@ export interface AuthCallIntent {
 
 class IntentsBuilder {
   hashes: string[] = [];
-  intents: (TransferIntent | TokenDiffIntent | AuthCallIntent)[] = [];
+  intents: (TransferIntent | MtWithdrawIntent | FtWithdrawIntent | TokenDiffIntent | AuthCallIntent)[] = [];
   nonce?: Uint8Array;
   deadline?: Date;
   signer?: OmniWallet;
@@ -41,10 +61,11 @@ class IntentsBuilder {
     return this;
   }
 
-  transfer(args: { recipient: string; token: Token; amount: number | bigint }) {
-    const amount = (typeof args.amount === "number" ? args.token.int(args.amount) : args.amount).toString();
+  transfer(args: { recipient: string; token: OmniToken; amount: number | bigint }) {
+    const omniToken = omni.omni(args.token);
+    const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
     const intent: TransferIntent = {
-      tokens: { [args.token.omniAddress]: amount },
+      tokens: { [omniToken.omniAddress]: amount },
       receiver_id: args.recipient.toLowerCase(),
       intent: "transfer",
     };
@@ -53,17 +74,58 @@ class IntentsBuilder {
     return this;
   }
 
-  tokenDiff(args: { from: Token; to: Token; fromAmount: number | bigint; toAmount: number | bigint }) {
-    const fromAmount = (typeof args.fromAmount === "number" ? args.from.int(args.fromAmount) : args.fromAmount).toString();
-    const toAmount = (typeof args.toAmount === "number" ? args.to.int(args.toAmount) : args.toAmount).toString();
+  tokenDiff(args: Record<OmniToken, bigint | number>) {
+    const parse = (token: OmniToken, amount: bigint | number): [string, string] => {
+      if (typeof amount === "number") return [token.toString(), omni.omni(token).int(amount).toString()];
+      return [token.toString(), amount.toString()];
+    };
 
     const intent: TokenDiffIntent = {
-      token_diff: { [args.from.omniAddress]: fromAmount, [args.to.omniAddress]: toAmount },
+      token_diff: Object.fromEntries(Object.entries(args).map(([token, amount]) => parse(token as OmniToken, amount))),
       intent: "token_diff",
     };
 
     this.intents.push(intent);
     return this;
+  }
+
+  withdraw(args: { token: OmniToken; amount: number | bigint; receiver: string; memo?: string; msg?: string }) {
+    const omniToken = omni.omni(args.token);
+    const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
+    const [standart, ...tokenParts] = args.token.split(":");
+
+    if (standart === "nep245") {
+      const mtContract = tokenParts[0];
+      const tokenId = tokenParts.slice(1).join(":");
+      const intent: MtWithdrawIntent = {
+        intent: "mt_withdraw",
+        amounts: [amount],
+        receiver_id: args.receiver,
+        token_ids: [tokenId],
+        token: mtContract,
+        memo: args.memo,
+        msg: args.msg,
+      };
+
+      this.intents.push(intent);
+      return this;
+    }
+
+    if (standart === "nep141") {
+      const intent: FtWithdrawIntent = {
+        intent: "ft_withdraw",
+        receiver_id: args.receiver,
+        token: tokenParts.join(":"),
+        amount: amount,
+        memo: args.memo,
+        msg: args.msg,
+      };
+
+      this.intents.push(intent);
+      return this;
+    }
+
+    throw new Error(`Unsupported token: ${args.token}`);
   }
 
   attachHashes(hashes: string[]) {

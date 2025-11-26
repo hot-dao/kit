@@ -5,8 +5,8 @@ import { makeObservable, observable } from "mobx";
 
 import CosmosWallet from "../cosmos/wallet";
 import { defaultTokens } from "./list";
-import { OmniWallet } from "./OmniWallet";
-import { Network } from "./chains";
+import { OmniWallet, WalletType } from "./OmniWallet";
+import { Network, OmniToken } from "./chains";
 import { ReviewFee } from "./fee";
 import { Token } from "./token";
 
@@ -25,6 +25,14 @@ export const bridge = new HotBridge({
       nativeToken: "ujuno",
       chainId: "juno-1",
       prefix: "juno",
+    },
+    [Network.Gonka]: {
+      contract: "gonka1nxpv5rzquchehj68lp7jmf09sflr3kescvvt77nspt0xw2s3lmlqm4la4v",
+      rpc: "https://dev.herewallet.app/api/v1/evm/rpc/4444119",
+      gasLimit: 200000n,
+      nativeToken: "ngonka",
+      chainId: "gonka-mainnet",
+      prefix: "gonka",
     },
   },
 });
@@ -49,13 +57,13 @@ export type BridgeReview = {
   slippage: number;
   receiver: string;
   fee: ReviewFee;
-  qoute: QuoteResponse["quote"];
+  qoute: QuoteResponse["quote"] | "withdraw" | "deposit";
   status: "pending" | "success" | "failed";
   statusMessage: string | null;
 };
 
 class Omni {
-  public tokens = defaultTokens.map((t: any) => new Token(t));
+  public tokens = defaultTokens.flatMap((t: any) => [new Token(t), new Token({ ...t, omni: true })]);
 
   constructor() {
     makeObservable(this, {
@@ -63,36 +71,18 @@ class Omni {
     });
   }
 
-  token(chain: number, address: string): Token | null {
-    return this.tokens.find((t) => t.chain === chain && t.address === address) ?? null;
+  omni(id: OmniToken): Token {
+    return this.tokens.find((t) => t.address === id)!;
   }
 
-  bySymbol(token: string, chain?: number): Token {
-    return this.tokens.find((t) => t.symbol === token && (chain == null || t.chain === chain))!;
-  }
-
-  juno(chain?: number): Token {
-    return this.bySymbol("JUNO", chain);
-  }
-
-  usdt(chain?: number): Token {
-    return this.bySymbol("USDT", chain);
-  }
-
-  usdc(chain?: number): Token {
-    return this.bySymbol("USDC", chain);
-  }
-
-  eth(chain?: number): Token {
-    return this.bySymbol("ETH", chain);
-  }
-
-  near(chain?: number): Token {
-    return this.bySymbol("BTC", chain);
-  }
-
-  sol(chain?: number): Token {
-    return this.bySymbol("SOL", chain);
+  async updateRates() {
+    const map = new Map<string, Token>();
+    this.tokens.forEach((t) => map.set(t.id, t));
+    const tokens = await omni.getTokens();
+    tokens.forEach((t: any) => {
+      if (map.has(t.id)) map.get(t.id)!.usd = t.usd;
+      else this.tokens.push(t);
+    });
   }
 
   async getToken(chain: number, address: string): Promise<string | null> {
@@ -120,7 +110,7 @@ class Omni {
     const { sender, token, amount, receiver, onMessage } = args;
     onMessage("Sending deposit transaction");
 
-    if (utils.isCosmos(token.chain) && sender instanceof CosmosWallet) {
+    if (token.type === WalletType.COSMOS && sender instanceof CosmosWallet) {
       const cosmosBridge = await bridge.cosmos();
       const hash = await cosmosBridge.deposit({
         sendTransaction: async (tx: any) => sender.sendTransaction(tx),
@@ -138,37 +128,21 @@ class Omni {
       await bridge.finishDeposit(deposit);
       onMessage("Deposit finished");
     }
+
+    throw new Error("Unsupported token");
   }
 
-  async withdraw(args: { sender: OmniWallet; relayer?: OmniWallet; token: Token; amount: bigint; receiver: string; onMessage: (message: string) => void }) {
-    const { relayer, sender, token, amount, receiver, onMessage } = args;
-
-    onMessage("Signing withdrawal");
-    const result = await bridge.withdrawToken({
+  async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; receiver: string; onMessage: (message: string) => void }) {
+    const { sender, token, amount, receiver, onMessage } = args;
+    await bridge.withdrawToken({
       signIntents: async (intents: any) => sender.signIntents(intents),
       intentAccount: sender.omniAddress,
       receiver: receiver,
       token: token.address,
       chain: token.chain,
-      gasless: false,
+      gasless: true,
       amount: amount,
     });
-
-    if (result?.nonce) {
-      onMessage("Waiting for withdrawal");
-      const pending = await bridge.getPendingWithdrawal(result.nonce);
-
-      if (utils.isCosmos(pending.chain)) {
-        if (!(relayer instanceof CosmosWallet)) throw new Error("Relayer must be a Cosmos wallet");
-        const cosmosBridge = await bridge.cosmos();
-        onMessage("Sending withdrawal transaction");
-        await cosmosBridge.withdraw({
-          sendTransaction: async (tx: any) => relayer.sendTransaction(tx),
-          sender: relayer.address,
-          ...pending,
-        });
-      }
-    }
   }
 
   async getTokens(): Promise<Token[]> {
@@ -179,27 +153,66 @@ class Omni {
   }
 
   async reviewSwap(request: { sender: OmniWallet; from: Token; to: Token; amount: bigint; receiver: string; slippage: number; type?: "exactIn" | "exactOut" }): Promise<BridgeReview> {
-    const intentFrom = await this.getToken(request.from.chain, request.from.address);
-    const intentTo = await this.getToken(request.to.chain, request.to.address);
+    const { sender, from, to, amount, receiver, slippage, type } = request;
+    const intentFrom = await this.getToken(from.chain, from.address);
+    const intentTo = await this.getToken(to.chain, to.address);
 
     if (!intentFrom) throw new Error("Unsupported token");
     if (!intentTo) throw new Error("Unsupported token");
 
     const deadlineTime = 20 * 60 * 1000;
+    const directChains = [Network.Near, Network.Juno, Network.Gonka];
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
+    const noFee = from.symbol === to.symbol;
 
-    const noFee = request.from.symbol === request.to.symbol;
+    if (directChains.includes(from.chain) && to.chain === Network.Hot && from.omniAddress === to.omniAddress) {
+      const fee = await bridge.getDepositFee({
+        amount: amount,
+        token: from.address,
+        chain: from.chain,
+        sender: sender.address,
+        intentAccount: receiver,
+      });
+
+      return {
+        from: from,
+        to: to,
+        amountIn: amount,
+        amountOut: amount,
+        slippage: slippage,
+        receiver: receiver,
+        statusMessage: null,
+        status: "pending",
+        qoute: "deposit",
+        fee,
+      };
+    }
+
+    if (directChains.includes(to.chain) && from.chain === Network.Hot && from.omniAddress === to.omniAddress) {
+      return {
+        from: from,
+        to: to,
+        amountIn: amount,
+        fee: new ReviewFee({ chain: -4 }),
+        amountOut: amount,
+        slippage: slippage,
+        receiver: receiver,
+        statusMessage: null,
+        status: "pending",
+        qoute: "withdraw",
+      };
+    }
 
     const qoute = await OneClickService.getQuote({
       originAsset: intentFrom,
       destinationAsset: intentTo,
-      slippageTolerance: Math.round(request.slippage * 10_000),
-      swapType: request.type === "exactIn" ? QuoteRequest.swapType.EXACT_INPUT : QuoteRequest.swapType.EXACT_OUTPUT,
-      depositType: request.from.chain === Network.Hot ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
-      depositMode: request.from.chain === Network.Stellar ? QuoteRequest.depositMode.MEMO : QuoteRequest.depositMode.SIMPLE,
-      recipientType: request.to.chain === Network.Hot ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
+      slippageTolerance: Math.round(slippage * 10_000),
+      swapType: type === "exactIn" ? QuoteRequest.swapType.EXACT_INPUT : QuoteRequest.swapType.EXACT_OUTPUT,
+      depositType: from.chain === Network.Hot ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
+      depositMode: from.chain === Network.Stellar ? QuoteRequest.depositMode.MEMO : QuoteRequest.depositMode.SIMPLE,
+      recipientType: to.chain === Network.Hot ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
       refundType: QuoteRequest.refundType.ORIGIN_CHAIN, // : QuoteRequest.refundType.INTENTS,
-      refundTo: request.sender.address,
+      refundTo: sender.address,
       appFees: noFee ? [] : [{ recipient: "intents.tg", fee: 25 }],
       amount: request.amount.toString(),
       referral: "intents.tg",
@@ -230,6 +243,16 @@ class Omni {
   }
 
   async makeSwap(sender: OmniWallet, review: BridgeReview, pending: { log: (message: string) => void }) {
+    if (review.qoute === "withdraw") {
+      await this.withdraw({ sender, token: review.to, amount: review.amountIn, receiver: review.receiver, onMessage: pending.log });
+      return review;
+    }
+
+    if (review.qoute === "deposit") {
+      await this.deposit({ sender, token: review.from, amount: review.amountIn, receiver: review.receiver, onMessage: pending.log });
+      return review;
+    }
+
     const depositAddress = review.qoute.depositAddress!;
     const hash = await sender.transfer({
       receiver: depositAddress,
@@ -258,6 +281,7 @@ class Omni {
   }
 
   async checkStatus(review: BridgeReview) {
+    if (review.qoute === "deposit" || review.qoute === "withdraw") return;
     const status = await OneClickService.getExecutionStatus(review.qoute.depositAddress!, review.qoute.depositMemo);
     const message = this.getMessage(status.status);
 

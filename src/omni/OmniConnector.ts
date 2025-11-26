@@ -3,7 +3,7 @@ import { makeObservable, observable, runInAction } from "mobx";
 import { EventEmitter } from "../events";
 import { LocalStorage } from "../storage";
 
-import { OmniWallet } from "./OmniWallet";
+import { OmniWallet, WalletType } from "./OmniWallet";
 import { openLogoutPopup } from "../ui/router";
 
 export enum ConnectorType {
@@ -37,6 +37,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O extends
   abstract silentDisconnect(): Promise<void>;
   abstract connect(id?: string): Promise<void>;
 
+  abstract walletTypes: WalletType[];
   abstract type: ConnectorType;
   abstract name: string;
   abstract icon: string;

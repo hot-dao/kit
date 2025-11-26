@@ -1,8 +1,9 @@
 import UniversalProvider from "@walletconnect/universal-provider";
 import { runInAction } from "mobx";
 
-import { WalletConnectPopup } from "../ui/WCPopup";
+import { WalletConnectPopup } from "../ui/connect/WCPopup";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
+import { WalletType } from "../omni/OmniWallet";
 import { isInjected } from "../hot-wallet/hot";
 import EvmAccount from "./wallet";
 
@@ -23,6 +24,7 @@ class EvmConnector extends OmniConnector<EvmAccount> {
   name = "EVM Wallet";
   icon = "https://storage.herewallet.app/upload/06b43b164683c2cbfe9a9c0699f0953fd56f1f802035e7701ea10501d9e091c6.png";
   type = ConnectorType.WALLET;
+  walletTypes = [WalletType.EVM, WalletType.OMNI];
   id = "evm";
 
   chains = [1, 10, 56, 137, 8453, 42161, 421613, 80001];
@@ -55,7 +57,7 @@ class EvmConnector extends OmniConnector<EvmAccount> {
     }
 
     window.addEventListener<any>("eip6963:announceProvider", async (provider) => {
-      if (this.options.find((t) => t.id === provider.detail.info.uuid)) return;
+      if (this.options.find((t) => t.name === provider.detail.info.name || t.id === provider.detail.info.uuid)) return;
 
       runInAction(() => {
         const info = provider.detail.info;

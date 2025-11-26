@@ -1,6 +1,7 @@
 import { TonConnectUI, TonConnect } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
+import { WalletType } from "../omni/OmniWallet";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import { isInjected } from "../hot-wallet/hot";
 import TonWallet from "./wallet";
@@ -14,6 +15,7 @@ class TonConnector extends OmniConnector<TonWallet> {
   private tonConnect!: TonConnectUI;
 
   type = ConnectorType.WALLET;
+  walletTypes = [WalletType.TON, WalletType.OMNI];
   icon = "https://storage.herewallet.app/upload/3ffa61e237f8e38d390abd60200db8edff3ec2b20aad0cc0a8c7a8ba9c318124.png";
   name = "TON Wallet";
   id = "ton";
