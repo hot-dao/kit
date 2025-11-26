@@ -5,8 +5,8 @@ import { formatter, Token } from "../../omni/token";
 import { HotConnector } from "../../HotConnector";
 import { OmniWallet } from "../../omni/OmniWallet";
 import { Chains } from "../../omni/chains";
-import { OmniToken } from "../../omni/chains";
-import { omni } from "../../omni";
+import { OmniToken } from "../../omni/config";
+import { omni } from "../../omni/exchange";
 
 import TokenCard from "./TokenCard";
 import Popup from "../Popup";

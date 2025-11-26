@@ -1,8 +1,9 @@
 import { HotConnector } from "../HotConnector";
 import { OmniConnector } from "../omni/OmniConnector";
-import { BridgeReview } from "../omni";
+import { BridgeReview } from "../omni/exchange";
 import { Token } from "../omni/token";
-import { OmniWallet, WalletType } from "../omni/OmniWallet";
+import { OmniWallet } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 
 import { present } from "./Popup";
 import Payment from "./payment/Payment";
@@ -28,9 +29,13 @@ export const openLogoutPopup = (connector: OmniConnector): Promise<void> => {
 };
 
 export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
-  return present<BridgeReview>((resolve, reject) => {
-    return <Bridge onClose={reject} hot={hot} setup={setup} />;
+  const controller = { close: () => {} };
+  present<void>((resolve) => {
+    controller.close = resolve;
+    return <Bridge onClose={controller.close} hot={hot} setup={setup} />;
   });
+
+  return controller;
 };
 
 export const openConnector = (hot: HotConnector, connector?: OmniConnector) => {

@@ -3,7 +3,8 @@ import { useState } from "react";
 
 import { HotConnector } from "../../HotConnector";
 import { ConnectorType } from "../../omni/OmniConnector";
-import { OmniWallet, WalletType } from "../../omni/OmniWallet";
+import { OmniWallet } from "../../omni/OmniWallet";
+import { WalletType } from "../../omni/config";
 import { openWalletPicker } from "../router";
 import { formatter } from "../../omni/token";
 import Popup from "../Popup";

@@ -3,7 +3,8 @@ import { Address, comment, SenderArguments, toNano } from "@ton/core";
 import { toUserFriendlyAddress } from "@tonconnect/ui";
 import { base58, base64, hex } from "@scure/base";
 
-import { OmniWallet, WalletType } from "../omni/OmniWallet";
+import { OmniWallet } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { createJettonTransferMsgParams, tonApi } from "./utils";
 import { OmniConnector } from "../omni/OmniConnector";
 import { ReviewFee } from "../omni/fee";

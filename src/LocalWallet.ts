@@ -1,7 +1,8 @@
 import { KeyPair, KeyPairString } from "@near-js/crypto";
 import { base58 } from "@scure/base";
 
-import { OmniWallet, SignedAuth, WalletType } from "./omni/OmniWallet";
+import { OmniWallet, SignedAuth } from "./omni/OmniWallet";
+import { WalletType } from "./omni/config";
 import { ReviewFee } from "./omni/fee";
 import { Token } from "./omni/token";
 

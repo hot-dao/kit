@@ -3,7 +3,7 @@ import { TxRaw } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
 import { StargateClient } from "@cosmjs/stargate";
 import { hex } from "@scure/base";
 
-import { WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import CosmosWallet from "./wallet";
 
@@ -14,10 +14,10 @@ export interface CosmosConnectorOptions {
 export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.COSMOS];
-  name = "Cosmos Wallet";
   icon = "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
-  id = "cosmos";
+  name = "Cosmos Wallet";
   isSupported = true;
+  id = "cosmos";
 
   config: { chain: string; rpc: string; denom: string; prefix: string }[];
 

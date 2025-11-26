@@ -1,9 +1,10 @@
 import { computed, makeObservable, observable, runInAction } from "mobx";
 
 import { openBridge, openConnector, openPayment, openProfile } from "./ui/router";
-import { OmniWallet, WalletType } from "./omni/OmniWallet";
-import { ConnectorType, OmniConnector } from "./omni/OmniConnector";
+import { OmniWallet } from "./omni/OmniWallet";
+import { WalletType } from "./omni/config";
 
+import { ConnectorType, OmniConnector } from "./omni/OmniConnector";
 import NearConnector, { NearConnectorOptions } from "./near/connector";
 import EvmConnector, { EvmConnectorOptions } from "./evm/connector";
 import SolanaConnector, { SolanaConnectorOptions } from "./solana/connector";
@@ -12,8 +13,8 @@ import TonConnector, { TonConnectorOptions } from "./ton/connector";
 import StellarConnector from "./stellar/connector";
 import GoogleConnector from "./google";
 
-import { omni } from "./omni";
-import { OmniToken } from "./omni/chains";
+import { omni } from "./omni/exchange";
+import { OmniToken } from "./omni/config";
 import { Token } from "./omni/token";
 import { GlobalSettings } from "./settings";
 import { EventEmitter } from "./events";
@@ -24,6 +25,7 @@ import SolanaWallet from "./solana/wallet";
 import StellarWallet from "./stellar/wallet";
 import TonWallet from "./ton/wallet";
 import CosmosWallet from "./cosmos/wallet";
+import IntentsBuilder from "./omni/builder";
 
 export const near = (options?: NearConnectorOptions) => new NearConnector(options);
 export const evm = (options?: EvmConnectorOptions) => new EvmConnector(options);
@@ -180,7 +182,7 @@ export class HotConnector {
     const orig = this.tokens.find((t) => t.chain === omni.originalChain && t.address === omni.originalAddress)!;
     const sender = this.wallets.find((t) => t.type === orig.type)!;
 
-    await openBridge(this, {
+    return openBridge(this, {
       sender: sender,
       receipient: this.wallets.find((w) => !!w.omniAddress) as OmniWallet,
       amount: amount,

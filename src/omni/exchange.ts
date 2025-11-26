@@ -1,41 +1,16 @@
 import { GetExecutionStatusResponse, OneClickService, OpenAPI, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { Asset, Networks } from "@stellar/stellar-sdk";
-import { HotBridge, utils } from "@hot-labs/omni-sdk";
 import { makeObservable, observable } from "mobx";
 
 import CosmosWallet from "../cosmos/wallet";
+import { bridge, Network, OmniToken, WalletType } from "./config";
+import { OmniWallet } from "./OmniWallet";
 import { defaultTokens } from "./list";
-import { OmniWallet, WalletType } from "./OmniWallet";
-import { Network, OmniToken } from "./chains";
 import { ReviewFee } from "./fee";
 import { Token } from "./token";
 
 OpenAPI.BASE = "https://1click.chaindefuser.com";
 OpenAPI.TOKEN = "";
-
-export const bridge = new HotBridge({
-  api: ["https://dev.herewallet.app"],
-  solanaRpc: ["https://api0.herewallet.app/api/v1/solana/rpc/1001"],
-  logger: console,
-  cosmos: {
-    [Network.Juno]: {
-      contract: "juno1va9q7gma6l62aqq988gghv4r7u4hnlgm85ssmsdf9ypw77qfwa0qaz7ea4",
-      rpc: "https://juno-rpc.publicnode.com",
-      gasLimit: 200000n,
-      nativeToken: "ujuno",
-      chainId: "juno-1",
-      prefix: "juno",
-    },
-    [Network.Gonka]: {
-      contract: "gonka1nxpv5rzquchehj68lp7jmf09sflr3kescvvt77nspt0xw2s3lmlqm4la4v",
-      rpc: "https://dev.herewallet.app/api/v1/evm/rpc/4444119",
-      gasLimit: 200000n,
-      nativeToken: "ngonka",
-      chainId: "gonka-mainnet",
-      prefix: "gonka",
-    },
-  },
-});
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {

@@ -1,8 +1,9 @@
-import { omni } from ".";
-import { TGAS } from "./fee";
+import { omni } from "./exchange";
 import { Intents } from "./Intents";
 import { OmniWallet } from "./OmniWallet";
-import { OmniToken } from "./chains";
+import { OmniToken } from "./config";
+import { TGAS } from "./fee";
+import { HotConnector } from "../HotConnector";
 
 export interface TransferIntent {
   intent: "transfer";
@@ -49,7 +50,15 @@ class IntentsBuilder {
   deadline?: Date;
   signer?: OmniWallet;
 
+  need = new Map<OmniToken, bigint>();
+  addNeed(token: OmniToken, amount: bigint) {
+    if (!this.need.has(token)) this.need.set(token, 0n);
+    this.need.set(token, this.need.get(token)! + amount);
+    return this;
+  }
+
   authCall(args: { contractId: string; msg: string; attachNear: bigint; tgas: number }) {
+    this.addNeed(OmniToken.NEAR, args.attachNear);
     this.intents.push({
       intent: "auth_call",
       min_gas: (BigInt(args.tgas) * TGAS).toString(),
@@ -70,6 +79,7 @@ class IntentsBuilder {
       intent: "transfer",
     };
 
+    this.addNeed(args.token, BigInt(amount));
     this.intents.push(intent);
     return this;
   }
@@ -93,6 +103,7 @@ class IntentsBuilder {
     const omniToken = omni.omni(args.token);
     const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
     const [standart, ...tokenParts] = args.token.split(":");
+    this.addNeed(args.token, BigInt(amount));
 
     if (standart === "nep245") {
       const mtContract = tokenParts[0];
@@ -148,8 +159,29 @@ class IntentsBuilder {
     return this;
   }
 
-  async execute() {
+  async execute(args?: { connector?: HotConnector }) {
     if (!this.signer) throw new Error("No signer attached");
+
+    console.log(args);
+
+    if (args?.connector) {
+      const balances = await this.signer.getAssets();
+      for (const token of this.need.keys()) {
+        const amount = this.need.get(token) || 0n;
+        const balance = balances[token] || 0n;
+        if (amount === 0n) continue;
+
+        if (balance < amount) {
+          const need = amount - balance;
+          const ft = omni.omni(token as OmniToken);
+          const popup = await args.connector.deposit(token as any, Number(ft.float(need)));
+          await this.signer.waitUntilBalance({ [token]: amount }, this.signer.omniAddress);
+          args.connector.fetchTokens(this.signer);
+          popup.close();
+        }
+      }
+    }
+
     const signed = await this.signer.signIntents(this.intents, { nonce: this.nonce, deadline: this.deadline ? +this.deadline : undefined });
     return await Intents.publishSignedIntents([signed], this.hashes);
   }

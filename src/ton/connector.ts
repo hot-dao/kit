@@ -1,7 +1,7 @@
 import { TonConnectUI, TonConnect } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
-import { WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import { isInjected } from "../hot-wallet/hot";
 import TonWallet from "./wallet";

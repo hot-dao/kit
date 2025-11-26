@@ -2,9 +2,10 @@ import { makeObservable, observable, runInAction } from "mobx";
 
 import { EventEmitter } from "../events";
 import { LocalStorage } from "../storage";
-
-import { OmniWallet, WalletType } from "./OmniWallet";
 import { openLogoutPopup } from "../ui/router";
+
+import { OmniWallet } from "./OmniWallet";
+import { WalletType } from "./config";
 
 export enum ConnectorType {
   WALLET = "wallet",

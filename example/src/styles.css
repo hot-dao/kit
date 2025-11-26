@@ -1,0 +1,18 @@
+body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    color-scheme: light dark;
+    color: rgb(255, 255, 255);
+    background-color: rgb(22, 22, 22);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    color: #fff;
+}

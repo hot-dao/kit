@@ -2,7 +2,8 @@ import { base64, base58, hex } from "@scure/base";
 import { BrowserProvider, ethers, JsonRpcSigner, TransactionRequest } from "ethers";
 
 import { OmniConnector } from "../omni/OmniConnector";
-import { OmniWallet, WalletType } from "../omni/OmniWallet";
+import { OmniWallet } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { ReviewFee } from "../omni/fee";
 import { Token } from "../omni/token";
 import Provider from "./Provider";

@@ -1,12 +1,12 @@
 import { base64, base58, hex, base32 } from "@scure/base";
 import { Asset, Networks, Transaction } from "@stellar/stellar-base";
 
-import { OmniWallet, WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
+import { OmniWallet } from "../omni/OmniWallet";
 import { OmniConnector } from "../omni/OmniConnector";
+import { bridge, Network } from "../omni/config";
 import { formatter, Token } from "../omni/token";
 import { ReviewFee } from "../omni/fee";
-import { Network } from "../omni/chains";
-import { bridge } from "../omni";
 
 interface ProtocolWallet {
   signTransaction: (transaction: Transaction) => Promise<{ signedTxXdr: string }>;

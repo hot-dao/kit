@@ -1,12 +1,12 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
+import { OmniToken, WalletType } from "./config";
 import { openAuthPopup } from "../ui/connect/AuthPopup";
 import { OmniConnector } from "./OmniConnector";
 import IntentsBuilder from "./builder";
 import { Intents } from "./Intents";
 import { ReviewFee } from "./fee";
 import { Token } from "./token";
-import { OmniToken } from "./chains";
 
 export interface AuthCommitment {
   tradingAddress: string;
@@ -15,25 +15,6 @@ export interface AuthCommitment {
   publicKey: string;
   chainId: WalletType;
   seed: string;
-}
-
-export enum WalletType {
-  NEAR = 1010,
-  EVM = 1,
-  OMNI = -4,
-  SOLANA = 1001,
-  STELLAR = 1100,
-  TON = 1111,
-  COSMOS = 4444118,
-
-  Btc = -6,
-  Tron = -7,
-  Zcash = -8,
-  Xrp = -9,
-  Doge = -10,
-  Ada = -11,
-  Aptos = -12,
-  Sui = -13,
 }
 
 export interface SignedAuth {
@@ -92,6 +73,20 @@ export abstract class OmniWallet {
       const signed = await this.signIntentsWithAuth(domain, intents);
       return (await then?.(signed)) ?? (signed as T);
     });
+  }
+
+  async waitUntilBalance(need: Record<string, bigint>, receiver: string, attempts = 0) {
+    if (attempts > 120) throw "Balance is not enough";
+    const assets = Object.keys(need) as string[];
+    const balances = await Intents.getIntentsBalances(assets, receiver);
+    if (assets.every((asset) => (balances[asset] || 0n) >= (need[asset] || 0n))) return;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await this.waitUntilBalance(need, receiver, attempts + 1);
+  }
+
+  async getIntentsBalance(asset: string, receiver: string): Promise<bigint> {
+    const balances = await Intents.getIntentsBalances([asset], receiver);
+    return balances[asset] || 0n;
   }
 
   async getAssets() {

@@ -1,9 +1,11 @@
 import { StargateClient } from "@cosmjs/stargate";
 import { fromBech32, toBech32 } from "@cosmjs/encoding";
 
-import { OmniWallet, SignedAuth, WalletType } from "../omni/OmniWallet";
+import { chainsMap, WalletType } from "../omni/config";
 import { ReviewFee } from "../omni/fee";
-import { chainsMap, Token } from "../omni/token";
+import { Token } from "../omni/token";
+
+import { OmniWallet, SignedAuth } from "../omni/OmniWallet";
 import CosmosConnector from "./connector";
 
 interface ProtocolWallet {
@@ -12,6 +14,9 @@ interface ProtocolWallet {
   address: string;
   publicKey: string;
 }
+
+console.log({ OmniWallet });
+
 export default class CosmosWallet extends OmniWallet {
   readonly type = WalletType.COSMOS;
 

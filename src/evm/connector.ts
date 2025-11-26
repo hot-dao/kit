@@ -3,7 +3,7 @@ import { runInAction } from "mobx";
 
 import { WalletConnectPopup } from "../ui/connect/WCPopup";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
-import { WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { isInjected } from "../hot-wallet/hot";
 import EvmAccount from "./wallet";
 

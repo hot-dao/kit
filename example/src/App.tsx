@@ -1,154 +1,157 @@
-import { useEffect, useState } from "react";
-import { HotConnector, Intents, OmniWallet, OmniToken, omni } from "../../src";
-import uuid4 from "uuid4";
-import { rpc } from "../../src/near/rpc";
+import styled from "styled-components";
+import { observer } from "mobx-react-lite";
 
-export const MultichainExample = () => {
-  const [wallets, setWallets] = useState<OmniWallet[]>([]);
-  const [connector] = useState<HotConnector>(() => {
-    const connector = new HotConnector({
-      projectId: "1292473190ce7eb75c9de67e15aaad99",
-      tonWalletsUrl: "http://localhost:1241/hot-connector/tonconnect-manifest.json",
-      metadata: {
-        name: "Example App",
-        description: "Example App",
-        url: window.location.origin,
-        icons: ["/favicon.ico"],
-      },
-    });
+import { wibe3 } from "./wibe3";
+import { Order } from "./Order";
+import otc from "./otc";
+import { H3, P, PSmall } from "./uikit/text";
+import CreateBuy from "./CreateBuy";
+import CreateSell from "./CreateSell";
+import { formatter } from "../../src/omni/token";
 
-    connector.onConnect(() => setWallets([...connector.wallets]));
-    connector.onDisconnect(() => setWallets([...connector.wallets]));
-    return connector;
-  });
+const App = () => {
+  const hexBalance = wibe3.tokens.reduce((acc, token) => {
+    return wibe3.wallets.reduce((acc, wallet) => {
+      if (token.chain !== -4) return acc;
+      return acc + token.float(wibe3.balance(wallet, token)) * token.usd;
+    }, acc);
+  }, 0);
 
-  useEffect(() => {
-    rpc
-      .viewMethod({ contractId: "escrow.fi.tg", methodName: "escrow_view_all", args: { offset: 0, limit: 10 } })
-      .then((data) => {
-        console.log(data);
-      })
-      .catch((error) => {
-        console.log("error", error);
-      });
-  }, []);
-
-  const deposit = async () => {
-    if (!connector.near) return;
-    connector.near.intents
-      .withdraw({
-        amount: 1,
-        token: OmniToken.JUNO,
-        receiver: "escrow.fi.tg",
-        msg: JSON.stringify({
-          action: "Fund",
-          params: {
-            price: String(10n ** 12n),
-            src_token: OmniToken.JUNO,
-            dst_token: OmniToken.USDT,
-            decimal_from: omni.omni(OmniToken.JUNO).decimals,
-            decimal_to: omni.omni(OmniToken.USDT).decimals,
-            refund_src_to: { receiver_id: "intents.near", memo: "null", msg: connector.near.omniAddress, min_gas: 50000000000000 },
-            receive_dst_to: { receiver_id: "intents.near", memo: "null", msg: connector.near.omniAddress, min_gas: 50000000000000 },
-            receive_src_to: { receiver_id: "intents.near", memo: "null", msg: connector.near.omniAddress, min_gas: 50000000000000 },
-            protocol_fees: { fee: 10000, collector: "intents.tg" },
-            maker: connector.near.omniAddress,
-            deadline: 1835689599000000000,
-            partial_fills_allowed: true,
-            taker_whitelist: [],
-            auth_caller: null,
-            salt: uuid4(),
-          },
-        }),
-      })
-      .execute();
-  };
-
-  const fill = async () => {
-    if (!connector.near) return;
-    connector.near.intents
-      .withdraw({
-        amount: 0.1,
-        token: OmniToken.USDT,
-        receiver: "escrow.fi.tg",
-        msg: JSON.stringify({
-          action: "Fill",
-          params: {
-            deadline: 1835689599000000000,
-            decimal_from: 6,
-            decimal_to: 6,
-            dst_token: "nep141:usdt.tether-token.near",
-            maker: "here_pasha-hot4.tg",
-            partial_fills_allowed: true,
-            price: "1000000000000",
-            protocol_fees: { collector: "intents.tg", fee: 10000 },
-            receive_dst_to: { memo: "null", min_gas: 50000000000000, msg: "here_pasha-hot4.tg", receiver_id: "intents.near" },
-            receive_src_to: { memo: "null", min_gas: 50000000000000, msg: "here_pasha-hot4.tg", receiver_id: "intents.near" },
-            refund_src_to: { memo: "null", min_gas: 50000000000000, msg: "here_pasha-hot4.tg", receiver_id: "intents.near" },
-            salt: "77e34350-6c4d-472b-bf23-9648073b1d43",
-            src_token: "nep245:v2_1.omni.hot.tg:4444118_EFL2FKC",
-          },
-        }),
-      })
-      .execute();
-  };
+  const onchainBalance = wibe3.tokens.reduce((acc, token) => {
+    return wibe3.wallets.reduce((acc, wallet) => {
+      if (token.chain === -4) return acc;
+      return acc + token.float(wibe3.balance(wallet, token)) * token.usd;
+    }, acc);
+  }, 0);
 
   return (
-    <div className="view">
-      <p>Multichain Example</p>
+    <Root>
+      <Header>
+        <img src="images/logo.svg" alt="HEX" height={40} />
 
-      <button className={"input-button"} onClick={() => connector.connect()}>
-        Open connector
-      </button>
+        <Button style={{ marginLeft: "auto" }}>
+          <P style={{ color: "#bcbcbc" }}>Onchain balance</P>
+          <P style={{ color: "#fff" }}>${formatter.amount(onchainBalance, 2)}</P>
+        </Button>
 
-      <button className={"input-button"} onClick={() => connector.openBridge()}>
-        Exchange
-      </button>
+        <Button>
+          <P style={{ color: "#bcbcbc" }}>HEX balance</P>
+          <P style={{ color: "#fff" }}>${formatter.amount(hexBalance, 2)}</P>
+        </Button>
 
-      <button className={"input-button"} onClick={() => connector.deposit(OmniToken.JUNO, 1)}>
-        Deposit 1 JUNO
-      </button>
+        <Button onClick={() => wibe3.connect()}>{wibe3.wallets.length > 0 ? wibe3.wallets[0].address : "Connect wallet"}</Button>
+      </Header>
 
-      <button className={"input-button"} onClick={() => connector.withdraw(OmniToken.JUNO, 1)}>
-        Withdraw 1 JUNO
-      </button>
+      <Main>
+        <Content>
+          <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <H3>
+              GONKA AI <span style={{ fontSize: 14, color: "#bcbcbc" }}>OTC Market</span>
+            </H3>
+          </div>
+        </Content>
 
-      <button className={"input-button"} onClick={() => connector.payment(OmniToken.USDT, 1, "1lluzor.near")}>
-        Pay 1 USDT
-      </button>
+        <Content style={{ marginTop: 32 }}>
+          <div style={{ flex: 1, width: 600 }}>
+            <CreateSell />
 
-      <button className={"input-button"} onClick={() => deposit()}>
-        Deposit Juno to Escrow
-      </button>
+            <TableHeader>
+              <PSmall>Seller</PSmall>
+              <PSmall>Price</PSmall>
+              <PSmall>Amount</PSmall>
+              <PSmall>Amount (USD)</PSmall>
+              <div />
+            </TableHeader>
 
-      <button className={"input-button"} onClick={() => fill()}>
-        Fill Escrow
-      </button>
+            {otc.orders.ask.map((order) => (
+              <Order key={order.params.salt} order={order} type="ask" />
+            ))}
+          </div>
 
-      {wallets.map(
-        (wallet) =>
-          wallet != null && (
-            <div key={wallet.type} style={{ width: 200 }}>
-              <p style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wallet.address}</p>
-              <button
-                className={"input-button"}
-                onClick={async () => {
-                  try {
-                    const { signed } = await wallet.auth("auth", [], async (t) => t);
-                    const result = await Intents.simulateIntents([signed]);
-                    console.log(result);
-                    alert("Verified!");
-                  } catch (e) {
-                    console.error(e);
-                    alert("Something wrong, check DevTools");
-                  }
-                }}
-              >
-                Sign auth intents
-              </button>
-            </div>
-          )
-      )}
-    </div>
+          <div style={{ flex: 1, width: 600 }}>
+            <CreateBuy />
+
+            <TableHeader>
+              <PSmall>Buyer</PSmall>
+              <PSmall>Price</PSmall>
+              <PSmall>Amount</PSmall>
+              <PSmall>Amount (USD)</PSmall>
+              <div />
+            </TableHeader>
+
+            {otc.orders.bid.map((order) => (
+              <Order key={order.params.salt} order={order} type="bid" />
+            ))}
+          </div>
+        </Content>
+      </Main>
+    </Root>
   );
 };
+
+const Root = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-background-container--low, #141518);
+  width: 100vw;
+  height: 100vh;
+`;
+
+const Header = styled.div`
+  width: 100%;
+  height: 70px;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-low, rgba(255, 255, 255, 0.1));
+  background: var(--surface-background-container--low, #141518);
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12px;
+`;
+
+const Main = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+`;
+
+const Content = styled.div`
+  display: flex;
+  max-width: 1200px;
+  width: 100%;
+  gap: 24px;
+`;
+
+const Button = styled.button`
+  border-radius: 8px;
+  background: linear-gradient(0deg, #292929 0%, #292929 100%), linear-gradient(44deg, #1b1b1b 50.48%, #303030 103.9%), linear-gradient(87deg, #fff 4.14%, #c3c3c3 54.6%, #fff 100%);
+  display: flex;
+  padding: 8px 12px;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+`;
+
+export const TableHeader = styled.div`
+  display: grid;
+  width: 100%;
+  margin-top: 16px;
+  background: var(--surface-common-container--low, #212125);
+  grid-template-columns: 2fr 2fr 2fr 2fr 1fr;
+  padding: 12px;
+  gap: 12px;
+`;
+
+export default observer(App);

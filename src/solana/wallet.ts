@@ -13,12 +13,15 @@ import {
   createTransferCheckedInstruction,
 } from "@solana/spl-token";
 
-import { ISolanaProtocolWallet } from "./protocol";
-import { OmniWallet, WalletType } from "../omni/OmniWallet";
+import { Network, WalletType } from "../omni/config";
 import { OmniConnector } from "../omni/OmniConnector";
+import { OmniWallet } from "../omni/OmniWallet";
+
 import { formatter, Token } from "../omni/token";
-import { Chains, Network } from "../omni/chains";
+import { Chains } from "../omni/chains";
 import { ReviewFee } from "../omni/fee";
+
+import { ISolanaProtocolWallet } from "./protocol";
 
 const connection = new Connection("https://api0.herewallet.app/api/v1/evm/rpc/1001");
 

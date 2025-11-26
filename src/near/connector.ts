@@ -1,7 +1,7 @@
 import { NearConnector } from "@hot-labs/near-connect";
 import { runInAction } from "mobx";
 
-import { WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import NearWallet from "./wallet";
 

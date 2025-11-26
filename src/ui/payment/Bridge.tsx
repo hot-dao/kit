@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 
 import { OmniWallet } from "../../omni/OmniWallet";
 import { formatter, Token } from "../../omni/token";
-import { BridgeReview, omni } from "../../omni";
+import { BridgeReview, omni } from "../../omni/exchange";
 import { HotConnector } from "../../HotConnector";
 
 import Popup from "../Popup";

@@ -3,8 +3,10 @@ import { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 
 import { requestWebWallet } from "./hot-wallet/wallet";
-import { OmniWallet, WalletType } from "./omni/OmniWallet";
 import { ConnectorType, OmniConnector } from "./omni/OmniConnector";
+import { OmniWallet } from "./omni/OmniWallet";
+import { WalletType } from "./omni/config";
+
 import EvmWallet from "./evm/wallet";
 import NearWallet from "./near/wallet";
 import SolanaWallet from "./solana/wallet";

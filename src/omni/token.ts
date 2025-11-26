@@ -1,36 +1,7 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
 
-import { WalletType } from "./OmniWallet";
-import { Chains, Network } from "./chains";
-
-export const chainsMap: Record<number, string> = {
-  [Network.Juno]: "juno-1",
-  [Network.Gonka]: "gonka-mainnet",
-  [Network.Monad]: "monad",
-  [Network.Near]: "near",
-  [Network.Eth]: "eth",
-  [Network.Solana]: "sol",
-  [Network.Arbitrum]: "arb",
-  [Network.Base]: "base",
-  [Network.Bnb]: "bsc",
-  [Network.Polygon]: "pol",
-  [Network.Avalanche]: "avax",
-  [Network.Optimism]: "op",
-  [Network.Gnosis]: "gnosis",
-  [Network.Ton]: "ton",
-  [Network.Stellar]: "stellar",
-  [Network.Btc]: "btc",
-  [Network.Berachain]: "bera",
-  [Network.Tron]: "tron",
-  [Network.Zcash]: "zec",
-  [Network.Xrp]: "xrp",
-  [Network.Doge]: "doge",
-  [Network.Ada]: "ada",
-  [Network.Aptos]: "aptos",
-  [Network.Sui]: "sui",
-};
-
-const reverseChainsMap = Object.fromEntries(Object.entries(chainsMap).map(([key, value]) => [value, +key]));
+import { Network, WalletType, reverseChainsMap } from "./config";
+import { Chains } from "./chains";
 
 export interface Token {
   chain: number;

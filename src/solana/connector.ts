@@ -3,7 +3,7 @@ import { Wallet } from "@wallet-standard/base";
 import { runInAction } from "mobx";
 
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
-import { WalletType } from "../omni/OmniWallet";
+import { WalletType } from "../omni/config";
 
 import { isInjected } from "../hot-wallet/hot";
 import SolanaProtocolWallet from "./protocol";

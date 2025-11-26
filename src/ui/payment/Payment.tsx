@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 
 import { HotConnector } from "../../HotConnector";
-import { omni, BridgeReview } from "../../omni";
+import { omni, BridgeReview } from "../../omni/exchange";
 import { Token } from "../../omni/token";
 import Popup from "../Popup";
 
