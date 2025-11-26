@@ -48,6 +48,8 @@ export const Order = ({ order, type }: { order: OrderType; type: "ask" | "bid" }
 
   return (
     <OrderWrap key={order.params.salt} ref={inputRef}>
+      <Progress style={{ width: `${Math.random() * 100}%`, background: type == "ask" ? "#1BC3A9" : "#EE5555" }} />
+
       <Row>
         <P>{order.params.receive_dst_to.msg}</P>
       </Row>
@@ -90,12 +92,22 @@ export const Order = ({ order, type }: { order: OrderType; type: "ask" | "bid" }
   );
 };
 
+const Progress = styled.div`
+  z-index: 1;
+  position: absolute;
+  height: 54px;
+  opacity: 0.1;
+  top: 0;
+  left: 0;
+`;
+
 const EditAmount = styled.div`
   position: absolute;
   width: 100%;
   padding: 12px;
-  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.25);
-  background: var(--surface-common-container--low, #262729);
+  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.5);
+  background: #1b1c1e;
+  z-index: 100000;
   height: 54px;
   top: 55px;
   z-index: 1000;
@@ -112,7 +124,7 @@ const EditAmount = styled.div`
     border: none;
     padding: 12px;
     width: calc(50% - 50px);
-    background: var(--surface-common-container--low, #262729);
+    background: #1b1c1e;
   }
 `;
 

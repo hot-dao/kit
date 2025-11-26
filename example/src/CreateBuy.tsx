@@ -21,7 +21,8 @@ const CreateBuy = () => {
       setIsLoading(true);
       const wallet = wibe3.wallets.find((t) => t.omniAddress);
       if (!wallet) throw "";
-      await otc.fund(wallet, OmniToken.USDT, OmniToken.JUNO, +amount, +price);
+
+      await otc.fund(wallet, OmniToken.USDT, OmniToken.JUNO, +amount, 1 / +price);
       toast.success("GONKA bought successfully");
       setIsLoading(false);
     } catch (error) {

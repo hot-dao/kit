@@ -8,6 +8,7 @@ import { OmniWallet } from "./OmniWallet";
 import { defaultTokens } from "./list";
 import { ReviewFee } from "./fee";
 import { Token } from "./token";
+import NearWallet from "../near/wallet";
 
 OpenAPI.BASE = "https://1click.chaindefuser.com";
 OpenAPI.TOKEN = "";
@@ -85,6 +86,8 @@ class Omni {
     const { sender, token, amount, receiver, onMessage } = args;
     onMessage("Sending deposit transaction");
 
+    console.log(args);
+
     if (token.type === WalletType.COSMOS && sender instanceof CosmosWallet) {
       const cosmosBridge = await bridge.cosmos();
       const hash = await cosmosBridge.deposit({
@@ -102,6 +105,16 @@ class Omni {
       onMessage("Finishing deposit");
       await bridge.finishDeposit(deposit);
       onMessage("Deposit finished");
+    }
+
+    if (token.type === WalletType.NEAR && sender instanceof NearWallet) {
+      await bridge.near.deposit({
+        sendTransaction: async (tx: any) => sender.sendTransaction(tx),
+        intentAccount: receiver,
+        sender: sender.address,
+        token: token.address,
+        amount: amount,
+      });
     }
 
     throw new Error("Unsupported token");
