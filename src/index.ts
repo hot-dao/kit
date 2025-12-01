@@ -1,10 +1,12 @@
 export { bridge, Network, OmniToken, WalletType } from "./omni/config";
+export { formatter } from "./omni/token";
 
 export { OmniWallet } from "./omni/OmniWallet";
 export { OmniConnector } from "./omni/OmniConnector";
 export { Intents } from "./omni/Intents";
 export { ReviewFee } from "./omni/fee";
 export { Token } from "./omni/token";
+export { TGAS } from "./near/rpc";
 
 export { default as EvmConnector } from "./evm/connector";
 export { default as SolanaConnector } from "./solana/connector";
@@ -24,3 +26,5 @@ export { near, evm, solana, stellar, ton, google } from "./HotConnector";
 export { HotConnector } from "./HotConnector";
 
 import "./hot-wallet";
+
+export { Bridge as BridgeWidget } from "./ui/payment/Bridge";

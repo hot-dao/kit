@@ -275,9 +275,8 @@ export class HotConnector {
       })[0];
 
     return openBridge(this, {
-      title: settings?.title,
+      //  title: settings?.title,
       sender: sender,
-      readonlyFrom: true,
       recipient: recipient,
       to: originalToken,
       from: omniToken,

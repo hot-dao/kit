@@ -3,7 +3,6 @@ import styled from "styled-components";
 import { useEffect } from "react";
 
 import { LogoutIcon } from "../icons/logout";
-import { WithdrawIcon } from "../icons/withdraw";
 import { openBridge, openConnector } from "../router";
 import { HotConnector } from "../../HotConnector";
 import { formatter } from "../../omni/token";
@@ -25,19 +24,21 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
     .map(({ token, wallet, balance }) => {
       totalBalance += token.float(balance) * token.usd;
       if (balance === 0n) return null;
-      return (
-        <TokenCard //
-          control={token.chain === -4 ? <WithdrawIcon /> : null}
-          onSelect={() => {
-            if (token.chain === -4) hot.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
-            else openBridge(hot, { title: "Exchange", sender: wallet, from: token });
-          }}
-          key={`${wallet.type}:${wallet.address}:${token.id}`}
-          wallet={wallet}
-          token={token}
-          hot={hot}
-        />
-      );
+      return {
+        chain: token.chain,
+        component: (
+          <TokenCard //
+            onSelect={() => {
+              if (token.chain === -4) hot.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
+              else openBridge(hot, { title: "Exchange", sender: wallet, from: token });
+            }}
+            key={`${wallet.type}:${wallet.address}:${token.id}`}
+            wallet={wallet}
+            token={token}
+            hot={hot}
+          />
+        ),
+      };
     });
 
   useEffect(() => {
@@ -70,23 +71,30 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         </p>
       </div>
 
-      {tokensList.some((t) => t != null) && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            marginLeft: -8,
-            marginTop: 16,
-            width: "calc(100% + 16px)",
-          }}
-        >
-          {tokensList}
-        </div>
+      {tokensList.filter((t) => t != null && t.chain === -4).length && (
+        <TokenCards style={{ marginTop: 16 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Tokens to withdraw</p>
+          {tokensList.filter((t) => t != null && t.chain === -4).map((t) => t?.component)}
+          <div style={{ marginTop: 8, marginBottom: -4, width: "100%", height: 1, background: "#383d42" }}></div>
+        </TokenCards>
+      )}
+
+      {tokensList.filter((t) => t != null && t.chain !== -4).length && (
+        <TokenCards style={{ marginTop: 16 }}>
+          {/* Tokens to exchange */}
+          {tokensList.filter((t) => t != null && t.chain !== -4).map((t) => t?.component)}
+        </TokenCards>
       )}
     </Popup>
   );
 });
+
+const TokenCards = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+`;
 
 const WalletCard = styled.div`
   display: flex;
