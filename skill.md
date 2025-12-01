@@ -5,7 +5,7 @@
 ### 1. Install Dependencies
 
 ```bash
-yarn add @hot-labs/wibe3@0.5.0-beta.9
+yarn add @hot-labs/wibe3@1.0.0
 yarn add react react-dom react-router-dom styled-components
 yarn add -D vite @vitejs/plugin-react vite-plugin-node-polyfills typescript
 ```
