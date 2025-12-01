@@ -1,13 +1,13 @@
 export const defaultTokens = [
-  {
-    assetId: "nep245:v2_1.omni.hot.tg:4444118_EFL2FKC",
-    decimals: 6,
-    blockchain: "juno-1",
-    symbol: "JUNO",
-    price: 0.999678,
-    priceUpdatedAt: "2025-11-23T18:01:00.349Z",
-    contractAddress: "ujuno",
-  },
+  // {
+  //   assetId: "nep245:v2_1.omni.hot.tg:4444118_EFL2FKC",
+  //   decimals: 6,
+  //   blockchain: "juno-1",
+  //   symbol: "JUNO",
+  //   price: 0.999678,
+  //   priceUpdatedAt: "2025-11-23T18:01:00.349Z",
+  //   contractAddress: "ujuno",
+  // },
   {
     assetId: "nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
     decimals: 9,

@@ -62,6 +62,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           const protoSignResponse = await keplr.signDirect(signDoc.chainId, account.bech32Address, signDoc, opts);
           const client = await StargateClient.connect(this.getConfig(signDoc.chainId)?.rpc || "");
 
+          console.log({ signDoc, account, opts, protoSignResponse });
+
           // Build a TxRaw and serialize it for broadcasting
           const protobufTx = TxRaw.encode({
             bodyBytes: protoSignResponse.signed.bodyBytes,

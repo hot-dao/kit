@@ -1,5 +1,5 @@
 import { GetExecutionStatusResponse, OneClickService, ApiError, OpenAPI, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
-import { makeObservable, observable } from "mobx";
+import { makeObservable, observable, runInAction } from "mobx";
 import { utils } from "@hot-labs/omni-sdk";
 
 import NearWallet from "../near/wallet";
@@ -60,23 +60,18 @@ export class Exchange {
   public tokens = defaultTokens.flatMap((t: any) => [new Token(t), new Token({ ...t, omni: true })]);
 
   constructor(readonly wibe3: HotConnector) {
-    makeObservable(this, {
-      tokens: observable,
-    });
+    makeObservable(this, { tokens: observable });
+    this.startTokenPolling();
   }
 
   omni(id: OmniToken): Token {
     return this.tokens.find((t) => t.address === id)!;
   }
 
-  async updateRates() {
-    const map = new Map<string, Token>();
-    this.tokens.forEach((t) => map.set(t.id, t));
-    const tokens = await this.getTokens();
-    tokens.forEach((t) => {
-      if (map.has(t.id)) map.get(t.id)!.usd = t.usd;
-      else this.tokens.push(t);
-    });
+  async startTokenPolling() {
+    await this.refreshTokens().catch(() => {});
+    await wait(10_000);
+    await this.startTokenPolling();
   }
 
   async getToken(chain: number, address: string): Promise<string | null> {
@@ -144,11 +139,28 @@ export class Exchange {
     });
   }
 
+  async refreshTokens() {
+    const list = await OneClickService.getTokens();
+    list.unshift({
+      blockchain: "gonka-mainnet" as any,
+      priceUpdatedAt: "2025-11-23T18:01:00.349Z",
+      assetId: OmniToken.GONKA,
+      contractAddress: "ngonka",
+      symbol: "GNK",
+      decimals: 9,
+      price: 0,
+    });
+
+    runInAction(() => {
+      this.tokens = list.flatMap((t) => [new Token(t), new Token({ ...t, omni: true })]);
+    });
+
+    return this.tokens;
+  }
+
   async getTokens(): Promise<Token[]> {
     if (this.tokens.length > 0) return this.tokens;
-    const list = await OneClickService.getTokens();
-    this.tokens = list.map((t) => new Token(t));
-    return this.tokens;
+    return this.refreshTokens();
   }
 
   async withdrawFee(request: BridgeRequest) {

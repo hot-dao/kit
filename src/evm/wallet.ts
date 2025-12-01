@@ -44,11 +44,12 @@ class EvmWallet extends OmniWallet {
   }
 
   async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
+    const native = await this.fetchBalance(chain, "native");
     try {
       const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist, chain_id: chain }), method: "POST" });
       if (!res.ok) throw new Error("Failed to fetch balances");
       const { balances } = await res.json();
-      return balances;
+      return { ...balances, native };
     } catch {
       const balances = await Promise.all(
         whitelist.map(async (token) => {
@@ -56,7 +57,7 @@ class EvmWallet extends OmniWallet {
           return [token, balance];
         })
       );
-      return Object.fromEntries(balances);
+      return { ...Object.fromEntries(balances), native };
     }
   }
 

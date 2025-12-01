@@ -182,6 +182,7 @@ export class HotConnector {
     const key = `${wallet.type}:${wallet.address}`;
 
     if (token.type === WalletType.OMNI) {
+      if (!wallet.omniAddress) return 0n;
       const balances = await Intents.getIntentsBalances([token.address], wallet.omniAddress);
       runInAction(() => (this.balances[key][token.id] = balances[token.address]));
       return balances[token.address] ?? 0n;
@@ -208,7 +209,7 @@ export class HotConnector {
 
   async fetchTokens(wallet: OmniWallet) {
     const key = `${wallet.type}:${wallet.address}`;
-    if (!this.balances[key]) this.balances[key] = {};
+    if (!this.balances[key]) runInAction(() => (this.balances[key] = {}));
     const tokens = this.tokens.filter((t) => t.type === wallet.type && t.type !== WalletType.OMNI);
 
     // Group tokens by their chain
@@ -220,7 +221,6 @@ export class HotConnector {
 
     Object.entries(groups).forEach(async ([chain, tokens]) => {
       const balances = await wallet.fetchBalances(+chain, tokens);
-      console.log(chain, balances);
       runInAction(() => {
         for (const [token, balance] of Object.entries(balances)) {
           this.balances[key][`${chain}:${token}`] = balance;
