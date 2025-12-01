@@ -51,14 +51,16 @@ export const Payment = observer(({ connector, recipient, token: need, amount: ne
     <Popup onClose={onClose} header={<p>{title}</p>}>
       {connector.walletsTokens.map(({ token, wallet, balance }) => {
         if (token.id === need.id) return null;
+        const availableBalance = token.float(balance) - token.reserve;
 
         if (need.originalChain === Network.Gonka || need.originalChain === Network.Juno) {
           if (token.id === need.id) return null;
           if (token.originalAddress !== need.originalAddress) return null;
+          if (availableBalance <= need.float(needAmount)) return null;
           return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
         }
 
-        if (token.float(balance) * token.usd <= need.usd * need.float(needAmount)) return null;
+        if (availableBalance * token.usd <= need.usd * need.float(needAmount)) return null;
         return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
       })}
 

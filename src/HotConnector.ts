@@ -163,7 +163,7 @@ export class HotConnector {
 
   balance(wallet?: OmniWallet, token?: Token) {
     if (!wallet || !token) return 0n;
-    return this.balances[`${wallet.type}:${wallet.address}`][token.id] ?? 0n;
+    return this.balances[`${wallet.type}:${wallet.address}`]?.[token.id] ?? 0n;
   }
 
   omniBalance(token: OmniToken) {

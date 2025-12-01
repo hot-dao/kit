@@ -3,9 +3,9 @@ import { runInAction } from "mobx";
 
 import { WalletType } from "../omni/config";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
-import NearWallet from "./wallet";
 import { HotConnector } from "../HotConnector";
 import { OmniWallet } from "../omni/OmniWallet";
+import NearWallet from "./wallet";
 
 export interface NearConnectorOptions {
   connector?: NearConnector;

@@ -373,7 +373,7 @@ export class Exchange {
       wait(1000).then(() => this.wibe3.fetchToken(review.to, sender));
     }
 
-    pending.log("Checking status");
+    pending.log("Processing...");
     const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
     if (!recipientWallet) return await this.processing(review);
 

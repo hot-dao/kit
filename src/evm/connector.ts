@@ -69,7 +69,6 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: UniversalProvide
       });
 
       const connected = await this.getConnectedWallet();
-      console.log("connected", connected);
       if (connected.type === "wallet" && connected.id === provider.detail.info.rdns) {
         try {
           const [address] = await provider.detail.provider.request({ method: "eth_requestAccounts" });
@@ -131,10 +130,10 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: UniversalProvide
   }
 
   async connect(id: string) {
-    const provider = await this.provider;
-    if (provider?.session) await provider.disconnect();
+    const walletConnectProvider = await this.provider;
+    if (walletConnectProvider?.session) await walletConnectProvider.disconnect();
 
-    provider?.cleanupPendingPairings();
+    walletConnectProvider?.cleanupPendingPairings();
     const wallet = this.options.find((t) => t.id === id);
     if (!wallet) throw new Error("Wallet not found");
 
@@ -142,8 +141,7 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: UniversalProvide
       const [address] = await wallet.provider.request<string[]>({ method: "eth_requestAccounts" });
       if (!address) throw "No address found";
       this.setStorage({ type: "wallet", id: wallet.id });
-
-      const request = (t: any) => provider!.request(t);
+      const request = (t: any) => wallet.provider!.request(t);
       return this.setWallet(new EvmWallet(this, { address, request }));
     } catch (e) {
       this.disconnect();

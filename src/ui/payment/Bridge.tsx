@@ -90,9 +90,15 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
   }, [from, to]);
 
   useEffect(() => {
-    if (initialSender.current == null) setSender(hot.wallets.find((w) => w.type === from.type));
-    if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet));
-    else if (initialRecipient.current == null) setRecipient(Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)));
+    if (initialSender.current == null) {
+      if (from.type === WalletType.OMNI) setSender(hot.priorityWallet);
+      else setSender(hot.wallets.find((w) => w.type === from.type));
+    }
+
+    if (initialRecipient.current == null) {
+      if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet));
+      else setRecipient(Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)));
+    }
   }, [to, from, hot.wallets, hot.priorityWallet]);
 
   const reviewId = useRef(uuid4());

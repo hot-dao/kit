@@ -147,7 +147,7 @@ export default class NearWallet extends OmniWallet {
       const locked = BigInt(state.locked);
       const total = BigInt(state.amount) + locked;
       const available = total - (locked > usedOnStorage ? locked : usedOnStorage);
-      return available;
+      return available < 0n ? 0n : available;
     }
 
     const balance = await rpc.viewMethod({
