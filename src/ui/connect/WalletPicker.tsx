@@ -1,19 +1,34 @@
 import { useState } from "react";
+import { observer } from "mobx-react-lite";
 
+import { ImageView } from "../payment/TokenCard";
+import { OmniWallet } from "../../omni/OmniWallet";
 import { OmniConnector, OmniConnectorOption } from "../../omni/OmniConnector";
-import { PopupOption, PopupOptionInfo } from "../styles";
+import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
 import Popup from "../Popup";
 
-const WalletPicker = ({ initialConnector, onClose }: { initialConnector: OmniConnector | null; onClose: () => void }) => {
-  const [connector, setConnector] = useState<OmniConnector | null>(initialConnector ?? null);
+interface WalletPickerProps {
+  initialConnector: OmniConnector | null;
+  onSelect?: (wallet: OmniWallet) => void;
+  onClose: () => void;
+}
+
+export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: WalletPickerProps) => {
+  const [connector] = useState<OmniConnector | null>(initialConnector ?? null);
   const [wallet, setWallet] = useState<OmniConnectorOption | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   if (wallet != null) {
     return (
-      <Popup header={<p>Connecting</p>} onClose={onClose}>
-        <div style={{ width: "100%", height: 300, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 }}>
-          <img src={wallet.icon} alt={wallet.name} style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 16, background: "#000" }} />
-          <h3 style={{ fontSize: 32, fontWeight: "bold", textAlign: "center" }}>{wallet.name}</h3>
+      <Popup onClose={onClose}>
+        <div style={{ width: "100%", height: 300, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 0 }}>
+          <ImageView style={{ marginTop: "auto" }} src={wallet.icon} alt={wallet.name} size={100} />
+          <h3 style={{ fontSize: 32, margin: "12px 0 0", fontWeight: "bold", textAlign: "center" }}>{wallet.name}</h3>
+          <p style={{ textAlign: "center" }}>{error}</p>
+          <PopupButton style={{ marginTop: "auto" }} onClick={() => window.open(wallet.download, "_blank")}>
+            {loading ? "Connecting..." : "Get wallet"}
+          </PopupButton>
         </div>
       </Popup>
     );
@@ -26,12 +41,22 @@ const WalletPicker = ({ initialConnector, onClose }: { initialConnector: OmniCon
           <PopupOption
             key={wallet.id}
             onClick={async () => {
-              setWallet(wallet);
-              await connector.connect(wallet.id);
-              onClose();
+              try {
+                setLoading(true);
+                setError(null);
+                setWallet(wallet);
+                const instance = await connector.connect(wallet.id);
+                onSelect?.(instance);
+                onClose();
+              } catch (e) {
+                console.error(e);
+                setError(e instanceof Error ? e.message : "Unknown error");
+              } finally {
+                setLoading(false);
+              }
             }}
           >
-            <img src={wallet.icon} style={{ background: "#000" }} />
+            <ImageView src={wallet.icon} alt={wallet.name} size={44} />
             <PopupOptionInfo className="connect-item-info">
               <p style={{ fontSize: 20, fontWeight: "bold" }}>{wallet.name}</p>
             </PopupOptionInfo>
@@ -40,6 +65,4 @@ const WalletPicker = ({ initialConnector, onClose }: { initialConnector: OmniCon
       </Popup>
     );
   }
-};
-
-export default WalletPicker;
+});

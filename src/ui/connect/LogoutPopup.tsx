@@ -1,4 +1,4 @@
-import React from "react";
+import { observer } from "mobx-react-lite";
 
 import Popup from "../Popup";
 import { OmniConnector } from "../../omni/OmniConnector";
@@ -10,13 +10,11 @@ interface LogoutPopupProps {
   onReject: () => void;
 }
 
-const LogoutPopup: React.FC<LogoutPopupProps> = ({ connector, onApprove, onReject }) => {
+export const LogoutPopup = observer(({ connector, onApprove, onReject }: LogoutPopupProps) => {
   return (
     <Popup header={<p>Disconnect {connector.name}</p>} onClose={onReject}>
       <p style={{ textAlign: "center", color: "#fff" }}>Your local session will be cleared, see you there!</p>
       <PopupButton onClick={onApprove}>Bye-bye</PopupButton>
     </Popup>
   );
-};
-
-export default LogoutPopup;
+});

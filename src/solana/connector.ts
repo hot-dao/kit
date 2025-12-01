@@ -3,14 +3,14 @@ import { Wallet } from "@wallet-standard/base";
 import { runInAction } from "mobx";
 
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
+import { HotConnector } from "../HotConnector";
+import { OmniWallet } from "../omni/OmniWallet";
+import { isInjected } from "../hot-wallet/hot";
 import { WalletType } from "../omni/config";
 
-import { isInjected } from "../hot-wallet/hot";
 import SolanaProtocolWallet from "./protocol";
 import { getWallets } from "./wallets";
 import SolanaWallet from "./wallet";
-import { HotConnector } from "../HotConnector";
-import { OmniWallet } from "../omni/OmniWallet";
 
 export interface SolanaConnectorOptions {
   projectId?: string;
@@ -24,7 +24,7 @@ export interface SolanaConnectorOptions {
 
 const wallets = getWallets();
 
-class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name: string; icon: string; id: string }> {
+class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name: string; icon: string; id: string; download?: string }> {
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.SOLANA, WalletType.OMNI];
   name = "Solana Wallet";
@@ -33,12 +33,12 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name
 
   provider?: Promise<UniversalProvider>;
 
-  constructor(wibe3: HotConnector, options?: SolanaConnectorOptions) {
+  constructor(wibe3: HotConnector, readonly args?: SolanaConnectorOptions) {
     super(wibe3);
 
     wallets.get().forEach((t) => {
       if (this.options.find((w) => w.name === t.name)) return;
-      this.options.push({ wallet: t, name: t.name, icon: t.icon, id: t.name });
+      this.options.push({ wallet: t, name: t.name, icon: t.icon, id: t.name, download: t.url });
     });
 
     this.getConnectedWallet().then(async ({ id }) => {
@@ -52,10 +52,10 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name
       }
     });
 
-    wallets.on("register", async (wallet) => {
+    wallets.on("register", async (wallet: Wallet & { url?: string }) => {
       if (this.options.find((w) => w.id === wallet.name)) return;
       runInAction(() => {
-        this.options.push({ wallet: wallet, name: wallet.name, icon: wallet.icon, id: wallet.name });
+        this.options.push({ wallet: wallet, name: wallet.name, icon: wallet.icon, id: wallet.name, download: wallet.url });
       });
 
       try {
@@ -88,19 +88,20 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet; name
 
     provider?.cleanupPendingPairings();
     const wallet = this.options.find((t) => t.id === id);
-    if (!wallet) return;
+    if (!wallet) throw new Error("Wallet not found");
 
     try {
       this.setStorage({ type: "wallet", id });
       const protocolWallet = await SolanaProtocolWallet.connect(wallet.wallet, { silent: false });
-      this.setWallet(new SolanaWallet(this, protocolWallet));
+      return this.setWallet(new SolanaWallet(this, protocolWallet));
     } catch (e) {
       this.removeStorage();
+      throw e;
     }
   }
 
-  async silentDisconnect() {
-    this.removeStorage();
+  async disconnect() {
+    super.disconnect();
     const provider = await this.provider;
     provider?.disconnect();
   }

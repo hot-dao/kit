@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import React, { useEffect, useRef } from "react";
-import { PopupRoot, ModalContainer, ModalContent, ModalHeader, ModalBody, Footer, GetWalletLink } from "./styles";
+import { PopupRoot, ModalContainer, ModalContent, ModalHeader, ModalBody, Footer, GetWalletLink, ModalOverlay } from "./styles";
 
 export const present = (render: (close: () => void) => React.ReactNode) => {
   const div = document.createElement("div");
@@ -16,7 +16,7 @@ export const present = (render: (close: () => void) => React.ReactNode) => {
   );
 };
 
-const Popup = ({ widget, children, header, onClose }: { widget?: boolean; children: React.ReactNode; header?: React.ReactNode; onClose: () => void }) => {
+const Popup = ({ widget, children, header, onClose, style }: { widget?: boolean; children: React.ReactNode; header?: React.ReactNode; onClose: () => void; style?: React.CSSProperties }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -41,14 +41,17 @@ const Popup = ({ widget, children, header, onClose }: { widget?: boolean; childr
 
   return (
     <PopupRoot>
-      <ModalContainer ref={containerRef} onClick={onClose} style={{ opacity: 0, transition: "all 0.2s ease-in-out" }}>
-        <ModalContent ref={contentRef} onClick={(e) => e.stopPropagation()} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
+      <ModalContainer>
+        <ModalOverlay ref={containerRef} onClick={onClose} style={{ opacity: 0, transition: "all 0.2s ease-in-out" }} />
+        <ModalContent ref={contentRef} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
           {header && <ModalHeader>{header}</ModalHeader>}
-          <ModalBody style={{ overflowX: "hidden" }}>{children}</ModalBody>
+          <ModalBody style={{ overflowX: "hidden", ...style }}>{children}</ModalBody>
           <Footer>
             <img src="https://tgapp.herewallet.app/images/hot/hot-icon.png" alt="HOT Connector" />
             <p>HOT Connector</p>
-            <GetWalletLink>Don't have a wallet?</GetWalletLink>
+            <GetWalletLink href="https://download.hot-labs.org/wibe3" target="_blank">
+              Don't have a wallet?
+            </GetWalletLink>
           </Footer>
         </ModalContent>
       </ModalContainer>

@@ -12,7 +12,7 @@ export const defaultTokens = [
     assetId: "nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
     decimals: 9,
     blockchain: "gonka-mainnet",
-    symbol: "GONKA",
+    symbol: "GNK",
     price: 0,
     priceUpdatedAt: "2025-11-23T18:01:00.349Z",
     contractAddress: "ngonka",

@@ -1,6 +1,6 @@
 {
   "name": "@hot-labs/wibe3",
-  "version": "0.5.0-beta.10",
+  "version": "1.0.0",
   "description": "Wibe3 is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
@@ -40,6 +40,7 @@
     "ethers": "^6.15.0",
     "mobx": "^6.15.0",
     "mobx-react-lite": "^4.1.1",
+    "qr-code-styling": "^1.9.2",
     "styled-components": "^6.1.19"
   },
   "scripts": {
@@ -49,6 +50,7 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid4": "^2.0.3",
     "tsc": "^2.0.4",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",

@@ -1,4 +1,4 @@
-import { SignAndSendTransactionParams, SignAndSendTransactionsParams, SignMessageParams } from "@hot-labs/near-connect";
+import { WalletManifest, SignAndSendTransactionParams, SignAndSendTransactionsParams, SignMessageParams } from "@hot-labs/near-connect";
 import { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 
@@ -31,6 +31,10 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
     this.getStorage().then((accounts: any) => {
       accounts.forEach((account: any) => this.connectWallet(account));
     });
+  }
+
+  createWallet(): Promise<OmniWallet> {
+    throw new Error("Method not implemented.");
   }
 
   connectWallet(account: { type: number; address: string; publicKey: string }) {
@@ -70,7 +74,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
           getAccounts: async () => [{ accountId: account.address, publicKey: account.publicKey }],
           signIn: () => request("near:signIn", {}),
           signOut: async () => {},
-          manifest: {} as any,
+          manifest: {} as unknown as WalletManifest,
         }) as NearWallet
       );
     }
@@ -78,7 +82,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
     if (account.type === WalletType.SOLANA) {
       this.setWallet(
         new SolanaWallet(this, {
-          sendTransaction: async (transaction: any, _: any, options?: any) => await request("solana:sendTransaction", { transaction, options }),
+          sendTransaction: async (transaction: unknown, _: unknown, options?: unknown) => await request("solana:sendTransaction", { transaction, options }),
           signMessage: async (message: string) => await request("solana:signMessage", { message }),
           disconnect: async () => {},
           address: account.address,
@@ -91,6 +95,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
     const accounts = await requestWebWallet()("connect:google", {});
     accounts.forEach((account: { type: number; address: string; publicKey: string }) => this.connectWallet(account));
     this.setStorage(accounts);
+    return this.wallets[0];
   }
 
   async silentDisconnect() {

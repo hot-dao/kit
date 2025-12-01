@@ -54,7 +54,7 @@ const AuthIntentPopupComponent: React.FC<AuthIntentPopupProps> = ({ wallet, onAp
 };
 
 export const openAuthPopup = <T,>(wallet: OmniWallet, then: () => Promise<T>) => {
-  return new Promise((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     present((close) => {
       return (
         <AuthIntentPopupComponent

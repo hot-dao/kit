@@ -1,5 +1,6 @@
 import { SendTransactionRequest, SignDataPayload, SignDataResponse } from "@tonconnect/ui";
 import { Address, comment, SenderArguments, toNano } from "@ton/core";
+import { JettonVerificationType } from "@ton-api/client";
 import { toUserFriendlyAddress } from "@tonconnect/ui";
 import { base58, base64, hex } from "@scure/base";
 
@@ -11,7 +12,7 @@ import { ReviewFee } from "../omni/fee";
 import { Token } from "../omni/token";
 
 interface ProtocolWallet {
-  sendTransaction?: (params: SendTransactionRequest) => Promise<any>;
+  sendTransaction?: (params: SendTransactionRequest) => Promise<unknown>;
   signData?: (params: SignDataPayload) => Promise<SignDataResponse>;
   account: { address: string; publicKey?: string };
 }
@@ -38,7 +39,22 @@ class TonWallet extends OmniWallet {
     return this.wallet.account.publicKey.toLowerCase();
   }
 
-  async fetchBalance(chain: number, address: string) {
+  async fetchBalances(): Promise<Record<string, bigint>> {
+    const native = await this.fetchBalance(1111, "native");
+    const { balances } = await tonApi.accounts.getAccountJettonsBalances(Address.parse(this.address), { supported_extensions: ["custom_payload"] });
+    const list: Record<string, bigint> = {};
+
+    balances.map((data) => {
+      const jetton = data.jetton.address.toString();
+      const isScam = data.walletAddress.isScam || data.jetton.verification === JettonVerificationType.Blacklist;
+      if (isScam) return;
+      list[jetton] = BigInt(data.balance);
+    });
+
+    return { ...list, native };
+  }
+
+  async fetchBalance(_: number, address: string) {
     const owner = Address.parse(this.address);
 
     if (address === "native") {
@@ -119,7 +135,7 @@ class TonWallet extends OmniWallet {
     return tx;
   }
 
-  async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
+  async signIntentsWithAuth(domain: string, intents?: Record<string, unknown>[]) {
     const address = this.wallet.account?.address;
     if (!address) throw new Error("Wallet not connected");
 
@@ -136,7 +152,7 @@ class TonWallet extends OmniWallet {
     };
   }
 
-  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }) {
+  async signIntents(intents: Record<string, unknown>[], options?: { deadline?: number; nonce?: Uint8Array }) {
     if (!this.wallet.signData) throw "Not impl";
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
     const message = {

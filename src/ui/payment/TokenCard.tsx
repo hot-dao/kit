@@ -29,81 +29,38 @@ enum ImageState {
   Error = "error",
 }
 
-const styled: Record<string, React.CSSProperties> = {
-  chainIcon: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: "50%",
-    backgroundColor: "#101010",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-};
-
-export const TokenIcon = ({ token, wallet }: { token: Token; wallet?: OmniWallet }) => {
+export const ImageView = ({ src, size = 40, alt, style }: { src: string; size?: number; alt: string; style?: React.CSSProperties }) => {
   const [icon, setIcon] = useState<ImageState>(ImageState.Loading);
-  const [chainIcon, setChainIcon] = useState<ImageState>(ImageState.Loading);
-  const [walletIcon, setWalletIcon] = useState<ImageState>(ImageState.Loading);
-
   useEffect(() => {
     setIcon(ImageState.Loading);
-    setChainIcon(ImageState.Loading);
     images
-      .cache(token.icon)
+      .cache(src)
       .then(() => setIcon(ImageState.Loaded))
       .catch(() => setIcon(ImageState.Error));
+  }, [src]);
 
-    images
-      .cache(token.chainIcon)
-      .then(() => setChainIcon(ImageState.Loaded))
-      .catch(() => setChainIcon(ImageState.Error));
-
-    if (token.chain === -4 && wallet?.icon) {
-      images
-        .cache(wallet.icon)
-        .then(() => setWalletIcon(ImageState.Loaded))
-        .catch(() => setWalletIcon(ImageState.Error));
-    }
-  }, [token.icon, wallet, token.chainIcon]);
+  if (icon === ImageState.Loaded) {
+    return <img src={src} alt={alt} style={{ objectFit: "contain", width: size, height: size, borderRadius: "50%", ...style }} />;
+  }
 
   return (
-    <div style={{ position: "relative" }}>
-      {icon === ImageState.Loaded ? (
-        <img src={token.icon} alt={token.symbol} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#1c1c1c" }} />
-      ) : (
-        <div style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#1c1c1c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <p style={{ fontSize: 24, fontWeight: "bold", color: "#fff" }}>{token.symbol.charAt(0)}</p>
-        </div>
-      )}
-
-      {chainIcon === ImageState.Loaded ? (
-        <img src={token.chainIcon} alt={token.symbol} style={styled.chainIcon} />
-      ) : (
-        <div style={styled.chainIcon}>
-          <p style={{ fontSize: 9, color: "#fff" }}>{token.originalChainSymbol.charAt(0)?.toUpperCase()}</p>
-        </div>
-      )}
-
-      {token.chain === -4 && wallet?.type && (
-        <>
-          {walletIcon === ImageState.Loaded ? (
-            <img src={wallet.icon} style={{ ...styled.chainIcon, left: 0 }} />
-          ) : (
-            <div style={{ ...styled.chainIcon, left: 0 }}>
-              <p style={{ fontSize: 9, color: "#fff" }}>{chainsMap[wallet.type]?.name.charAt(0)?.toUpperCase()}</p>
-            </div>
-          )}
-        </>
-      )}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size, height: size, borderRadius: "50%", backgroundColor: "#0e0e0e", ...style }}>
+      <p style={{ fontWeight: "bold", fontSize: size / 2, color: "#ffffff" }}>{alt.charAt(0)?.toUpperCase()}</p>
     </div>
   );
 };
 
-const TokenCard = ({ token, onSelect, hot, wallet, control }: { token: Token; onSelect: (token: Token, wallet?: OmniWallet) => void; hot: HotConnector; wallet?: OmniWallet; control?: React.ReactNode }) => {
+export const TokenIcon = observer(({ token, wallet }: { token: Token; wallet?: OmniWallet }) => {
+  return (
+    <div style={{ position: "relative", width: 40, height: 40 }}>
+      <ImageView src={token.icon} alt={token.symbol} size={40} />
+      <ImageView src={token.chainIcon} alt={token.symbol} size={14} style={{ position: "absolute", bottom: 0, right: 0 }} />
+      {token.chain === -4 && wallet?.type && <ImageView src={wallet.icon} alt={chainsMap[wallet.type]?.name || ""} size={14} style={{ position: "absolute", bottom: 0, left: 0 }} />}
+    </div>
+  );
+});
+
+export const TokenCard = observer(({ token, onSelect, hot, wallet, control }: { token: Token; onSelect: (token: Token, wallet?: OmniWallet) => void; hot: HotConnector; wallet?: OmniWallet; control?: React.ReactNode }) => {
   const balance = hot.balance(wallet, token);
   const symbol = token.chain === -4 && !token.isMainOmni ? `${token.originalChainSymbol}_${token.symbol}` : token.symbol;
 
@@ -124,6 +81,4 @@ const TokenCard = ({ token, onSelect, hot, wallet, control }: { token: Token; on
       {control}
     </PopupOption>
   );
-};
-
-export default observer(TokenCard);
+});

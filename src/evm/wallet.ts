@@ -23,8 +23,9 @@ class EvmWallet extends OmniWallet {
 
   private rpcs: Record<number, JsonRpcProvider> = {};
   rpc(chain: number) {
+    if (chain < 1 || chain == null) throw "Invalid chain";
     if (this.rpcs[chain]) return this.rpcs[chain];
-    const rpc = new JsonRpcProvider(`https://api0.herewallet.app/api/v1/evm/rpc/${chain}`);
+    const rpc = new JsonRpcProvider(`https://api0.herewallet.app/api/v1/evm/rpc/${chain}`, chain, { staticNetwork: true });
     this.rpcs[chain] = rpc;
     return rpc;
   }
@@ -37,9 +38,26 @@ class EvmWallet extends OmniWallet {
     return this.address.toLowerCase();
   }
 
-  async disconnect({ silent = false }: { silent?: boolean } = {}) {
-    super.disconnect({ silent });
+  async disconnect() {
+    super.disconnect();
     this.provider.request?.({ method: "wallet_revokePermissions" });
+  }
+
+  async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
+    try {
+      const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist, chain_id: chain }), method: "POST" });
+      if (!res.ok) throw new Error("Failed to fetch balances");
+      const { balances } = await res.json();
+      return balances;
+    } catch {
+      const balances = await Promise.all(
+        whitelist.map(async (token) => {
+          const balance = await this.fetchBalance(chain, token);
+          return [token, balance];
+        })
+      );
+      return Object.fromEntries(balances);
+    }
   }
 
   async fetchBalance(chain: number, address: string) {
@@ -113,7 +131,7 @@ class EvmWallet extends OmniWallet {
     }
 
     const erc20 = new ethers.Contract(args.token.address, erc20abi, this.rpc(args.token.chain));
-    const tx = await erc20.transfer.populateTransaction(args.receiver, args.amount, args.gasFee?.evmGas);
+    const tx = await erc20.transfer.populateTransaction(args.receiver, args.amount, { ...args.gasFee?.evmGas });
     return await this.sendTransaction(args.token.chain, tx);
   }
 

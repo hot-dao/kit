@@ -3,15 +3,15 @@ import styled from "styled-components";
 import { useEffect } from "react";
 
 import { LogoutIcon } from "../icons/logout";
+import { WithdrawIcon } from "../icons/withdraw";
 import { openBridge, openConnector } from "../router";
 import { HotConnector } from "../../HotConnector";
 import { formatter } from "../../omni/token";
 import { OmniToken } from "../../omni/config";
+import { ImageView, TokenCard } from "./TokenCard";
 import Popup from "../Popup";
 
-import TokenCard from "./TokenCard";
-
-const Profile = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
+export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
   let totalBalance = 0;
   const tokensList = hot.wallets
     .flatMap((wallet) => {
@@ -50,13 +50,13 @@ const Profile = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =
       <div style={{ display: "flex", flexWrap: "wrap", width: "100%", gap: 8 }}>
         {hot.wallets.map((wallet) => (
           <WalletCard onClick={() => wallet.disconnect()}>
-            <img src={wallet.icon} style={{ width: 20, height: 20, objectFit: "cover", borderRadius: 12 }} />
+            <ImageView src={wallet.icon} alt={wallet.connector.name} size={20} />
             <div>{formatter.truncateAddress(wallet.address, 8)}</div>
             <LogoutIcon width={20} height={20} />
           </WalletCard>
         ))}
 
-        {hot.wallets.length < 5 && (
+        {hot.wallets.length < 6 && (
           <WalletCard style={{ paddingLeft: 12, paddingRight: 12 }} onClick={() => openConnector(hot)}>
             Add wallet
           </WalletCard>
@@ -86,15 +86,7 @@ const Profile = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) =
       )}
     </Popup>
   );
-};
-
-const WithdrawIcon = () => {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M12 3v14m0 0l-4-4m4 4l4-4M5 21h14" stroke="#d2d2d2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-};
+});
 
 const WalletCard = styled.div`
   display: flex;
@@ -119,5 +111,3 @@ const BalanceCard = styled.h2`
   font-weight: 600;
   color: #fff;
 `;
-
-export default observer(Profile);

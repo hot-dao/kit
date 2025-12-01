@@ -20,8 +20,20 @@ export default class NearWallet extends OmniWallet {
     return this.address;
   }
 
-  async onDisconnect() {
+  async disconnect() {
     await this.wallet?.signOut();
+    super.disconnect();
+  }
+
+  async fetchBalances(_: number, whitelist: string[]): Promise<Record<string, bigint>> {
+    const balances = await Promise.all(
+      whitelist.map(async (token) => {
+        const balance = await this.fetchBalance(1010, token);
+        return [token, balance];
+      })
+    );
+
+    return Object.fromEntries(balances);
   }
 
   async sendTransaction(params: SignAndSendTransactionParams): Promise<string> {

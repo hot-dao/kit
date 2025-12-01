@@ -83,7 +83,7 @@ class IntentsManager {
     const limit = 250;
     let fromIndex = 0n;
 
-    while (true) {
+    for (;;) {
       const balances = await this.viewMethod({
         args: { account_id: accountId, from_index: fromIndex.toString(), limit },
         method: "mt_tokens_for_owner",

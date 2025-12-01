@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import Popup, { present } from "../Popup";
+import { useEffect, useRef, useState } from "react";
+import { observer } from "mobx-react-lite";
+import QRCodeStyling from "qr-code-styling";
 import styled from "styled-components";
+
+import Popup, { present } from "../Popup";
 
 interface WalletConnectPopupProps {
   uri: string;
@@ -9,12 +11,24 @@ interface WalletConnectPopupProps {
   onUpdateUriRef?: (setUri: (uri: string) => void) => void;
 }
 
-const WalletConnectPopupComponent: React.FC<WalletConnectPopupProps> = ({ uri: initialUri, onReject, onUpdateUriRef }) => {
+export const WalletConnectPopupComponent = observer(({ uri: initialUri, onReject, onUpdateUriRef }: WalletConnectPopupProps) => {
   const [uri, setUri] = useState(initialUri);
   const [copyText, setCopyText] = useState("Copy Link");
+  const qrCodeRef = useRef<HTMLDivElement>(null);
+  const [qrCode] = useState<QRCodeStyling>(
+    new QRCodeStyling({
+      data: "",
+      dotsOptions: { color: "#eeeeee", type: "rounded" },
+      backgroundOptions: { color: "transparent" },
+      shape: "square",
+      width: 180,
+      height: 180,
+      type: "svg",
+    })
+  );
 
   useEffect(() => {
-    onUpdateUriRef?.(setUri);
+    qrCode.update({ data: uri });
   }, [onUpdateUriRef]);
 
   const handleCopy = async () => {
@@ -30,13 +44,7 @@ const WalletConnectPopupComponent: React.FC<WalletConnectPopupProps> = ({ uri: i
   return (
     <Popup onClose={onReject}>
       <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-        {uri && uri !== "LOADING" ? (
-          <QRCodeSVG value={uri} size={200} />
-        ) : (
-          <div style={{ width: 215, height: 215, display: "flex", justifyContent: "center", alignItems: "center" }}>
-            <p>Loading...</p>
-          </div>
-        )}
+        <div ref={qrCodeRef} style={{ width: 200, height: 200 }}></div>
         <div className="copy-button" onClick={handleCopy} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-copy" viewBox="0 0 16 16">
             <path
@@ -49,7 +57,7 @@ const WalletConnectPopupComponent: React.FC<WalletConnectPopupProps> = ({ uri: i
       </div>
     </Popup>
   );
-};
+});
 
 export class WalletConnectPopup {
   private resolve: (() => void) | null = null;

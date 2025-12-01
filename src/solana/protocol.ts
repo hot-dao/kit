@@ -1,5 +1,6 @@
 import type { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
-import type { Wallet, WalletAccount } from "@wallet-standard/base";
+import { SolanaSignAndSendTransactionMethod, SolanaSignMessageMethod, SolanaSignTransactionMethod } from "@solana/wallet-standard-features";
+import type { Wallet } from "@wallet-standard/base";
 import { base58 } from "@scure/base";
 
 export interface ISolanaProtocolWallet {
@@ -32,7 +33,7 @@ class SolanaProtocolWallet implements ISolanaProtocolWallet {
     return accounts[0];
   }
 
-  async disconnect(data?: { silent?: boolean }) {
+  async disconnect() {
     const disconnect = (this.wallet.features as any)["standard:disconnect"]?.disconnect as (() => Promise<void>) | undefined;
     if (disconnect) await disconnect();
   }
@@ -41,19 +42,19 @@ class SolanaProtocolWallet implements ISolanaProtocolWallet {
     const account = await this.getAccount();
     const features = this.wallet.features as any;
 
-    const signAndSend = features["solana:signAndSendTransaction"]?.signAndSendTransaction as ((input: { account: WalletAccount; transaction: Transaction | VersionedTransaction }) => Promise<any>) | undefined;
+    const signAndSend = features["solana:signAndSendTransaction"]?.signAndSendTransaction as SolanaSignAndSendTransactionMethod;
 
     if (signAndSend) {
-      const result = await signAndSend({ account, transaction });
+      const [result] = await signAndSend({ account, chain: account.chains[0], transaction: transaction.serialize() });
       const signature = typeof result === "string" ? result : result?.signature ?? result;
       return typeof signature === "string" ? signature : base58.encode(signature as Uint8Array);
     }
 
-    const signTx = features["solana:signTransaction"]?.signTransaction as ((input: { account: WalletAccount; transaction: Transaction | VersionedTransaction }) => Promise<any>) | undefined;
+    const signTx = features["solana:signTransaction"]?.signTransaction as SolanaSignTransactionMethod;
 
     if (signTx) {
-      const signed = await signTx({ account, transaction });
-      const signedTx = (signed?.transaction ?? signed) as Transaction | VersionedTransaction | Uint8Array;
+      const [signed] = await signTx({ account, chain: account.chains[0], transaction: transaction.serialize() });
+      const signedTx = signed.signedTransaction as Transaction | VersionedTransaction | Uint8Array;
       const raw = signedTx instanceof Uint8Array ? signedTx : (signedTx as any).serialize();
       const sig = await connection.sendRawTransaction(raw as Uint8Array, options as any);
       return sig;
@@ -65,13 +66,12 @@ class SolanaProtocolWallet implements ISolanaProtocolWallet {
   async signMessage(message: string) {
     const account = await this.getAccount();
     const features = this.wallet.features as any;
-    const signMessageFeature = features["solana:signMessage"]?.signMessage as ((input: { account: WalletAccount; message: Uint8Array }) => Promise<any>) | undefined;
+    const signMessageFeature = features["solana:signMessage"]?.signMessage as SolanaSignMessageMethod;
 
     if (!signMessageFeature) throw new Error("Wallet does not support solana:signMessage");
-    const result = await signMessageFeature({ account, message: new TextEncoder().encode(message) });
+    const [result] = await signMessageFeature({ account, message: new TextEncoder().encode(message) });
 
-    if (result instanceof Uint8Array) return result;
-    if (result?.signature) return result.signature as Uint8Array;
+    if (result.signature) return result.signature;
     if (Array.isArray(result) && result[0]?.signature) return result[0].signature as Uint8Array;
     throw new Error("Unexpected signMessage result");
   }

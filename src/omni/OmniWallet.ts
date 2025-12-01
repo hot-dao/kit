@@ -33,9 +33,9 @@ export abstract class OmniWallet {
   abstract omniAddress: string;
   abstract type: WalletType;
 
-  async disconnect({ silent = false }: { silent?: boolean } = {}) {
+  async disconnect() {
     if (!this.connector) throw new Error("Connector not implemented");
-    await this.connector.disconnect({ silent });
+    await this.connector.disconnect();
   }
 
   abstract transferFee(token: Token, receiver: string, amount: bigint): Promise<ReviewFee>;
@@ -45,14 +45,11 @@ export abstract class OmniWallet {
   abstract signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Record<string, any>>;
 
   abstract fetchBalance(chain: number, address: string): Promise<bigint>;
+  abstract fetchBalances(chain?: number, whitelist?: string[]): Promise<Record<string, bigint>>;
 
   async executeIntents(intents: Record<string, any>[], hashes: string[] = []) {
     const signed = await this.signIntents(intents);
     return await Intents.publishSignedIntents([signed], hashes);
-  }
-
-  async validateAuth(auth: AuthCommitment) {
-    return true;
   }
 
   get icon() {
@@ -60,7 +57,7 @@ export abstract class OmniWallet {
   }
 
   get intents() {
-    return new IntentsBuilder().attachWallet(this);
+    return new IntentsBuilder(this.connector.wibe3).attachWallet(this);
   }
 
   async pay({ token, amount, recipient, paymentId }: { token: OmniToken; amount: number; recipient: string; paymentId: string }) {

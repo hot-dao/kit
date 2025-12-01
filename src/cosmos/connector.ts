@@ -6,8 +6,8 @@ import { hex } from "@scure/base";
 import { WalletType } from "../omni/config";
 import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
-import CosmosWallet from "./wallet";
 import { OmniWallet } from "../omni/OmniWallet";
+import CosmosWallet from "./wallet";
 
 export interface CosmosConnectorOptions {
   config: { chain: string; rpc: string; denom: string; prefix: string }[];
@@ -26,7 +26,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   constructor(wibe3: HotConnector, options?: CosmosConnectorOptions) {
     super(wibe3);
 
-    this.options = [{ name: "Keplr", icon: this.icon, id: "keplr" }];
+    this.options = [{ name: "Keplr", icon: "https://cdn.prod.website-files.com/667dc891bc7b863b5397495b/68a4ca95f93a9ab64dc67ab4_keplr-symbol.svg", id: "keplr", download: "https://www.keplr.app/get" }];
     this.config = options?.config || [
       { chain: "juno-1", rpc: "https://juno-rpc.publicnode.com", denom: "ujuno", prefix: "juno" },
       { chain: "gonka-mainnet", rpc: "https://dev.herewallet.app/api/v1/evm/rpc/4444119", denom: "ngonka", prefix: "gonka" },
@@ -46,11 +46,11 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return new CosmosWallet(this, { address });
   }
 
-  async setKeplrWallet(address: string, publicKey: string): Promise<void> {
+  async setKeplrWallet(address: string, publicKey: string) {
     const keplr = await Keplr.getKeplr();
     if (!keplr) throw new Error("Keplr not found");
 
-    this.setWallet(
+    return this.setWallet(
       new CosmosWallet(this, {
         address: address,
         publicKey: publicKey,
@@ -81,19 +81,38 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     const keplr = await Keplr.getKeplr();
     if (!keplr) throw new Error("Keplr not found");
 
+    await keplr.experimentalSuggestChain({
+      chainId: "gonka-mainnet",
+      chainName: "Gonka",
+      rpc: "https://gonka04.6block.com:8443/chain-rpc",
+      rest: "https://gonka04.6block.com:8443/chain-api",
+      bip44: { coinType: 1200 },
+      currencies: [{ coinDenom: "GNK", coinMinimalDenom: "ngonka", coinDecimals: 9, coinGeckoId: "gonka" }],
+      feeCurrencies: [
+        {
+          coinDenom: "GNK",
+          coinMinimalDenom: "ngonka",
+          coinDecimals: 9,
+          coinGeckoId: "gonka",
+          gasPriceStep: { low: 0, average: 0, high: 0 },
+        },
+      ],
+      stakeCurrency: {
+        coinDenom: "GNK",
+        coinMinimalDenom: "ngonka",
+        coinDecimals: 9,
+        coinGeckoId: "gonka",
+      },
+    });
+
     await keplr.enable(this.config.map((c) => c.chain));
     const account = await keplr.getKey("gonka-mainnet");
-    console.log({ account });
 
     await this.setStorage({ type: "keplr", address: account.bech32Address, publicKey: hex.encode(account.pubKey) });
-    this.setKeplrWallet(account.bech32Address, hex.encode(account.pubKey));
+    return this.setKeplrWallet(account.bech32Address, hex.encode(account.pubKey));
   }
 
   async silentDisconnect(): Promise<void> {
     this.removeStorage();
-  }
-
-  connectWebWallet(address: string, publicKey?: string): void {
-    throw new Error("Method not implemented.");
   }
 }

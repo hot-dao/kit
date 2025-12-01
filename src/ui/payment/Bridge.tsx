@@ -1,17 +1,23 @@
-import { useEffect, useRef, useState } from "react";
-import { observer } from "mobx-react-lite";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
-import QRCodeStyling from "qr-code-styling";
+import { observer } from "mobx-react-lite";
+import uuid4 from "uuid4";
 
+import { SwitchIcon } from "../icons/switch";
+import { ArrowRightIcon } from "../icons/arrow-right";
+
+import { Recipient } from "../../omni/recipient";
 import { OmniWallet } from "../../omni/OmniWallet";
 import { formatter, Token } from "../../omni/token";
-import { BridgeReview, omni } from "../../omni/exchange";
+import { BridgeReview } from "../../omni/exchange";
 import { HotConnector } from "../../HotConnector";
+import { WalletType } from "../../omni/config";
 
 import Popup from "../Popup";
 import { PopupButton } from "../styles";
-import { openSelectTokenPopup, openSelectWallet } from "../router";
+import { openSelectRecipient, openSelectTokenPopup, openSelectSender } from "../router";
 import { TokenIcon } from "./TokenCard";
+import DepositQR from "./DepositQR";
 
 export interface BridgeProps {
   hot: HotConnector;
@@ -19,80 +25,23 @@ export interface BridgeProps {
   onClose: () => void;
   onProcess: (task: Promise<BridgeReview>) => void;
   setup?: {
+    autoClose?: boolean; // if true, the popup will close automatically when the transaction is successful
     title?: string;
     readonlyAmount?: boolean;
     readonlyTo?: boolean;
     readonlyFrom?: boolean;
     type?: "exactIn" | "exactOut";
     sender?: OmniWallet;
-    receipient?: OmniWallet;
+    recipient?: Recipient;
     amount?: number;
     from?: Token;
     to?: Token;
   };
 }
 
-const DepositQR = ({ review, onConfirm, onCancel }: { review: BridgeReview; onConfirm: () => void; onCancel: () => void }) => {
-  const qrCodeRef = useRef<HTMLDivElement>(null);
-  const [qrCode] = useState<QRCodeStyling | null>(() => {
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
-    return new QRCodeStyling({
-      data: review.qoute.depositAddress,
-      dotsOptions: { color: "#eeeeee", type: "rounded" },
-      backgroundOptions: { color: "transparent" },
-      shape: "circle",
-      width: 180,
-      height: 180,
-      type: "svg",
-    });
-  });
+const FIXED = 6;
 
-  useEffect(() => {
-    if (!qrCodeRef.current) return;
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return;
-    qrCode?.append(qrCodeRef.current);
-  }, [qrCode]);
-
-  if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
-
-  return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-      <div
-        ref={qrCodeRef}
-        style={{
-          marginTop: "auto",
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 8,
-          paddingTop: 10,
-          paddingLeft: 10,
-          border: "1px solid #2d2d2d",
-          background: "#1c1c1c",
-        }}
-      ></div>
-
-      <p style={{ marginTop: 24 }}>
-        Send{" "}
-        <b>
-          {review.qoute.amountInFormatted} {review.from.symbol}
-        </b>{" "}
-        on <b>{review.from.chainName}</b> to
-      </p>
-
-      <div style={{ width: "100%", marginTop: 8, padding: 12, marginBottom: 24, border: "1px solid #2d2d2d", borderRadius: 12, background: "#1c1c1c" }}>
-        <p style={{ wordBreak: "break-all" }}>{review.qoute.depositAddress}</p>
-      </div>
-
-      <PopupButton style={{ marginTop: "auto" }} onClick={onConfirm}>
-        I sent the funds
-      </PopupButton>
-    </div>
-  );
-};
-
-const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
+export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
   const [isFiat, setIsFiat] = useState(false);
   const [type, setType] = useState<"exactIn" | "exactOut">(setup?.type || "exactIn");
   const [value, setValue] = useState<string>(setup?.amount?.toString() ?? "");
@@ -105,19 +54,33 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
 
   const [processing, setProcessing] = useState<{
     status: "qr" | "processing" | "success" | "error";
+    resolve?: (value: BridgeReview) => void;
+    reject?: (error: Error) => void;
     message: string;
     review: BridgeReview;
   } | null>(null);
 
-  const [sender, setSender] = useState<OmniWallet | "qr" | undefined>(setup?.sender || hot.wallets.find((w) => w.type === from.type));
-  const [receipient, setReceipient] = useState<OmniWallet | undefined>(setup?.receipient || hot.wallets.find((w) => w.type === to.type));
+  const [sender, setSender] = useState<OmniWallet | "qr" | undefined>(() => {
+    if (setup?.sender) return setup.sender;
+    if (from.type === WalletType.OMNI) return hot.priorityWallet;
+    return hot.wallets.find((w) => w.type === from.type);
+  });
+
+  const [recipient, setRecipient] = useState<Recipient | undefined>(() => {
+    if (setup?.recipient) return setup.recipient;
+    if (to.type === WalletType.OMNI) return Recipient.fromWallet(hot.priorityWallet!);
+    return Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)!);
+  });
+
+  const initialSender = useRef<OmniWallet | "qr" | undefined>(sender);
+  const initialRecipient = useRef<Recipient | undefined>(recipient);
 
   const valueInTokens = isFiat ? +formatter.fromInput(value) / (type === "exactIn" ? from.usd : to.usd) : +formatter.fromInput(value);
-  const amountFrom = type === "exactOut" ? to.float(review?.amountIn ?? 0) : valueInTokens;
+  const amountFrom = type === "exactOut" ? from.float(review?.amountIn ?? 0) : valueInTokens;
   const amountTo = type === "exactIn" ? to.float(review?.amountOut ?? 0) : valueInTokens;
 
-  const showAmountFrom = type === "exactOut" ? +from.float(review?.amountIn ?? 0).toFixed(6) : formatter.fromInput(value);
-  const showAmountTo = type === "exactIn" ? +to.float(review?.amountOut ?? 0).toFixed(6) : formatter.fromInput(value);
+  const showAmountFrom = type === "exactOut" ? +from.float(review?.amountIn ?? 0).toFixed(FIXED) : formatter.fromInput(value);
+  const showAmountTo = type === "exactIn" ? +to.float(review?.amountOut ?? 0).toFixed(FIXED) : formatter.fromInput(value);
 
   useEffect(() => {
     localStorage.setItem("bridge:from", from.id);
@@ -125,80 +88,103 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
   }, [from, to]);
 
   useEffect(() => {
-    let isInvalid = false;
-    let debounceTimer: NodeJS.Timeout;
+    if (initialSender.current == null) setSender(hot.wallets.find((w) => w.type === from.type));
+    if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet));
+    else if (initialRecipient.current == null) setRecipient(Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)));
+  }, [to, from, hot.wallets, hot.priorityWallet]);
 
-    if (valueInTokens <= 0) return;
-    if (sender == null) return;
-    if (receipient == null) return;
+  const reviewId = useRef(uuid4());
+  const throwError = (message: string) => {
+    setIsError(message);
+    setIsReviewing(false);
+  };
 
+  const reviewSwap = useCallback(() => {
+    reviewId.current = uuid4();
+    const currentReviewId = reviewId.current;
     setIsReviewing(true);
-    debounceTimer = setTimeout(async () => {
-      try {
-        if (isInvalid) return;
-        console.log("reviewing");
-        const refund = sender !== "qr" ? sender : hot.priorityWallet;
-        if (!refund) {
-          setIsError("Connect any wallet");
-          setIsReviewing(false);
-          return;
-        }
+    setReview(null);
+    setIsError(null);
 
+    const refund = sender !== "qr" ? sender : hot.priorityWallet;
+    if (valueInTokens <= 0) return throwError("Enter amount");
+    if (!sender) return throwError("Set sender");
+    if (!recipient) return throwError("Set recipient");
+    if (!refund) return throwError("Connect any wallet");
+
+    const debounceTimer = setTimeout(async () => {
+      try {
+        if (currentReviewId !== reviewId.current) return;
         const amount = type === "exactIn" ? from.int(valueInTokens) : to.int(valueInTokens);
-        const review = await omni.reviewSwap({ sender, refund, amount, receiver: receipient.address, slippage: 0.005, type, from, to });
-        if (isInvalid) return;
+        const review = await hot.exchange.reviewSwap({ sender, refund, amount, recipient, slippage: 0.005, type, from, to });
+        if (currentReviewId !== reviewId.current) return;
+        setIsReviewing(false);
         setIsError(null);
         setReview(review);
       } catch (e) {
-        if (isInvalid) return;
+        if (currentReviewId !== reviewId.current) return;
         setIsError("Failed to review swap");
-        console.error(e);
-      } finally {
-        if (isInvalid) return;
         setIsReviewing(false);
+        setReview(null);
+        console.error(e);
       }
     }, 500);
 
-    return () => {
-      isInvalid = true;
-      clearTimeout(debounceTimer);
-    };
-  }, [valueInTokens, type, from, to, isFiat, sender, receipient]);
+    return () => clearTimeout(debounceTimer);
+  }, [valueInTokens, type, from, to, sender, hot.exchange, recipient, hot.priorityWallet]);
 
-  const handleConfirm = async () => {
-    if (sender == "qr") {
-      setProcessing({ status: "qr", message: "Scan QR code to sign transaction", review: review! });
-      return;
-    }
+  useEffect(() => {
+    reviewSwap();
+  }, [reviewSwap]);
 
-    let qouta = review!;
+  const process = async (review: BridgeReview) => {
     try {
-      setProcessing({ status: "processing", message: "Signing transaction", review: review! });
-      const result = await omni.makeSwap(sender!, qouta, { log: (message) => setProcessing({ status: "processing", message, review: qouta }) });
+      setProcessing({ status: "processing", message: "Signing transaction", review });
+      const result = await hot.exchange.makeSwap(review, { log: (message: string) => setProcessing({ status: "processing", message, review }) });
       setProcessing({ status: "success", message: "Transaction signed", review: result });
+      if (setup?.autoClose) onClose();
       return result;
     } catch (e) {
-      setProcessing({ status: "error", message: "Failed to sign transaction", review: qouta });
-      console.error(e);
+      setProcessing({ status: "error", message: "Failed to sign transaction", review });
+      console.error("FAILED TO SIGN TRANSACTION", e);
       throw e;
     }
+  };
+
+  const cancelReview = () => {
+    setReview(null);
+    setIsReviewing(false);
+    setProcessing(null);
+    setIsError(null);
+    reviewSwap();
+  };
+
+  const handleConfirm = async () => {
+    if (sender != "qr") return onProcess(process(review!));
+    setProcessing({ status: "qr", message: "Scan QR code to sign transaction", review: review! });
   };
 
   const handleMax = () => {
     if (sender === "qr") return;
     if (isFiat) {
+      setType("exactIn");
       const max = from.float(hot.balance(sender, from)) * from.usd;
-      setValue(String(+max.toFixed(6)));
+      setValue(String(+max.toFixed(FIXED)));
     } else {
+      setType("exactIn");
       const max = from.float(hot.balance(sender, from));
-      setValue(String(+max.toFixed(6)));
+      setValue(String(+max.toFixed(FIXED)));
     }
   };
 
   if (processing?.status === "qr") {
     return (
       <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null}>
-        <DepositQR review={processing.review} onConfirm={() => setProcessing(null)} onCancel={() => setProcessing(null)} />
+        <DepositQR //
+          review={processing.review}
+          onConfirm={() => onProcess(process(processing.review))}
+          onCancel={cancelReview}
+        />
       </Popup>
     );
   }
@@ -207,8 +193,8 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
     return (
       <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-          {/* @ts-ignore */}
-          <dotlottie-wc src="/loading.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          {/* @ts-expect-error: dotlottie-wc is not typed */}
+          <dotlottie-wc key="loading" src="/loading.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ marginTop: -32, fontSize: 16 }}>{processing.message}</p>
         </div>
       </Popup>
@@ -218,12 +204,14 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
   if (processing?.status === "success") {
     return (
       <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null}>
-        <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-          <p style={{ marginTop: "auto", fontSize: 24, fontWeight: "bold" }}>Swap successful</p>
-          <PopupButton style={{ marginTop: "auto" }} onClick={() => setProcessing(null)}>
-            Continue
-          </PopupButton>
+        <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+          {/* @ts-expect-error: dotlottie-wc is not typed */}
+          <dotlottie-wc key="success" src="/success.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange successful</p>
         </div>
+        <PopupButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
+          Continue
+        </PopupButton>
       </Popup>
     );
   }
@@ -231,23 +219,23 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
   if (processing?.status === "error") {
     return (
       <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null}>
-        <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-          <p style={{ marginTop: "auto", fontSize: 24, fontWeight: "bold" }}>Swap failed</p>
-          <p style={{ marginTop: 8, fontSize: 14 }}>{processing.message}</p>
-          <PopupButton style={{ marginTop: "auto" }} onClick={() => setProcessing(null)}>
-            Continue
-          </PopupButton>
+        <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+          {/* @ts-expect-error: dotlottie-wc is not typed */}
+          <dotlottie-wc key="error" src="/error.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange failed</p>
+          <p style={{ fontSize: 14 }}>{processing.message}</p>
         </div>
+        <PopupButton onClick={() => (cancelReview(), onClose())}>Continue</PopupButton>
       </Popup>
     );
   }
 
   const button = () => {
     if (sender == null) return <PopupButton disabled>Set sender</PopupButton>;
-    if (receipient == null) return <PopupButton disabled>Set recipient</PopupButton>;
-    if (sender !== "qr" && from.float(hot.balance(sender, from)) < amountFrom) return <PopupButton disabled>Insufficient balance</PopupButton>;
+    if (recipient == null) return <PopupButton disabled>Set recipient</PopupButton>;
+    if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <PopupButton disabled>Insufficient balance</PopupButton>;
     return (
-      <PopupButton disabled={isReviewing || isError != null} onClick={() => onProcess(handleConfirm())}>
+      <PopupButton disabled={isReviewing || isError != null} onClick={handleConfirm}>
         {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}
       </PopupButton>
     );
@@ -260,7 +248,7 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <p style={{ fontWeight: "bold" }}>{from.chain === -4 ? "Withdraw omni from:" : "Send from:"}</p>
-              <BadgeButton onClick={() => openSelectWallet({ hot, current: sender, isRecipient: false, type: from.type, onSelect: (wallet) => setSender(wallet) })}>
+              <BadgeButton onClick={() => openSelectSender({ hot, type: from.type, onSelect: (wallet) => setSender(wallet) })}>
                 <p>{formatter.truncateAddress(sender === "qr" ? "QR code" : sender?.address ?? "Connect wallet")}</p>
               </BadgeButton>
             </div>
@@ -287,6 +275,7 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
                 value={isFiat ? `$${showAmountFrom}` : showAmountFrom}
                 onChange={(e) => (setType("exactIn"), setValue(e.target.value))}
                 placeholder="0"
+                autoFocus
               />
             )}
           </div>
@@ -294,15 +283,15 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
           {isFiat && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               {sender !== "qr" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <p>Available: ${from.readable(hot.balance(sender, from), from.usd)}</p>
-                  <RefreshButton onClick={() => sender && hot.fetchToken(from, [sender])} />
-                </div>
+                <AvailableBalance>
+                  <p>Balance: ${from.readable(hot.balance(sender, from), from.usd)}</p>
+                  <RefreshButton onClick={() => sender && hot.fetchToken(from, sender)} />
+                </AvailableBalance>
               )}
 
               {sender === "qr" && <div />}
 
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                 {from.usd !== 0 && <p style={{ marginRight: 8 }}>{`${from.readable(amountFrom / from.usd)} ${from.symbol}`}</p>}
                 {from.usd !== 0 && (
                   <BadgeButton style={{ border: `1px solid #fff` }} onClick={() => setIsFiat(!isFiat)}>
@@ -317,10 +306,10 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
           {!isFiat && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               {sender !== "qr" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <p>Available: {`${from.readable(hot.balance(sender, from))} ${from.symbol}`}</p>
-                  <RefreshButton onClick={() => sender && hot.fetchToken(from, [sender])} />
-                </div>
+                <AvailableBalance>
+                  <p>Balance: {`${from.readable(hot.balance(sender, from))} ${from.symbol}`}</p>
+                  <RefreshButton onClick={() => sender && hot.fetchToken(from, sender)} />
+                </AvailableBalance>
               )}
               {sender === "qr" && <div />}
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -333,48 +322,27 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
         </Card>
 
         <div style={{ position: "relative" }}>
-          <div style={{ width: "100%", height: 1, backgroundColor: "#2d2d2d" }} />
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: -18,
-              transform: "translate(-50%, 0)",
-              background: "#232323",
-              borderRadius: "50%",
-              width: 36,
-              height: 36,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 2,
-              cursor: "pointer",
-              border: "2px solid #181818",
-              boxShadow: "0 2px 8px 0 #18181870",
-            }}
+          <div style={{ width: "100%", height: 1, backgroundColor: "rgba(255, 255, 255, 0.07)" }} />
+          <SwitchButton
             onClick={() => {
               setFrom(to);
               setTo(from);
-              setSender(receipient);
-              setReceipient(sender === "qr" ? undefined : sender);
+              setSender(hot.wallets.find((w) => w.address === recipient?.address));
+              setRecipient(sender === "qr" ? undefined : sender ? Recipient.fromWallet(sender) : undefined);
               setType(type === "exactIn" ? "exactOut" : "exactIn");
               setValue("");
             }}
           >
-            {/* Swap Icon SVG */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M16 18v-9a4 4 0 0 0-4-4H6m0 0l2.293 2.293M6 5l2.293-2.293" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M8 6v9a4 4 0 0 0 4 4h6m0 0-2.293-2.293M18 19.999l-2.293 2.293" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+            <SwitchIcon />
+          </SwitchButton>
         </div>
 
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <p style={{ fontWeight: "bold" }}>{to.chain !== -4 ? "To:" : "Deposit omni to:"}</p>
-              <BadgeButton onClick={() => openSelectWallet({ hot, current: receipient, isRecipient: true, type: to.type, onSelect: (wallet) => setReceipient(wallet as OmniWallet) })}>
-                <p>{formatter.truncateAddress(receipient?.address ?? "Connect wallet")}</p>
+              <BadgeButton onClick={() => openSelectRecipient({ hot, recipient, type: to.type, onSelect: (recipient) => setRecipient(recipient) })}>
+                <p>{formatter.truncateAddress(recipient?.address ?? "Connect wallet")}</p>
               </BadgeButton>
             </div>
           </div>
@@ -383,7 +351,15 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
             <TokenPreview //
               token={to}
               style={{ pointerEvents: setup?.readonlyTo ? "none" : "all" }}
-              onSelect={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setTo(token), setReceipient(wallet)) })}
+              onSelect={() =>
+                openSelectTokenPopup({
+                  hot,
+                  onSelect: (token, wallet) => {
+                    setRecipient(wallet ? Recipient.fromWallet(wallet) : undefined);
+                    setTo(token);
+                  },
+                })
+              }
             />
 
             {isReviewing && type === "exactIn" ? (
@@ -397,7 +373,7 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
                 autoCapitalize="off"
                 autoCorrect="off"
                 readOnly={setup?.readonlyAmount}
-                value={isFiat ? `$${+showAmountTo * to.usd}` : showAmountTo}
+                value={isFiat ? `$${+(+showAmountTo * to.usd).toFixed(FIXED)}` : showAmountTo}
                 onChange={(e) => (setType("exactOut"), setValue(e.target.value))}
                 placeholder="0"
               />
@@ -414,13 +390,14 @@ const Bridge = ({ hot, widget, setup, onClose, onProcess }: BridgeProps) => {
       </div>
     </Popup>
   );
-};
+});
 
-const TokenPreview = ({ style, token, onSelect }: { style?: any; token: Token; onSelect: (token: Token) => void }) => {
+const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties; token: Token; onSelect: (token: Token) => void }) => {
   return (
     <SelectTokenButton style={style} onClick={() => onSelect(token)}>
       <TokenIcon token={token} />
       <p style={{ fontSize: 24, fontWeight: "bold" }}>{token.symbol}</p>
+      <ArrowRightIcon style={{ flexShrink: 0, position: "absolute", right: 4 }} />
     </SelectTokenButton>
   );
 };
@@ -456,14 +433,38 @@ const SelectTokenButton = styled.button`
   cursor: pointer;
   outline: none;
   border: none;
+  position: relative;
   background: transparent;
   border-radius: 32px;
   padding: 8px;
-  padding-right: 16px;
+  padding-right: 32px;
   margin: -8px;
+  max-width: 160px;
+  transition: 0.2s background-color;
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const AvailableBalance = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4;
+  overflow: hidden;
+  max-width: 200px;
+  text-wrap: nowrap;
+
+  p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 `;
 
@@ -498,6 +499,27 @@ const Card = styled.div`
   }
 `;
 
+const SwitchButton = styled.button`
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  transform: translate(-50%, 0);
+  background: #232323;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  cursor: pointer;
+  border: 2px solid #181818;
+  box-shadow: 0 2px 8px 0 #18181870;
+  outline: none;
+  border: none;
+  cursor: pointer;
+`;
+
 const shine = keyframes`
   0% {
     background-position: -200px 0;
@@ -507,7 +529,7 @@ const shine = keyframes`
   }
 `;
 
-export const SkeletonShine = styled.div`
+const SkeletonShine = styled.div`
   display: inline-block;
   width: 100px;
   height: 40px;
@@ -551,5 +573,3 @@ const RefreshButton = ({ onClick }: { onClick: () => void }) => {
     </svg>
   );
 };
-
-export default observer(Bridge);

@@ -1,9 +1,8 @@
-import { omni } from "./exchange";
+import { HotConnector } from "../HotConnector";
 import { Intents } from "./Intents";
 import { OmniWallet } from "./OmniWallet";
 import { OmniToken } from "./config";
 import { TGAS } from "./fee";
-import { HotConnector } from "../HotConnector";
 
 export interface TransferIntent {
   intent: "transfer";
@@ -24,6 +23,7 @@ export interface MtWithdrawIntent {
   token: string;
   memo?: string;
   msg?: string;
+  min_gas?: string;
 }
 
 export interface FtWithdrawIntent {
@@ -43,7 +43,15 @@ export interface AuthCallIntent {
   intent: "auth_call";
 }
 
+export interface Commitment {
+  deadline: string;
+  signer_id: string;
+  intents: TransferIntent | MtWithdrawIntent | FtWithdrawIntent | TokenDiffIntent | AuthCallIntent[];
+}
+
 class IntentsBuilder {
+  constructor(readonly wibe3: HotConnector) {}
+
   hashes: string[] = [];
   intents: (TransferIntent | MtWithdrawIntent | FtWithdrawIntent | TokenDiffIntent | AuthCallIntent)[] = [];
   nonce?: Uint8Array;
@@ -71,7 +79,7 @@ class IntentsBuilder {
   }
 
   transfer(args: { recipient: string; token: OmniToken; amount: number | bigint }) {
-    const omniToken = omni.omni(args.token);
+    const omniToken = this.wibe3.omni(args.token);
     const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
     const intent: TransferIntent = {
       tokens: { [omniToken.omniAddress]: amount },
@@ -86,7 +94,7 @@ class IntentsBuilder {
 
   tokenDiff(args: Record<OmniToken, bigint | number>) {
     const parse = (token: OmniToken, amount: bigint | number): [string, string] => {
-      if (typeof amount === "number") return [token.toString(), omni.omni(token).int(amount).toString()];
+      if (typeof amount === "number") return [token.toString(), this.wibe3.omni(token).int(amount).toString()];
       return [token.toString(), amount.toString()];
     };
 
@@ -99,8 +107,8 @@ class IntentsBuilder {
     return this;
   }
 
-  withdraw(args: { token: OmniToken; amount: number | bigint; receiver: string; memo?: string; msg?: string }) {
-    const omniToken = omni.omni(args.token);
+  withdraw(args: { token: OmniToken; amount: number | bigint; receiver: string; memo?: string; msg?: string; tgas?: number }) {
+    const omniToken = this.wibe3.omni(args.token);
     const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
     const [standart, ...tokenParts] = args.token.split(":");
     this.addNeed(args.token, BigInt(amount));
@@ -116,6 +124,7 @@ class IntentsBuilder {
         token: mtContract,
         memo: args.memo,
         msg: args.msg,
+        min_gas: args.tgas ? (BigInt(args.tgas) * TGAS).toString() : undefined,
       };
 
       this.intents.push(intent);
@@ -162,23 +171,10 @@ class IntentsBuilder {
   async execute() {
     const signer = this.signer;
     if (!signer) throw new Error("No signer attached");
-
-    const balances = await signer.getAssets();
-    for (const token of this.need.keys()) {
-      const amount = this.need.get(token) || 0n;
-      const balance = balances[token] || 0n;
-      if (amount === 0n) continue;
-
-      if (balance < amount) {
-        const need = amount - balance;
-        const ft = omni.omni(token as OmniToken);
-        await signer.connector.wibe3.deposit(token as any, Number(ft.float(need)));
-        await signer.waitUntilBalance({ [token]: amount }, signer.omniAddress);
-      }
-    }
-
     const signed = await signer.signIntents(this.intents, { nonce: this.nonce, deadline: this.deadline ? +this.deadline : undefined });
-    return await Intents.publishSignedIntents([signed], this.hashes);
+    const hash = await Intents.publishSignedIntents([signed], this.hashes);
+    await Intents.waitTransactionResult(hash, "intents.near");
+    return hash;
   }
 }
 

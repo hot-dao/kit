@@ -69,11 +69,11 @@ const hotSolana = {
     return { signature: Buffer.from(result.signature, "base64") };
   },
 
-  off(event: string, listener: any) {
+  off() {
     //HOT.unsubscribe(`solana:${event}`, listener);
   },
 
-  on(event: string, listener: any) {
+  on() {
     // HOT.subscribe(`solana:${event}`, listener);
   },
 };

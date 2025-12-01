@@ -9,17 +9,27 @@ export const ModalContainer = styled.div`
   width: 100%;
   height: 100%;
   z-index: 100000000;
-  background-color: rgba(0, 0, 0, 0.2);
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   transition: opacity 0.2s ease-in-out;
-  backdrop-filter: blur(10px);
 
   @media (max-width: 600px) {
     justify-content: flex-end;
   }
+`;
+
+export const ModalOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100000000;
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 1;
 `;
 
 export const ModalContent = styled.div`
@@ -33,11 +43,12 @@ export const ModalContent = styled.div`
   background: #0d0d0d;
   border: 1.5px solid rgba(255, 255, 255, 0.1);
   transition: transform 0.2s ease-in-out;
+  z-index: 2;
 
   @media (max-width: 600px) {
     max-width: 100%;
     width: 100%;
-    max-height: 80%;
+    max-height: 90%;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     border: none;
@@ -137,9 +148,15 @@ export const Footer = styled.div`
     border-radius: 50%;
     object-fit: cover;
   }
+
+  * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
-export const GetWalletLink = styled.button`
+export const GetWalletLink = styled.a`
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
   font-size: 16px;
@@ -148,10 +165,6 @@ export const GetWalletLink = styled.button`
   margin-left: auto;
   text-decoration: none;
   transition: color 0.2s ease-in-out;
-  background: transparent;
-  border: none;
-  outline: none;
-  cursor: pointer;
 
   &:hover {
     color: rgba(255, 255, 255, 1);
@@ -216,8 +229,8 @@ export const PopupButton = styled.button`
   width: 100%;
   padding: 12px;
   border-radius: 24px;
-  background: #0e0e0e;
-  color: #e8e8e8 !important;
+  background: rgb(221, 221, 221);
+  color: rgb(20, 20, 20) !important;
   font-weight: bold;
   border: none;
   cursor: pointer;
@@ -225,6 +238,10 @@ export const PopupButton = styled.button`
   transition: background 0.2s ease-in-out;
   margin-top: 16px;
   height: 56px;
+
+  &:hover {
+    background: rgb(160, 160, 160);
+  }
 
   &:disabled {
     opacity: 0.5;

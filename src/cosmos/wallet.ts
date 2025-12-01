@@ -1,11 +1,10 @@
 import { StargateClient } from "@cosmjs/stargate";
 import { fromBech32, toBech32 } from "@cosmjs/encoding";
 
+import { OmniWallet, SignedAuth } from "../omni/OmniWallet";
 import { chainsMap, WalletType } from "../omni/config";
 import { ReviewFee } from "../omni/fee";
-import { Token } from "../omni/token";
 
-import { OmniWallet, SignedAuth } from "../omni/OmniWallet";
 import CosmosConnector from "./connector";
 
 interface ProtocolWallet {
@@ -34,8 +33,8 @@ export default class CosmosWallet extends OmniWallet {
     return "";
   }
 
-  async disconnect({ silent = false }: { silent?: boolean } = {}) {
-    super.disconnect({ silent });
+  async disconnect() {
+    super.disconnect();
     this.wallet.disconnect?.();
   }
 
@@ -44,20 +43,30 @@ export default class CosmosWallet extends OmniWallet {
     return this.wallet.sendTransaction(signDoc);
   }
 
-  transferFee(token: Token, receiver: string, amount: bigint): Promise<ReviewFee> {
+  transferFee(): Promise<ReviewFee> {
     throw new Error("Method not implemented.");
   }
 
-  transfer(args: { chain: number; token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {
+  transfer(): Promise<string> {
     throw "Not impl";
   }
 
-  signIntentsWithAuth(domain: string, intents?: Record<string, any>[]): Promise<SignedAuth> {
+  signIntentsWithAuth(): Promise<SignedAuth> {
     throw new Error("Method not implemented.");
   }
 
-  signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Record<string, any>> {
+  signIntents(): Promise<Record<string, any>> {
     throw new Error("Method not implemented.");
+  }
+
+  async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
+    const balances = await Promise.all(
+      whitelist.map(async (token) => {
+        const balance = await this.fetchBalance(chain, token);
+        return [token, balance];
+      })
+    );
+    return Object.fromEntries(balances);
   }
 
   async fetchBalance(chain: number, token: string): Promise<bigint> {

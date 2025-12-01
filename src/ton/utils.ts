@@ -24,10 +24,7 @@ export const toStateInit = (stateInit?: string): { code: Maybe<Cell>; data: Mayb
   return { code, data };
 };
 
-export const getJettonCustomPayload = async (
-  walletAddress: Address,
-  token: Address
-): Promise<{ jettonWallet: Address; customPayload: Cell | null; stateInit?: StateInit }> => {
+export const getJettonCustomPayload = async (walletAddress: Address, token: Address): Promise<{ jettonWallet: Address; customPayload: Cell | null; stateInit?: StateInit }> => {
   const jetton = await tonApi.accounts.getAccountJettonBalance(walletAddress, token, { supported_extensions: ["custom_payload"] });
   const jettonWallet = jetton.walletAddress.address;
 
@@ -41,15 +38,7 @@ export const getJettonCustomPayload = async (
   };
 };
 
-export const jettonTransferBody = (params: {
-  queryId: bigint;
-  jettonAmount: bigint;
-  toAddress: Address;
-  responseAddress: Address;
-  forwardAmount: bigint;
-  forwardPayload: Cell | null;
-  customPayload: Cell | null;
-}) => {
+export const jettonTransferBody = (params: { queryId: bigint; jettonAmount: bigint; toAddress: Address; responseAddress: Address; forwardAmount: bigint; forwardPayload: Cell | null; customPayload: Cell | null }) => {
   return beginCell()
     .storeUint(0xf_8a_7e_a5, 32) // request_transfer op
     .storeUint(params.queryId, 64)
@@ -62,19 +51,7 @@ export const jettonTransferBody = (params: {
     .endCell();
 };
 
-export const createJettonTransferMsgParams = async ({
-  jetton,
-  amount,
-  recipient,
-  address,
-  forwardPayload,
-}: {
-  address: Address;
-  recipient: Address;
-  jetton: Address;
-  amount: bigint;
-  forwardPayload: Cell | null;
-}) => {
+export const createJettonTransferMsgParams = async ({ jetton, amount, recipient, address, forwardPayload }: { address: Address; recipient: Address; jetton: Address; amount: bigint; forwardPayload: Cell | null }) => {
   const { jettonWallet, customPayload, stateInit } = await getJettonCustomPayload(address, jetton);
   const body = jettonTransferBody({
     queryId: 0n,

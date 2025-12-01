@@ -1,8 +1,9 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
+import { Asset, Networks } from "@stellar/stellar-base";
 
 import { Network, OmniToken, WalletType, chainsMap, reverseChainsMap } from "./config";
 
-export interface Token {
+export interface IToken {
   chain: number;
   address: string;
   decimals: number;
@@ -23,20 +24,24 @@ export class Token {
   constructor(readonly info: TokenResponse & { omni?: true }) {
     this.originalChainSymbol = info.blockchain;
     this.originalChain = reverseChainsMap[info.blockchain];
-    this.originalAddress = info.contractAddress || "native";
     this.chain = info.omni ? -4 : reverseChainsMap[info.blockchain];
-    this.address = info.omni ? info.assetId : info.contractAddress || "native";
+
+    if (this.chain === Network.Stellar) {
+      this.address = info.contractAddress ? new Asset(info.symbol, info.contractAddress).contractId(Networks.PUBLIC) : "native";
+      this.originalAddress = this.address;
+    } else {
+      this.address = info.omni ? info.assetId : info.contractAddress || "native";
+      this.originalAddress = info.contractAddress || "native";
+    }
+
     this.decimals = info.decimals;
-    this.symbol = info.symbol;
+    this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;
     this.usd = info.price;
     this.omniAddress = info.assetId;
   }
 
   get chainIcon() {
-    if (this.chain === Network.Hot) return "https://tgapp.herewallet.app/images/hot/hot-icon.png";
-    if (this.chain === Network.Juno) return "https://storage.herewallet.app/ft/4444118:ujuno.png";
-    if (this.chain === Network.Gonka) return "https://storage.herewallet.app/ft/4444119:ngonka.png";
-    return `https://storage.herewallet.app/ft/${this.chain}:native.png`;
+    return chainsMap[this.chain]?.logo || `https://storage.herewallet.app/ft/${this.chain}:native.png`;
   }
 
   get originalChainIcon() {
@@ -74,7 +79,10 @@ export class Token {
     if (this.chain === Network.Ada) return WalletType.Ada;
     if (this.chain === Network.Aptos) return WalletType.Aptos;
     if (this.chain === Network.Sui) return WalletType.Sui;
-    return WalletType.EVM;
+    if (this.chain === Network.Litecoin) return WalletType.Litecoin;
+    if (this.chain === Network.Cardano) return WalletType.Cardano;
+    if (this.chain > 0) return WalletType.EVM;
+    return WalletType.unknown;
   }
 
   get icon() {

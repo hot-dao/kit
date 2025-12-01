@@ -5,10 +5,10 @@ import { WalletType } from "../omni/config";
 import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector } from "../omni/OmniConnector";
 import { isInjected } from "../hot-wallet/hot";
-import StellarWallet from "./wallet";
 import { OmniWallet } from "../omni/OmniWallet";
+import StellarWallet from "./wallet";
 
-type StellarOption = ISupportedWallet & { name: string; icon: string; uuid: string; rdns: string };
+type StellarOption = ISupportedWallet & { name: string; icon: string; uuid: string; rdns: string; download?: string };
 class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
   stellarKit: StellarWalletsKit;
 
@@ -24,8 +24,8 @@ class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
     this.stellarKit = stellarKit || new StellarWalletsKit({ network: WalletNetwork.PUBLIC, modules: isInjected() ? [new HotWalletModule()] : sep43Modules() });
     this.stellarKit.getSupportedWallets().then((wallets) => {
       const hot = wallets.find((w) => w.id === "hot-wallet");
-      this.options = wallets.filter((w) => w.id !== "hot-wallet").map((w) => ({ ...w, name: w.name, icon: w.icon, uuid: w.id, rdns: w.name }));
-      if (hot) this.options.unshift({ ...hot, name: hot.name, icon: hot.icon, uuid: hot.id, rdns: hot.name });
+      this.options = wallets.filter((w) => w.id !== "hot-wallet").map((w) => ({ ...w, name: w.name, icon: w.icon, uuid: w.id, rdns: w.name, download: w.url }));
+      if (hot) this.options.unshift({ ...hot, name: hot.name, icon: hot.icon, uuid: hot.id, rdns: hot.name, download: hot.url });
     });
 
     this.getConnectedWallet().then((data) => {
@@ -45,7 +45,7 @@ class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
   async getConnectedWallet() {
     if (isInjected()) {
       this.stellarKit.setWallet("hot-wallet");
-      const { address } = await this.stellarKit?.getAddress();
+      const { address } = await this.stellarKit.getAddress();
       return { type: "wallet", id: "hot-wallet", address };
     }
 
@@ -54,15 +54,15 @@ class StellarConnector extends OmniConnector<StellarWallet, StellarOption> {
 
   async connect(id: string) {
     this.stellarKit.setWallet(id);
-    const { address } = await this.stellarKit?.getAddress();
+    const { address } = await this.stellarKit.getAddress();
     const signMessage = async (message: string) => this.stellarKit.signMessage(message);
     const signTransaction = async (transaction: Transaction) => this.stellarKit.signTransaction(transaction.toXDR());
-    this.setWallet(new StellarWallet(this, { address, signMessage, signTransaction }));
     this.setStorage({ type: "wallet", id, address });
+    return this.setWallet(new StellarWallet(this, { address, signMessage, signTransaction }));
   }
 
-  async silentDisconnect() {
-    this.removeStorage();
+  async disconnect() {
+    super.disconnect();
     this.stellarKit.disconnect();
   }
 }

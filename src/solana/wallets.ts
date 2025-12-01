@@ -1,11 +1,4 @@
-import type {
-  DEPRECATED_WalletsCallback,
-  DEPRECATED_WalletsWindow,
-  Wallet,
-  WalletEventsWindow,
-  WindowAppReadyEvent,
-  WindowAppReadyEventAPI,
-} from "@wallet-standard/base";
+import type { DEPRECATED_WalletsCallback, DEPRECATED_WalletsWindow, Wallet, WalletEventsWindow, WindowAppReadyEvent, WindowAppReadyEventAPI } from "@wallet-standard/base";
 
 let wallets: Wallets | undefined = undefined;
 const registeredWalletsSet = new Set<Wallet>();
@@ -72,7 +65,7 @@ export interface Wallets {
    *
    * @return Registered Wallets.
    */
-  get(): readonly Wallet[];
+  get(): readonly (Wallet & { url?: string })[];
 
   /**
    * Add an event listener and subscribe to events for Wallets that are

@@ -60,14 +60,7 @@ export class GhostWallet implements Wallet {
     return SOLANA_CHAINS.slice();
   }
 
-  get features(): StandardConnectFeature &
-    StandardDisconnectFeature &
-    StandardEventsFeature &
-    SolanaSignAndSendTransactionFeature &
-    SolanaSignTransactionFeature &
-    SolanaSignMessageFeature &
-    SolanaSignInFeature &
-    GhostFeature {
+  get features(): StandardConnectFeature & StandardDisconnectFeature & StandardEventsFeature & SolanaSignAndSendTransactionFeature & SolanaSignTransactionFeature & SolanaSignMessageFeature & SolanaSignInFeature & GhostFeature {
     return {
       [StandardConnect]: {
         version: "1.0.0",
@@ -175,10 +168,9 @@ export class GhostWallet implements Wallet {
     const outputs: SolanaSignAndSendTransactionOutput[] = [];
 
     if (inputs.length === 1) {
-      const { transaction, account, chain, options } = inputs[0]!;
+      const { transaction, account, options } = inputs[0]!;
       const { minContextSlot, preflightCommitment, skipPreflight, maxRetries } = options || {};
       if (account !== this._account) throw new Error("invalid account");
-      if (!isSolanaChain(chain)) throw new Error("invalid chain");
 
       const { signature } = await this._ghost.signAndSendTransaction(VersionedTransaction.deserialize(transaction), {
         preflightCommitment,

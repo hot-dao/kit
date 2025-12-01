@@ -1,101 +1,77 @@
-import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
+import { useEffect } from "react";
 
 import { HotConnector } from "../../HotConnector";
-import { omni, BridgeReview } from "../../omni/exchange";
+import { openBridge, openConnector } from "../router";
+import { Recipient } from "../../omni/recipient";
+import { BridgeReview } from "../../omni/exchange";
+import { OmniWallet } from "../../omni/OmniWallet";
+import { Network } from "../../omni/config";
 import { Token } from "../../omni/token";
 import Popup from "../Popup";
 
-import TokenCard from "./TokenCard";
-import { PopupButton } from "../styles";
+import { TokenCard } from "./TokenCard";
+import { PopupOption, PopupOptionInfo } from "../styles";
+import { WalletIcon } from "../icons/wallet";
 
 interface PaymentProps {
   connector: HotConnector;
   token: Token;
   amount: bigint;
-  receiver: string;
-  onReject: (e: any) => void;
+  recipient?: Recipient;
+  onClose: () => void;
   onProcess: (task: Promise<BridgeReview>) => void;
 }
 
-const Payment = ({ connector, token, amount, receiver, onReject, onProcess }: PaymentProps) => {
-  const [selected, setSelected] = useState<Token | null>(null);
-  const [qoute, setQoute] = useState<BridgeReview | null>(null);
-  const [isQoute, setIsQoute] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-
-  useEffect(() => {
-    if (selected == null) return;
-    const sender = connector.wallets.find((w) => w.type === selected.type);
-    if (!sender) return;
-
-    setIsQoute(false);
-    omni
-      .reviewSwap({ sender, refund: sender, from: selected, to: token, amount: (amount * 1005n) / 1000n, receiver: receiver, slippage: 0.005, type: "exactOut" })
-      .then(setQoute)
-      .catch((e) => console.error(e))
-      .finally(() => setIsQoute(false));
-  }, [selected]);
-
-  const handlePay = () => {
-    if (selected == null) return;
-    const sender = connector.wallets.find((w) => w.type === selected.type);
-    if (!sender) return;
-
-    setIsPaying(true);
-    const task = omni.makeSwap(sender, qoute!, { log: (message) => console.log(message) }).finally(() => setIsPaying(false));
-    onProcess(task);
+export const Payment = observer(({ connector, recipient, token: need, amount: needAmount, onProcess, onClose }: PaymentProps) => {
+  const title = `Need ${need.readable(needAmount)} ${need.symbol}`;
+  const selectToken = async (from: Token, wallet?: OmniWallet) => {
+    onProcess(
+      openBridge(connector, {
+        sender: wallet,
+        autoClose: true,
+        type: "exactOut",
+        recipient: recipient || Recipient.fromWallet(connector.priorityWallet!),
+        readonlyTo: recipient ? true : false,
+        amount: need.float(needAmount),
+        readonlyAmount: true,
+        title: title,
+        from: from,
+        to: need,
+      })
+    );
   };
 
-  const need = token.usd * token.float(amount);
-  const tokens = Object.values(connector.tokens).filter((t) => {
-    const wallet = connector.wallets.find((w) => w.type === t.type);
-    if (!wallet) return false;
-
-    const balance = connector.balance(wallet, t);
-    if (t.float(balance) * t.usd > need) return true;
-    return false;
-  });
-
-  if (selected == null) {
-    return (
-      <Popup header={<p>Pay ${token.readable(amount, token.usd)}</p>} onClose={() => onReject(new Error("User rejected"))}>
-        {tokens.map((token) => (
-          <TokenCard key={token.id} token={token} onSelect={setSelected} hot={connector} wallet={connector.wallets.find((w) => w.type === token.type)!} />
-        ))}
-      </Popup>
-    );
-  }
+  useEffect(() => {
+    if (connector.wallets.length === 0) {
+      openConnector(connector);
+    }
+  }, [connector.wallets.length, connector]);
 
   return (
-    <Popup header={<p>Pay ${token.readable(amount, token.usd)}</p>} onClose={() => onReject(new Error("User rejected"))}>
-      {qoute != null && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
-          <div style={{ display: "flex", flexDirection: "row", gap: 4, width: "100%" }}>
-            <img src={selected.icon} width={18} height={18} style={{ borderRadius: "50%" }} />
-            <p style={{ marginRight: "auto" }}>{selected.symbol}</p>
+    <Popup onClose={onClose} header={<p>{title}</p>}>
+      {connector.walletsTokens.map(({ token, wallet, balance }) => {
+        if (token.id === need.id) return null;
 
-            <p>
-              {selected.readable(qoute.amountIn)} {selected.symbol} • ${selected.readable(qoute.amountIn, selected.usd)}
-            </p>
-          </div>
+        if (need.originalChain === Network.Gonka || need.originalChain === Network.Juno) {
+          if (token.id === need.id) return null;
+          if (token.originalAddress !== need.originalAddress) return null;
+          return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
+        }
 
-          <div style={{ display: "flex", flexDirection: "row", gap: 4, width: "100%" }}>
-            <img src={selected.chainIcon} width={18} height={18} style={{ borderRadius: "50%" }} />
-            <p style={{ marginRight: "auto" }}>Network Fee</p>
+        if (token.float(balance) * token.usd <= need.usd * need.float(needAmount)) return null;
+        return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
+      })}
 
-            <p>
-              {selected.readable(qoute.fee.gasPrice)} {selected.symbol} • ${selected.readable(qoute.fee.gasPrice, selected.usd)}
-            </p>
-          </div>
+      <PopupOption onClick={() => openConnector(connector)}>
+        <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <WalletIcon />
         </div>
-      )}
-
-      <PopupButton onClick={handlePay} disabled={isPaying || qoute == null}>
-        {isPaying ? "Paying..." : qoute == null ? "Quoting..." : `Pay`}
-      </PopupButton>
+        <PopupOptionInfo>
+          <p>Connect wallet</p>
+          <span className="wallet-address">To more pay options</span>
+        </PopupOptionInfo>
+      </PopupOption>
     </Popup>
   );
-};
-
-export default observer(Payment);
+});

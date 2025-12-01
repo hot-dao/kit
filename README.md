@@ -1,6 +1,6 @@
 # Wibe3
 
-`yarn add @hot-labs/wibe3`
+`yarn add @hot-labs/wibe3 react react-dom`
 
 Multi-chain connector for NEAR Intents support.
 Implements NEAR Intents support for the following networks:
@@ -10,22 +10,35 @@ Implements NEAR Intents support for the following networks:
 - Solana
 - TON
 - Stellar
+- Cosmos
 
 Also supported: Passkey accounts and Google Auth via HOT MPC Network
 
-# Node polyfills
+# Vite: Node polyfills and React plugins
 
-Wibe3 require you to install node polyfills to work, for vite you need to complete the following extra steps:
+Wibe3 require you to install node polyfills and react to work, for vite you need to complete the following extra steps:
 
-`npm install vite-plugin-node-polyfills`
-Then in your vite.config.ts add the polyfills plugin.
+`npm install vite-plugin-node-polyfills @vitejs/plugin-react`
+
+Then in your vite.config.ts add this plugins:
+
+```ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
+
+export default defineConfig({
+  plugins: [nodePolyfills(), react()],
+});
+```
 
 ## Getting started
 
 ```ts
 const connector = new HotConnector({
-  enableGoogle: true,
+  // optional for WalletConnect
   projectId: "1292473190ce7eb75c9de67e15aaad99",
+  // optional for WalletConnect
   metadata: {
     name: "Example App",
     description: "Example App",
@@ -36,29 +49,4 @@ const connector = new HotConnector({
 
 connector.onConnect(({ wallet }) => {});
 connector.onDisconnect(({ wallet }) => {});
-```
-
-## HOT Pay
-
-```ts
-// Pay to you from any user connected wallet
-const receiver = await omni.account(Chain.TON, "EU...");
-await wallet.payment(OmniToken.USDT, receiver, 1);
-```
-
-## Intents builder
-
-```ts
-await wallet.intents
-  .authCall({ attachNear: 10000n, msg: "", contractId: "", tgas: 50n })
-  .transfer({ receiver: "root.near", token: OmniToken.USDC, amount: 1 })
-  .tokenDiff({ [OmniToken.USDC]: 10, [OmniToken.NEAR]: -2 })
-  .attachHashes([])
-  .execute();
-```
-
-## Bridge tokens
-
-```ts
-await connector.openBridge();
 ```

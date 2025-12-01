@@ -1,7 +1,7 @@
 import { isInjected, requestHot } from "./hot";
 
 if (isInjected()) {
-  // @ts-ignore
+  // @ts-expect-error: hotWallet is not defined
   window.hotWallet = {
     tonconnect: {
       deviceInfo: {

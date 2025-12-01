@@ -4,11 +4,15 @@ export function registerWallet(wallet: Wallet): void {
   const callback: WindowRegisterWalletEventCallback = ({ register }) => register(wallet);
   try {
     (window as WalletEventsWindow).dispatchEvent(new RegisterWalletEvent(callback));
-  } catch (error) {}
+  } catch (error) {
+    console.error(error);
+  }
 
   try {
     (window as WalletEventsWindow).addEventListener("wallet-standard:app-ready", ({ detail: api }) => callback(api));
-  } catch (error) {}
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 class RegisterWalletEvent extends Event implements WindowRegisterWalletEvent {

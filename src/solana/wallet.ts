@@ -43,7 +43,7 @@ class SolanaWallet extends OmniWallet {
     return hex.encode(base58.decode(this.address)).toLowerCase();
   }
 
-  async fetchBalance(chain: number, address: string) {
+  async fetchBalance(_: number, address: string) {
     if (address === "native") {
       const balance = await connection.getBalance(new PublicKey(this.address));
       return BigInt(balance);
@@ -54,9 +54,9 @@ class SolanaWallet extends OmniWallet {
     return BigInt(meta.value.amount);
   }
 
-  async disconnect(data?: { silent?: boolean }) {
-    await this.wallet.disconnect?.(data);
-    super.disconnect(data);
+  async disconnect() {
+    await this.wallet.disconnect?.();
+    super.disconnect();
   }
 
   async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
@@ -179,6 +179,25 @@ class SolanaWallet extends OmniWallet {
     const message = new TransactionMessage({ payerKey: new PublicKey(this.address), recentBlockhash: blockhash, instructions });
     const transaction = new VersionedTransaction(message.compileToV0Message());
     return await this.wallet.sendTransaction(transaction, connection, { preflightCommitment: "confirmed" });
+  }
+
+  async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
+    const native = await this.fetchBalance(chain, "native");
+    try {
+      const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist }), method: "POST" });
+      const { balances } = await res.json();
+      return { ...balances, native };
+    } catch {
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(this.address), { programId: TOKEN_PROGRAM_ID });
+      const balances = Object.fromEntries(
+        tokenAccounts.value.map((account) => {
+          const { mint, tokenAmount } = account.account.data.parsed.info;
+          return [mint, tokenAmount.amount];
+        })
+      );
+
+      return { ...balances, native };
+    }
   }
 
   async signMessage(message: string) {
