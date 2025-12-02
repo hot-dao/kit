@@ -1,10 +1,13 @@
 import { FinalExecutionOutcome } from "@near-js/types";
 import { rpc } from "../near/rpc";
 
+const API_KEY =
+  "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjIwMjUtMDQtMjMtdjEifQ.eyJ2IjoxLCJrZXlfdHlwZSI6InNvbHZlciIsInBhcnRuZXJfaWQiOiJob3QiLCJpYXQiOjE3NjQ2OTI3MTAsImV4cCI6MTc5NjIyODcxMH0.XKgreb8bIxThnKiQrzBtaGhFZGMBwrB0QXwdjGGhYyIupn0BBpXZyALt4YeClPOuimXp8e_at5mAb1cLeQMHuk54NDNouV1qchHsAqmGkouP4sqIufSy9P2X1-8ZWkH2EfU1Kdc22O6A7i7ztRZaDoi5jkCbESnKne81zV9tcTAXOcbyuoHaePprgRfTvuB8GGQ4_2Pj39J9bGyqsAtS0HocDUpee6udS6O_aMklZtiIQzZzg2DbwkrkmLDQ9um0g5iKWy4ZXS3REYNuhC6JEFeF84FIqS9FTPMPIi5H9qzt0EmlmvPJia2s2nl0nh7n4hCacCNT0SFjhYMKuhEJfQ";
+
 class IntentsManager {
   async publishSignedIntents(signed: Record<string, any>[], hashes: string[] = []): Promise<string> {
-    const res = await fetch("https://api0.herewallet.app/api/v1/evm/intent-solver", {
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch("https://solver-relay-v2.chaindefuser.com/rpc", {
+      headers: { "Content-Type": "application/json", Authorization: API_KEY },
       method: "POST",
       body: JSON.stringify({
         params: [{ signed_datas: signed, quote_hashes: hashes }],
@@ -19,14 +22,14 @@ class IntentsManager {
     const intentResult = result.intent_hashes[0];
 
     const getStatus = async () => {
-      const statusRes = await fetch("https://api0.herewallet.app/api/v1/evm/intent-solver", {
-        headers: { "Content-Type": "application/json" },
+      const statusRes = await fetch("https://solver-relay-v2.chaindefuser.com/rpc", {
+        headers: { "Content-Type": "application/json", Authorization: API_KEY },
         method: "POST",
         body: JSON.stringify({
+          params: [{ intent_hash: intentResult }],
+          method: "get_status",
           id: "dontcare",
           jsonrpc: "2.0",
-          method: "get_status",
-          params: [{ intent_hash: intentResult }],
         }),
       });
 
