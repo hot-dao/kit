@@ -106,12 +106,13 @@ class IntentsBuilder {
       tokens[omniToken.omniAddress] = amountStr;
       this.addNeed(token as OmniToken, BigInt(amountStr));
     }
+
     const intent: TransferIntent = {
       intent: "transfer",
-      tokens,
       receiver_id: args.recipient.toLowerCase(),
-      msg: args.msg,
       min_gas: args.tgas ? (BigInt(args.tgas) * TGAS).toString() : undefined,
+      msg: args.msg,
+      tokens,
     };
 
     this.intents.push(intent);

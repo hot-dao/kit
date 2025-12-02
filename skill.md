@@ -78,14 +78,14 @@ export const wibe3 = new HotConnector({
 
 > **⚠️ Important**: **By default, always use Omni Chain (Intents) approach**. Native chain transfers should only be used when you specifically need same-chain transfers and want to avoid omni chain overhead.
 
-| Operation | Native Chain | Omni Chain (Intents) ⭐ **Default** |
-|-----------|--------------|-----------------------------------|
-| **Same chain transfer** | `wallet.transfer()` | ✅ `requestToken()` → `wallet.intents.transfer()` |
-| **Cross-chain transfer** | ❌ Not supported | ✅ `requestToken()` → `wallet.intents.transfer()` |
-| **NFT mint** | Direct contract call | ✅ `requestToken()` → `wallet.intents.authCall()` |
-| **Gas payment** | Native token | NEAR (omni operations) |
-| **Speed** | Fast | Slower (cross-chain) |
-| **Recommended?** | ❌ Only for specific same-chain needs | ✅ **Yes - Default approach** |
+| Operation                | Native Chain                          | Omni Chain (Intents) ⭐ **Default**               |
+| ------------------------ | ------------------------------------- | ------------------------------------------------- |
+| **Same chain transfer**  | `wallet.transfer()`                   | ✅ `requestToken()` → `wallet.intents.transfer()` |
+| **Cross-chain transfer** | ❌ Not supported                      | ✅ `requestToken()` → `wallet.intents.transfer()` |
+| **NFT mint**             | Direct contract call                  | ✅ `requestToken()` → `wallet.intents.authCall()` |
+| **Gas payment**          | Native token                          | NEAR (omni operations)                            |
+| **Speed**                | Fast                                  | Slower (cross-chain)                              |
+| **Recommended?**         | ❌ Only for specific same-chain needs | ✅ **Yes - Default approach**                     |
 
 ### Connecting Wallets
 
@@ -162,14 +162,14 @@ await wibe3.openBridge();
 
 ### Native Chain Transfer Overview
 
-| Feature | Description |
-|---------|-------------|
-| **Use case** | Transfer tokens within the same blockchain |
-| **Method** | `wallet.transfer()` |
-| **Intents required?** | ❌ No - Direct blockchain transaction |
-| **Gas fees** | Paid in native token of the chain |
-| **Speed** | ⚡ Fast, direct on-chain transaction |
-| **Cross-chain?** | ❌ No - Same chain only |
+| Feature               | Description                                |
+| --------------------- | ------------------------------------------ |
+| **Use case**          | Transfer tokens within the same blockchain |
+| **Method**            | `wallet.transfer()`                        |
+| **Intents required?** | ❌ No - Direct blockchain transaction      |
+| **Gas fees**          | Paid in native token of the chain          |
+| **Speed**             | ⚡ Fast, direct on-chain transaction       |
+| **Cross-chain?**      | ❌ No - Same chain only                    |
 
 Each wallet has a `transfer` method for direct token transfers within its native network:
 
@@ -180,12 +180,12 @@ Each wallet has a `transfer` method for direct token transfers within its native
 const tonWallet = wibe3.ton;
 if (tonWallet) {
   // Find TON native token
-  const tonToken = wibe3.tokens.find(t => t.chain === 1111 && t.address === "native");
-  
+  const tonToken = wibe3.tokens.find((t) => t.chain === 1111 && t.address === "native");
+
   if (tonToken) {
     // Get transfer fee estimate
     const fee = await tonWallet.transferFee(tonToken, receiverAddress, amount);
-    
+
     // Transfer TON native token
     const txHash = await tonWallet.transfer({
       token: tonToken,
@@ -194,7 +194,7 @@ if (tonWallet) {
       comment: "Transfer to NEAR", // optional
       gasFee: fee, // optional
     });
-    
+
     console.log("Transaction hash:", txHash);
   }
 }
@@ -202,11 +202,11 @@ if (tonWallet) {
 // NEAR wallet transfer example
 const nearWallet = wibe3.near;
 if (nearWallet) {
-  const nearToken = wibe3.tokens.find(t => t.chain === 1010 && t.address === "native");
-  
+  const nearToken = wibe3.tokens.find((t) => t.chain === 1010 && t.address === "native");
+
   if (nearToken) {
     const fee = await nearWallet.transferFee(nearToken, "petya.near", amount);
-    
+
     const txHash = await nearWallet.transfer({
       token: nearToken,
       receiver: "petya.near",
@@ -220,11 +220,11 @@ if (nearWallet) {
 // EVM wallet transfer example
 const evmWallet = wibe3.evm;
 if (evmWallet) {
-  const usdtToken = wibe3.tokens.find(t => t.symbol === "USDT" && t.chain === 1);
-  
+  const usdtToken = wibe3.tokens.find((t) => t.symbol === "USDT" && t.chain === 1);
+
   if (usdtToken) {
     const fee = await evmWallet.transferFee(usdtToken, receiverAddress, amount);
-    
+
     const txHash = await evmWallet.transfer({
       token: usdtToken,
       receiver: receiverAddress,
@@ -248,15 +248,15 @@ Omni chain uses **NEAR Intents** protocol to enable cross-chain operations. All 
 
 ### Omni Chain / Intents Overview
 
-| Feature | Description |
-|---------|-------------|
-| **Use case** | Cross-chain transfers, omni token operations, NFT minting via intents |
-| **Method** | `wallet.intents.*` after calling `requestToken()` |
-| **Intents required?** | ✅ Yes - Uses NEAR Intents protocol |
-| **Requires** | `requestToken()` call first to ensure omni token balance |
-| **Gas fees** | Paid in NEAR (for omni operations) |
-| **Speed** | ⏱️ May take longer due to cross-chain processing |
-| **Cross-chain?** | ✅ Yes - Works across all supported chains |
+| Feature               | Description                                                           |
+| --------------------- | --------------------------------------------------------------------- |
+| **Use case**          | Cross-chain transfers, omni token operations, NFT minting via intents |
+| **Method**            | `wallet.intents.*` after calling `requestToken()`                     |
+| **Intents required?** | ✅ Yes - Uses NEAR Intents protocol                                   |
+| **Requires**          | `requestToken()` call first to ensure omni token balance              |
+| **Gas fees**          | Paid in NEAR (for omni operations)                                    |
+| **Speed**             | ⏱️ May take longer due to cross-chain processing                      |
+| **Cross-chain?**      | ✅ Yes - Works across all supported chains                            |
 
 ### Request Token Before Using Intents
 
@@ -277,6 +277,7 @@ await wallet.intents
 ```
 
 The `requestToken` method:
+
 - Opens a UI dialog to deposit tokens if the wallet doesn't have enough omni balance
 - Returns the wallet and the requested amount
 - Ensures the wallet has sufficient omni token balance for intents
@@ -304,10 +305,7 @@ await wallet.intents
 
 // Example 2: Direct transfer using wallet.intents (recommended for cross-chain)
 // Request token first
-const { wallet: transferWallet, amount: transferAmount } = await wibe3.requestToken(
-  OmniToken.USDC,
-  10
-);
+const { wallet: transferWallet, amount: transferAmount } = await wibe3.requestToken(OmniToken.USDC, 10);
 
 // Transfer omni token to NEAR address
 const txHash = await transferWallet.intents
@@ -392,6 +390,7 @@ The `sign()` method allows you to sign intents without immediately executing the
 - Implement custom execution logic
 
 **Important**: Before calling `sign()`, you must:
+
 1. Attach a wallet using `attachWallet()` (or use `wallet.intents` which automatically attaches the wallet)
 2. Build your intents using builder methods (`transfer()`, `authCall()`, etc.)
 
@@ -493,18 +492,20 @@ const signed = await wallet.intents
 
 #### Difference Between `sign()` and `execute()`
 
-| Method | Signs Intents | Publishes Intents | Waits for Result |
-|--------|---------------|-------------------|------------------|
-| `sign()` | ✅ Yes | ❌ No | ❌ No |
-| `execute()` | ✅ Yes (calls `sign()` internally) | ✅ Yes | ✅ Yes |
+| Method      | Signs Intents                      | Publishes Intents | Waits for Result |
+| ----------- | ---------------------------------- | ----------------- | ---------------- |
+| `sign()`    | ✅ Yes                             | ❌ No             | ❌ No            |
+| `execute()` | ✅ Yes (calls `sign()` internally) | ✅ Yes            | ✅ Yes           |
 
 **Use `sign()` when**:
+
 - You need to sign intents without immediately executing
 - You want to implement custom execution logic
 - You need to send signed intents to a server
 - You want to batch sign multiple operations
 
 **Use `execute()` when**:
+
 - You want to sign and execute in one call (most common case)
 - You want automatic publishing and waiting for transaction result
 
@@ -566,14 +567,14 @@ async function mintNFTs(
     throw new Error("No wallet connected");
   }
   const tradingAddress = wallet.omniAddress;
-  
+
   // Calculate total storage deposit needed for all NFTs
   let totalDeposit = 0n;
   const intents: any[] = [];
-  
+
   for (let i = 0; i < nfts.length; i++) {
     const nft = nfts[i];
-    
+
     // Create mint message
     const msg: MintMsg = {
       msg: tradingAddress,
@@ -586,13 +587,13 @@ async function mintNFTs(
         media: nft.image,
       },
     };
-    
+
     // Calculate deposit size based on metadata size
     // Formula: (JSON string length * 8 bits) / 100,000 * 10^24 yoctoNEAR
     const metadataSize = JSON.stringify(msg.token_metadata).length;
     const size = BigInt((metadataSize * 8) / 100_000) * BigInt(10 ** 24);
     totalDeposit += size;
-    
+
     // Create auth_call intent
     intents.push({
       min_gas: String(50n * 1000000000000n), // 50 TGAS
@@ -602,17 +603,17 @@ async function mintNFTs(
       intent: "auth_call",
     });
   }
-  
+
   // Request NEAR token for storage deposit
   // Convert from yoctoNEAR to NEAR (1 NEAR = 10^24 yoctoNEAR)
   const depositInNear = Number(totalDeposit) / 1e24;
   // Add small buffer (10%) for safety
   const depositWithBuffer = depositInNear * 1.1;
   const { wallet: depositWallet } = await wibe3.requestToken(OmniToken.NEAR, depositWithBuffer);
-  
+
   // Execute all mint intents using intents builder
   const builder = depositWallet.intents;
-  
+
   // Add all auth_call intents
   for (const intent of intents) {
     builder.authCall({
@@ -622,7 +623,7 @@ async function mintNFTs(
       tgas: 50, // 50 TGAS
     });
   }
-  
+
   // Execute all intents
   const result = await builder.execute();
   return result;
@@ -642,14 +643,14 @@ const nfts: NFT[] = [
       image: "https://example.com/nft2.png",
     },
   ];
-  
+
   try {
     const result = await mintNFTs(
       "my-nft-collection.near", // NFT collection contract
       nfts,
       100 // current total supply
     );
-    
+
     console.log("NFTs minted successfully:", result);
   } catch (error) {
     console.error("Minting failed:", error);
@@ -677,11 +678,11 @@ const NFTComponent = observer(() => {
         <h3>{nft.title}</h3>
         <p>{nft.description}</p>
       </div>
-      
+
       {/* Recommended: Trade On HOT Craft button */}
-      <a 
-        href="https://hotcraft.art/" 
-        target="_blank" 
+      <a
+        href="https://hotcraft.art/"
+        target="_blank"
         rel="noopener noreferrer"
         style={{
           display: "inline-block",
@@ -701,22 +702,19 @@ const NFTComponent = observer(() => {
 ```
 
 **Why add this button?**
+
 - Provides users with a marketplace to trade their NFTs
 - Improves user experience by offering trading functionality
 - Connects your app with the HOT Craft ecosystem
 
 ```typescript
-async function mintSingleNFT(
-  collection: string,
-  nft: NFT,
-  tokenId: string
-) {
+async function mintSingleNFT(collection: string, nft: NFT, tokenId: string) {
   // Get wallet first
-  const wallet = wibe3.wallets.find(w => !!w.omniAddress);
+  const wallet = wibe3.wallets.find((w) => !!w.omniAddress);
   if (!wallet) {
     throw new Error("No wallet connected");
   }
-  
+
   const mintMsg = {
     msg: wallet.omniAddress,
     token_owner_id: "intents.near",
@@ -728,19 +726,19 @@ async function mintSingleNFT(
       reference: nft.reference,
     },
   };
-  
+
   // Calculate storage deposit size
   // Formula: (JSON string length * 8 bits) / 100,000 * 10^24 yoctoNEAR
   const metadataSize = JSON.stringify(mintMsg.token_metadata).length;
   const deposit = BigInt((metadataSize * 8) / 100_000) * BigInt(10 ** 24);
-  
+
   // Request NEAR token for storage deposit
   // Convert from yoctoNEAR to NEAR (1 NEAR = 10^24 yoctoNEAR)
   const depositInNear = Number(deposit) / 1e24;
   // Add small buffer (10%) for safety
   const depositWithBuffer = depositInNear * 1.1;
   const { wallet: depositWallet } = await wibe3.requestToken(OmniToken.NEAR, depositWithBuffer);
-  
+
   // Mint using intents builder
   const result = await depositWallet.intents
     .authCall({
@@ -750,7 +748,7 @@ async function mintSingleNFT(
       tgas: 50,
     })
     .execute();
-  
+
   return result;
 }
 
@@ -791,12 +789,7 @@ unsubscribeDisconnect();
 ```typescript
 import Bridge from "@hot-labs/wibe3/ui/payment/Bridge";
 
-<Bridge 
-  widget 
-  hot={wibe3} 
-  onClose={() => {}} 
-  onProcess={() => {}} 
-/>
+<Bridge widget hot={wibe3} onClose={() => {}} onProcess={() => {}} />;
 ```
 
 ### Payment Component
@@ -804,13 +797,7 @@ import Bridge from "@hot-labs/wibe3/ui/payment/Bridge";
 ```typescript
 import Payment from "@hot-labs/wibe3/ui/payment/Payment";
 
-<Payment 
-  hot={wibe3}
-  token={token}
-  amount={amount}
-  receiver={address}
-  onClose={() => {}}
-/>
+<Payment hot={wibe3} token={token} amount={amount} receiver={address} onClose={() => {}} />;
 ```
 
 ## Supported Blockchains
@@ -877,7 +864,7 @@ const App = observer(() => {
 
     try {
       // Native chain transfer (NEAR to NEAR)
-      const nearToken = wibe3.tokens.find(t => t.chain === 1010 && t.address === "native");
+      const nearToken = wibe3.tokens.find((t) => t.chain === 1010 && t.address === "native");
       if (nearToken) {
         const fee = await nearWallet.transferFee(nearToken, "petya.near", 1);
         const txHash = await nearWallet.transfer({
@@ -897,14 +884,8 @@ const App = observer(() => {
 
   return (
     <div>
-      <button onClick={handleConnect}>
-        {wibe3.wallets.length > 0 ? "Connected" : "Connect Wallet"}
-      </button>
-      {wibe3.near && (
-        <button onClick={handleNativeTransfer}>
-          Transfer 1 NEAR to petya.near (Native)
-        </button>
-      )}
+      <button onClick={handleConnect}>{wibe3.wallets.length > 0 ? "Connected" : "Connect Wallet"}</button>
+      {wibe3.near && <button onClick={handleNativeTransfer}>Transfer 1 NEAR to petya.near (Native)</button>}
     </div>
   );
 });
@@ -936,7 +917,7 @@ const App = observer(() => {
     try {
       // Step 1: Request omni token (opens UI if deposit needed)
       const { wallet, amount } = await wibe3.requestToken(OmniToken.USDT, 1);
-      
+
       // Step 2: Transfer omni token to NEAR address (cross-chain)
       await wallet.intents
         .transfer({
@@ -945,7 +926,7 @@ const App = observer(() => {
           recipient: "petya.near",
         })
         .execute();
-      
+
       alert("Cross-chain transfer successful!");
     } catch (error) {
       console.error("Transfer failed:", error);
@@ -955,15 +936,11 @@ const App = observer(() => {
 
   return (
     <div>
-      <button onClick={handleConnect}>
-        {wibe3.wallets.length > 0 ? "Connected" : "Connect Wallet"}
-      </button>
+      <button onClick={handleConnect}>{wibe3.wallets.length > 0 ? "Connected" : "Connect Wallet"}</button>
       {wibe3.wallets.length > 0 && (
         <div>
           <div>Connected wallets: {wibe3.wallets.length}</div>
-          <button onClick={handleOmniTransfer}>
-            Transfer USDT to petya.near (Cross-chain via Omni)
-          </button>
+          <button onClick={handleOmniTransfer}>Transfer USDT to petya.near (Cross-chain via Omni)</button>
         </div>
       )}
       <Bridge widget hot={wibe3} onClose={() => {}} onProcess={() => {}} />
@@ -977,12 +954,14 @@ const App = observer(() => {
 > **⭐ Default Recommendation**: **Always use Omni Chain (Intents) by default**. Only use Native Chain transfers when you have specific requirements for same-chain operations and want to avoid omni chain overhead.
 
 ### Use Native Chain Transfers When:
+
 - ⚠️ **Specific use case only**: Transferring within the same blockchain (TON → TON, NEAR → NEAR, EVM → EVM)
 - ⚠️ You specifically need faster, direct on-chain transactions
 - ⚠️ You want to pay gas fees in the native token (not NEAR)
 - ⚠️ You have a specific requirement to avoid omni chain
 
 ### Use Omni Chain / Intents When (⭐ Default):
+
 - ✅ **All operations** - This is the recommended default approach
 - ✅ Transferring across different blockchains (TON → NEAR, EVM → Solana, etc.)
 - ✅ Transferring within the same blockchain (NEAR → NEAR, TON → TON, etc.)

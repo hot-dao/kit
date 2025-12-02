@@ -25,8 +25,15 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
   if (chain == null) {
     const chains: Record<number, { chain: number; balance: number; name: string; icon: string }> = {};
     hot.tokens.forEach((token) => {
+      if (!chains[token.chain])
+        chains[token.chain] = {
+          chain: token.chain,
+          name: token.chainName,
+          icon: token.chainIcon,
+          balance: 0,
+        };
+
       hot.wallets.forEach((wallet) => {
-        if (!chains[token.chain]) chains[token.chain] = { chain: token.chain, balance: 0, name: token.chainName, icon: token.chainIcon };
         const balance = hot.balance(wallet, token);
         chains[token.chain].balance += token.float(balance) * token.usd;
       });
