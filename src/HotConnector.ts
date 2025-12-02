@@ -101,7 +101,6 @@ export class HotConnector {
     if (this.solana) return this.solana;
     if (this.ton) return this.ton;
     if (this.stellar) return this.stellar;
-    if (this.cosmos) return this.cosmos;
   }
 
   get wallets(): OmniWallet[] {
