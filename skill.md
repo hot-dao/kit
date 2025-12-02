@@ -411,15 +411,14 @@ async function mintNFTs(
   nfts: NFT[],
   totalSupply: number
 ) {
-  // Request NEAR token for deposits (if needed)
-  // Calculate approximate NEAR needed for all NFTs
-  const estimatedDeposit = nfts.length * 0.1; // rough estimate
-  const { wallet, amount } = await wibe3.requestToken(OmniToken.NEAR, estimatedDeposit);
-  
-  // Get trading address (omni address)
+  // Get trading address (omni address) - need wallet first
+  const wallet = wibe3.wallets.find(w => !!w.omniAddress);
+  if (!wallet) {
+    throw new Error("No wallet connected");
+  }
   const tradingAddress = wallet.omniAddress;
   
-  // Calculate total deposit needed
+  // Calculate total storage deposit needed for all NFTs
   let totalDeposit = 0n;
   const intents: any[] = [];
   
@@ -455,8 +454,15 @@ async function mintNFTs(
     });
   }
   
+  // Request NEAR token for storage deposit
+  // Convert from yoctoNEAR to NEAR (1 NEAR = 10^24 yoctoNEAR)
+  const depositInNear = Number(totalDeposit) / 1e24;
+  // Add small buffer (10%) for safety
+  const depositWithBuffer = depositInNear * 1.1;
+  const { wallet: depositWallet } = await wibe3.requestToken(OmniToken.NEAR, depositWithBuffer);
+  
   // Execute all mint intents using intents builder
-  const builder = wallet.intents;
+  const builder = depositWallet.intents;
   
   // Add all auth_call intents
   for (const intent of intents) {
@@ -556,9 +562,11 @@ async function mintSingleNFT(
   nft: NFT,
   tokenId: string
 ) {
-  // Request NEAR token for deposit
-  const estimatedDeposit = 0.1; // rough estimate
-  const { wallet, amount } = await wibe3.requestToken(OmniToken.NEAR, estimatedDeposit);
+  // Get wallet first
+  const wallet = wibe3.wallets.find(w => !!w.omniAddress);
+  if (!wallet) {
+    throw new Error("No wallet connected");
+  }
   
   const mintMsg = {
     msg: wallet.omniAddress,
@@ -572,12 +580,20 @@ async function mintSingleNFT(
     },
   };
   
-  // Calculate deposit size
+  // Calculate storage deposit size
+  // Formula: (JSON string length * 8 bits) / 100,000 * 10^24 yoctoNEAR
   const metadataSize = JSON.stringify(mintMsg.token_metadata).length;
   const deposit = BigInt((metadataSize * 8) / 100_000) * BigInt(10 ** 24);
   
+  // Request NEAR token for storage deposit
+  // Convert from yoctoNEAR to NEAR (1 NEAR = 10^24 yoctoNEAR)
+  const depositInNear = Number(deposit) / 1e24;
+  // Add small buffer (10%) for safety
+  const depositWithBuffer = depositInNear * 1.1;
+  const { wallet: depositWallet } = await wibe3.requestToken(OmniToken.NEAR, depositWithBuffer);
+  
   // Mint using intents builder
-  const result = await wallet.intents
+  const result = await depositWallet.intents
     .authCall({
       contractId: collection,
       msg: JSON.stringify(mintMsg),
@@ -678,6 +694,7 @@ import Payment from "@hot-labs/wibe3/ui/payment/Payment";
 6. **TypeScript**: Recommended to use TypeScript for better type safety
 7. **Request Token Before Intents**: **Always call `wibe3.requestToken()` before using `wallet.intents` methods**. This ensures the wallet has sufficient omni token balance and opens a UI dialog for deposit if needed.
 8. **NFT UI Recommendation**: When working with NFTs, add a "Trade On HOT Craft" button linking to `https://hotcraft.art/` to provide users with marketplace functionality.
+9. **Z-Index**: **⚠️ Important for integration**: Ensure that nowhere in your project uses `z-index` values greater than `10000000`. The library uses high z-index values for modal windows and popups, and conflicts may occur if your project uses higher values.
 
 ## Complete Integration Examples
 

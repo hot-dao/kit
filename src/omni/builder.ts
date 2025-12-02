@@ -168,10 +168,14 @@ class IntentsBuilder {
     return this;
   }
 
-  async execute() {
+  async sign() {
     const signer = this.signer;
     if (!signer) throw new Error("No signer attached");
-    const signed = await signer.signIntents(this.intents, { nonce: this.nonce, deadline: this.deadline ? +this.deadline : undefined });
+    return await signer.signIntents(this.intents, { nonce: this.nonce, deadline: this.deadline ? +this.deadline : undefined });
+  }
+
+  async execute() {
+    const signed = await this.sign();
     const hash = await Intents.publishSignedIntents([signed], this.hashes);
     await Intents.waitTransactionResult(hash, "intents.near");
     return hash;
