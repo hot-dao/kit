@@ -3,6 +3,7 @@ import { HotConnector, Intents, OmniToken, OmniWallet } from "../../src";
 
 export const MultichainExample = () => {
   const [wallets, setWallets] = useState<OmniWallet[]>([]);
+  const [signedIntent, setSignedIntent] = useState<string>("");
   const [connector] = useState<HotConnector>(() => {
     const connector = new HotConnector({
       tonManifestUrl: "http://localhost:5173/hot-connector/tonconnect-manifest.json",
@@ -32,12 +33,12 @@ export const MultichainExample = () => {
         Exchange
       </button>
 
-      <button className={"input-button"} onClick={() => connector.deposit(OmniToken.JUNO, 1)}>
-        Deposit 1 JUNO
+      <button className={"input-button"} onClick={() => connector.deposit(OmniToken.GONKA, 1)}>
+        Deposit 1 GONKA
       </button>
 
-      <button className={"input-button"} onClick={() => connector.withdraw(OmniToken.JUNO, 1)}>
-        Withdraw 1 JUNO
+      <button className={"input-button"} onClick={() => connector.withdraw(OmniToken.GONKA, 1)}>
+        Withdraw 1 GONKA
       </button>
 
       <button className={"input-button"} onClick={() => connector.requestToken(OmniToken.USDT, 1)}>
@@ -65,9 +66,24 @@ export const MultichainExample = () => {
               >
                 Sign auth intents
               </button>
+              <button
+                className={"input-button"}
+                onClick={async () => {
+                  try {
+                    const signed = await wallet.intents.authCall({ contractId: "demo.tg", msg: "hello", attachNear: 0n, tgas: 50 }).sign();
+                    setSignedIntent(JSON.stringify(signed, null, 2));
+                  } catch (e) {
+                    console.error(e);
+                    alert("Something wrong, check DevTools");
+                  }
+                }}
+              >
+                Sign auth_call
+              </button>
             </div>
           )
       )}
+      {signedIntent && <pre style={{ marginTop: 20, padding: 10, overflow: "auto", maxWidth: 500 }}>{signedIntent}</pre>}
     </div>
   );
 };

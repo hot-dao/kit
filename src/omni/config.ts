@@ -6,6 +6,9 @@ export enum OmniToken {
   GONKA = "nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
   NEAR = "nep141:wrap.near",
   ETH = "nep141:eth.bridge.near",
+  AURORA = "nep141:aaaaaa20d9e0e2461697782ef11675f668207961.factory.bridge.near",
+  SOL = "nep141:sol.omft.near",
+  BNB = "nep245:v2_1.omni.hot.tg:56_11111111111111111111",
 }
 
 export enum WalletType {
