@@ -1,3 +1,5 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+
 import { HotConnector } from "../HotConnector";
 import { Intents } from "./Intents";
 import { OmniWallet } from "./OmniWallet";
@@ -103,6 +105,14 @@ class IntentsBuilder {
       intent: "token_diff",
     };
 
+    for (const [token, amountStr] of Object.entries(intent.token_diff)) {
+      const amount = BigInt(amountStr);
+      if (amount < 0n) {
+        const tokenKey = token as OmniToken;
+        this.addNeed(tokenKey, -amount);
+      }
+    }
+
     this.intents.push(intent);
     return this;
   }
@@ -165,6 +175,16 @@ class IntentsBuilder {
 
   attachNonce(nonce: Uint8Array) {
     this.nonce = nonce;
+    return this;
+  }
+
+  attachTimeout(seconds: number) {
+    this.deadline = new Date(Date.now() + seconds * 1000);
+    return this;
+  }
+
+  attachSeed(seed: string) {
+    this.nonce = new Uint8Array(sha256(new TextEncoder().encode(seed))).slice(0, 32);
     return this;
   }
 

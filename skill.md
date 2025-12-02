@@ -382,6 +382,155 @@ await wallet.intents
   .execute();
 ```
 
+### Signing Intents Without Execution
+
+The `sign()` method allows you to sign intents without immediately executing them. This is useful when you need to:
+
+- Sign intents for later execution
+- Get signed intents for custom processing
+- Batch sign multiple intents before publishing
+- Implement custom execution logic
+
+**Important**: Before calling `sign()`, you must:
+1. Attach a wallet using `attachWallet()` (or use `wallet.intents` which automatically attaches the wallet)
+2. Build your intents using builder methods (`transfer()`, `authCall()`, etc.)
+
+#### Basic Sign Usage
+
+```typescript
+// Request token first
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+// Build and sign intents
+const signed = await wallet.intents
+  .transfer({
+    recipient: "petya.near",
+    token: OmniToken.USDC,
+    amount: amount,
+  })
+  .sign();
+
+// signed is now a Record<string, any> containing the signed intents
+// You can store it, send it to a server, or publish it later
+console.log("Signed intents:", signed);
+```
+
+#### Sign with Nonce and Deadline
+
+You can attach a nonce and deadline before signing:
+
+```typescript
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDT, 5);
+
+// Create a nonce (e.g., from payment ID)
+const paymentId = "payment-123";
+const nonce = new Uint8Array(32);
+// Fill nonce with hash of payment ID or other unique identifier
+crypto.getRandomValues(nonce);
+
+// Set deadline (e.g., 1 hour from now)
+const deadline = new Date(Date.now() + 60 * 60 * 1000);
+
+// Sign with nonce and deadline
+const signed = await wallet.intents
+  .attachNonce(nonce)
+  .attachDeadline(deadline)
+  .transfer({
+    recipient: "alice.near",
+    token: OmniToken.USDT,
+    amount: amount,
+  })
+  .sign();
+```
+
+#### Publishing Signed Intents Manually
+
+After signing, you can publish the signed intents manually:
+
+```typescript
+import { Intents } from "@hot-labs/wibe3";
+
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+// Sign intents
+const signed = await wallet.intents
+  .transfer({
+    recipient: "petya.near",
+    token: OmniToken.USDC,
+    amount: amount,
+  })
+  .sign();
+
+// Publish signed intents manually
+const txHash = await Intents.publishSignedIntents([signed], []);
+
+// Wait for transaction result
+await Intents.waitTransactionResult(txHash, "intents.near");
+console.log("Transaction hash:", txHash);
+```
+
+#### Sign Multiple Intents
+
+You can sign multiple intents in a single call:
+
+```typescript
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+const signed = await wallet.intents
+  .transfer({ recipient: "alice.near", token: OmniToken.USDC, amount: 5 })
+  .transfer({ recipient: "bob.near", token: OmniToken.USDC, amount: 5 })
+  .authCall({
+    contractId: "my-contract.near",
+    msg: JSON.stringify({ method: "process" }),
+    attachNear: 0n,
+    tgas: 30,
+  })
+  .sign();
+
+// All intents are signed together
+// You can now publish them or store for later
+```
+
+#### Difference Between `sign()` and `execute()`
+
+| Method | Signs Intents | Publishes Intents | Waits for Result |
+|--------|---------------|-------------------|------------------|
+| `sign()` | ✅ Yes | ❌ No | ❌ No |
+| `execute()` | ✅ Yes (calls `sign()` internally) | ✅ Yes | ✅ Yes |
+
+**Use `sign()` when**:
+- You need to sign intents without immediately executing
+- You want to implement custom execution logic
+- You need to send signed intents to a server
+- You want to batch sign multiple operations
+
+**Use `execute()` when**:
+- You want to sign and execute in one call (most common case)
+- You want automatic publishing and waiting for transaction result
+
+#### Example: Sign and Store for Later Execution
+
+```typescript
+// Sign intents and store for later
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+const signed = await wallet.intents
+  .transfer({
+    recipient: "petya.near",
+    token: OmniToken.USDC,
+    amount: amount,
+  })
+  .sign();
+
+// Store signed intents (e.g., in localStorage, database, or send to server)
+localStorage.setItem("pendingIntents", JSON.stringify(signed));
+
+// Later, retrieve and publish
+const storedSigned = JSON.parse(localStorage.getItem("pendingIntents") || "{}");
+const txHash = await Intents.publishSignedIntents([storedSigned], []);
+await Intents.waitTransactionResult(txHash, "intents.near");
+```
+
 ### NFT Mint Example (Omni Chain / Intents)
 
 Mint NFTs using `authCall` intent. This example shows how to mint multiple NFTs in a batch:
