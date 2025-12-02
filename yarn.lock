@@ -403,10 +403,10 @@
   resolved "https://registry.yarnpkg.com/@hot-labs/near-connect/-/near-connect-0.6.11.tgz#efb7c623f65059fca0e385c105ac049d7f05ee89"
   integrity sha512-MTohG1YIcl/he+Vf/GsCnBciGJaFHe5p49avz5gXtDbCJxH+ZJn/0/XeROBa68wi478Q23y6he5tUsBy7XDTYA==
 
-"@hot-labs/omni-sdk@^2.23.0":
-  version "2.23.0"
-  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.23.0.tgz#d53d29c140d9a626006700cd4ccc52653cf08d69"
-  integrity sha512-eRRYgdljs7Bt68xwP8P0+0bgV5XxsYZlqCSbjWnyWI8k82LF1HNxvefQy0aoFmRDrflDDT2DE9U84PuZLj1y9A==
+"@hot-labs/omni-sdk@^2.23.4":
+  version "2.23.4"
+  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.23.4.tgz#3f9adfbf49e218c1fe1b5e1384e626b652bf95dc"
+  integrity sha512-tKbYRHjVQEB5AswcoPudtUH6m2g85odDUwSEd7Z7LmSvnIMQYd23cH0aDyNDVoETd4GNfwB/+ZfiWgWfGwGlLw==
   dependencies:
     "@near-js/crypto" "2.2.5"
     "@near-js/providers" "2.2.5"

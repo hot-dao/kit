@@ -1,4 +1,5 @@
 import { HotBridge } from "@hot-labs/omni-sdk";
+import { Intents } from "./Intents";
 
 export enum OmniToken {
   USDT = "nep141:usdt.tether-token.near",
@@ -131,6 +132,12 @@ export const reverseChainsMap = Object.fromEntries(Object.entries(chainsMap).map
 export const bridge = new HotBridge({
   api: ["https://dev.herewallet.app"],
   solanaRpc: ["https://api0.herewallet.app/api/v1/solana/rpc/1001"],
+
+  publishIntents: async (signed: Record<string, any>[], hashes: string[] = []) => {
+    const hash = await Intents.publishSignedIntents(signed, hashes);
+    return { sender: "intents.near", hash };
+  },
+
   logger: console,
   cosmos: {
     [Network.Juno]: {
