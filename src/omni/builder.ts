@@ -204,47 +204,19 @@ class IntentsBuilder {
         throw new Error("transfer intent must have 'tokens' and 'receiver_id' fields");
       }
 
-      const tokenEntries = Object.entries(rawIntent.tokens);
-      if (tokenEntries.length === 1) {
-        const [token, amount] = tokenEntries[0];
-        return this.transfer({
-          recipient: rawIntent.receiver_id,
-          token: token as OmniToken,
-          amount: BigInt(amount as string),
-          msg: rawIntent.msg,
-          tgas: rawIntent.min_gas ? Number(BigInt(rawIntent.min_gas) / TGAS) : undefined,
-        });
-      } else {
-        const tokens: Record<OmniToken, bigint> = {} as Record<OmniToken, bigint>;
-        for (const [token, amount] of tokenEntries) {
-          tokens[token as OmniToken] = BigInt(amount as string);
-        }
-        return this.batchTransfer({
-          recipient: rawIntent.receiver_id,
-          tokens,
-          msg: rawIntent.msg,
-          tgas: rawIntent.min_gas ? Number(BigInt(rawIntent.min_gas) / TGAS) : undefined,
-        });
+      const tokens: Record<OmniToken, bigint> = {} as Record<OmniToken, bigint>;
+      for (const [token, amount] of Object.entries(rawIntent.tokens)) {
+        tokens[token as OmniToken] = BigInt(amount as string);
       }
+      return this.batchTransfer({
+        recipient: rawIntent.receiver_id,
+        tokens,
+        msg: rawIntent.msg,
+        tgas: rawIntent.min_gas ? Number(BigInt(rawIntent.min_gas) / TGAS) : undefined,
+      });
     }
 
     if (intentType === "mt_withdraw") {
-      if (!rawIntent.token || !rawIntent.receiver_id || !rawIntent.amounts || !rawIntent.token_ids) {
-        throw new Error("mt_withdraw intent must have 'token', 'receiver_id', 'amounts', and 'token_ids' fields");
-      }
-
-      if (rawIntent.amounts.length === 1 && rawIntent.token_ids.length === 1) {
-        const token = `nep245:${rawIntent.token}:${rawIntent.token_ids[0]}` as OmniToken;
-        return this.withdraw({
-          token,
-          amount: BigInt(rawIntent.amounts[0]),
-          receiver: rawIntent.receiver_id,
-          memo: rawIntent.memo,
-          msg: rawIntent.msg,
-          tgas: rawIntent.min_gas ? Number(BigInt(rawIntent.min_gas) / TGAS) : undefined,
-        });
-      }
-
       const intent: MtWithdrawIntent = {
         intent: "mt_withdraw",
         amounts: rawIntent.amounts,
@@ -256,9 +228,11 @@ class IntentsBuilder {
         min_gas: rawIntent.min_gas,
       };
 
-      const totalAmount = rawIntent.amounts.reduce((sum: bigint, amt: string) => sum + BigInt(amt), 0n);
-      const token = `nep245:${rawIntent.token}` as OmniToken;
-      this.addNeed(token, totalAmount);
+      for (let i = 0; i < rawIntent.amounts.length; i++) {
+        const token = `nep245:${rawIntent.token}:${rawIntent.token_ids[i]}` as OmniToken;
+        this.addNeed(token, BigInt(rawIntent.amounts[i]));
+      }
+
       this.intents.push(intent);
       return this;
     }
