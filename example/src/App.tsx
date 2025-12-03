@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HotConnector, Intents, OmniToken, OmniWallet } from "../../src";
+import { HotConnector, Intents, OmniToken, OmniWallet } from "@hot-labs/wibe3";
 
 export const MultichainExample = () => {
   const [wallets, setWallets] = useState<OmniWallet[]>([]);
@@ -84,7 +84,7 @@ export const MultichainExample = () => {
                 className={"input-button"}
                 onClick={async () => {
                   try {
-                    const signed = await wallet.intents.tokenDiff({ [OmniToken.USDC]: -40 } as Record<OmniToken, number>).sign(true);
+                    const signed = await wallet.intents.give(OmniToken.USDC, -40).sign();
                     setSignedIntent(JSON.stringify(signed, null, 2));
                   } catch (e) {
                     console.error(e);

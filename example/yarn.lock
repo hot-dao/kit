@@ -578,10 +578,10 @@
   resolved "https://registry.yarnpkg.com/@hot-labs/near-connect/-/near-connect-0.6.11.tgz#efb7c623f65059fca0e385c105ac049d7f05ee89"
   integrity sha512-MTohG1YIcl/he+Vf/GsCnBciGJaFHe5p49avz5gXtDbCJxH+ZJn/0/XeROBa68wi478Q23y6he5tUsBy7XDTYA==
 
-"@hot-labs/omni-sdk@2.22.0-beta.5":
-  version "2.22.0-beta.5"
-  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.22.0-beta.5.tgz#978cd18760642a9eb9bb7bb3713d72f84e9fe607"
-  integrity sha512-NnqV579HRnHBaVxkJZHIE/K9xzC0ZK740wtScUc37pfROk95JO6sks0S2AdtIgoHPhKVvGBcimUk3N7Kv1KckA==
+"@hot-labs/omni-sdk@^2.23.6":
+  version "2.23.6"
+  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.23.6.tgz#84b90a533a9aeeca48113c73e4187f9b2b34032b"
+  integrity sha512-aWlY+rnS9DQe3UYIBJlqucSua2MjuKAdRkNN/j1IvfFheh0xh17WoQPfAPcmwrvq86GyNW399RLn4o6uJmrhvA==
   dependencies:
     "@near-js/crypto" "2.2.5"
     "@near-js/providers" "2.2.5"
@@ -604,16 +604,16 @@
     "@solana/web3.js" "1.68.0"
     cosmjs-types "0.11.0"
 
-"@hot-labs/wibe3@1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@hot-labs/wibe3/-/wibe3-1.0.0.tgz#e6c2dd25de4528abffeeff9b63b82956694ecb48"
-  integrity sha512-0VEKsqMoxMjlEu/XTpQ1ohTWZ5/AuW7G/++t5ig36hg4zHYjVOjDcVk8F02oRCFMMrNVuEFZpt4zHZWyErJ0ww==
+"@hot-labs/wibe3@^1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@hot-labs/wibe3/-/wibe3-1.0.21.tgz#98eb82b1cb6d84dd8c8e80c6253073152a7be168"
+  integrity sha512-lY8CUwmjO4CaToOLcVooWsDvT2sdV37A9V/pWFL1woi1I7A4aa8fQOk3Iw3t5mtEsppkydeKPHfm6Wlt/SlJFw==
   dependencies:
     "@cosmjs/stargate" "^0.37.0"
     "@creit.tech/stellar-wallets-kit" "^1.9.1"
     "@defuse-protocol/one-click-sdk-typescript" "^0.1.13"
     "@hot-labs/near-connect" "^0.6.10"
-    "@hot-labs/omni-sdk" "2.22.0-beta.5"
+    "@hot-labs/omni-sdk" "^2.23.6"
     "@keplr-wallet/proto-types" "^0.12.291"
     "@keplr-wallet/provider-extension" "^0.12.291"
     "@near-js/crypto" "^2.3.3"

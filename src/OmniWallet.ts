@@ -1,5 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
+import { openAuthPopup } from "./ui/connect/AuthPopup";
 import { OmniToken, WalletType } from "./omni/config";
 import { OmniConnector } from "./OmniConnector";
 import { Intents } from "./omni/Intents";
@@ -56,6 +57,13 @@ export abstract class OmniWallet {
 
   get intents() {
     return new Intents(this.connector.wibe3).attachWallet(this);
+  }
+
+  async auth<T = SignedAuth>(domain: string, intents?: Record<string, any>[], then?: (signed: SignedAuth) => Promise<T>): Promise<T> {
+    return openAuthPopup<T>(this, async () => {
+      const signed = await this.signIntentsWithAuth(domain, intents);
+      return (await then?.(signed)) ?? (signed as T);
+    });
   }
 
   async pay({ token, amount, recipient, paymentId }: { token: OmniToken; amount: number; recipient: string; paymentId: string }) {
