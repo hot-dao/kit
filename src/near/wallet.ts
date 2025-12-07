@@ -102,14 +102,28 @@ export default class NearWallet extends OmniWallet {
   }
 
   async needRegisterToken(token: string, address: string): Promise<boolean> {
-    const storage = await rpc
-      .viewMethod({
-        contractId: token,
-        methodName: "storage_balance_of",
-        args: { account_id: address },
-      })
-      .catch(() => null);
+    const storage = await rpc.viewMethod({ contractId: token, methodName: "storage_balance_of", args: { account_id: address } }).catch(() => null);
     return storage == null;
+  }
+
+  async registerToken(token: string) {
+    const isNeedRegister = await this.needRegisterToken(token, this.address);
+    if (!isNeedRegister) return;
+
+    await this.sendTransaction({
+      receiverId: token,
+      actions: [
+        {
+          type: "FunctionCall",
+          params: {
+            methodName: "storage_deposit",
+            args: { account_id: this.address, registration_only: true },
+            deposit: String(1n),
+            gas: String(30n * TGAS),
+          },
+        },
+      ],
+    });
   }
 
   async transferFee() {
@@ -196,6 +210,24 @@ export default class NearWallet extends OmniWallet {
 
   async signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Record<string, any>> {
     if (!this.wallet) throw "not impl";
+
+    const keys = await rpc.viewMethod({ contractId: "intents.near", methodName: "public_keys_of", args: { account_id: this.address } });
+    if (!keys.includes(this.publicKey)) {
+      await this.sendTransaction({
+        receiverId: "intents.near",
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: "add_public_key",
+              args: { public_key: this.publicKey },
+              deposit: String(1n),
+              gas: String(80n * TGAS),
+            },
+          },
+        ],
+      });
+    }
 
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
     const message = JSON.stringify({

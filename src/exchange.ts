@@ -132,6 +132,12 @@ export class Exchange {
 
   async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient }) {
     const { sender, token, amount, recipient } = args;
+
+    const receipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
+    if (receipientWallet instanceof NearWallet && token.type === WalletType.NEAR) {
+      await receipientWallet.registerToken(token.address);
+    }
+
     await bridge.withdrawToken({
       signIntents: async (intents) => sender.signIntents(intents),
       intentAccount: sender.omniAddress,
