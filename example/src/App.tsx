@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HotConnector, Intents, OmniToken, OmniWallet } from "@hot-labs/wibe3";
+import { HotConnector, Intents, OmniToken, OmniWallet } from "@hot-labs/kit";
 
 export const MultichainExample = () => {
   const [wallets, setWallets] = useState<OmniWallet[]>([]);

@@ -1,6 +1,6 @@
-# Wibe3
+# HOT Kit
 
-`yarn add @hot-labs/wibe3 react react-dom`
+`yarn add @hot-labs/kit react react-dom`
 
 Multi-chain connector for NEAR Intents support.
 Implements NEAR Intents support for the following networks:
@@ -35,7 +35,7 @@ export default defineConfig({
 ## Getting started
 
 ```ts
-import { HotConnector } from "@hot-labs/wibe3";
+import { HotConnector } from "@hot-labs/kit";
 
 const connector = new HotConnector({
   // optional for WalletConnect
@@ -56,7 +56,7 @@ connector.onDisconnect(({ wallet }) => {});
 ## Server side usage
 
 ```ts
-import { Intents, OmniToken } from "@hot-labs/wibe3/server";
+import { Intents, OmniToken } from "@hot-labs/kit/server";
 
 await Intents.builder //
   .give(OmniToken.USDT, 1)

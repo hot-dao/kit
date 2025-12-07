@@ -1,7 +1,7 @@
 {
-  "name": "@hot-labs/wibe3",
+  "name": "@hot-labs/kit",
   "version": "1.0.33",
-  "description": "Wibe3 is chain agnostic connector with omni payments",
+  "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
   "type": "commonjs",

@@ -5,7 +5,7 @@
 ### 1. Install Dependencies
 
 ```bash
-yarn add @hot-labs/wibe3@1.0.0
+yarn add @hot-labs/kit
 yarn add react react-dom react-router-dom styled-components
 yarn add -D vite @vitejs/plugin-react vite-plugin-node-polyfills typescript
 ```
@@ -50,7 +50,7 @@ In `tsconfig.json`, ensure you have:
 ### Basic Example
 
 ```typescript
-import { HotConnector } from "@hot-labs/wibe3";
+import { HotConnector } from "@hot-labs/kit";
 
 export const wibe3 = new HotConnector({
   projectId: "your-project-id",
@@ -447,7 +447,7 @@ const signed = await wallet.intents
 After signing, you can publish the signed intents manually:
 
 ```typescript
-import { Intents } from "@hot-labs/wibe3";
+import { Intents } from "@hot-labs/kit";
 
 const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
 
@@ -787,7 +787,7 @@ unsubscribeDisconnect();
 ### Bridge Component
 
 ```typescript
-import Bridge from "@hot-labs/wibe3/ui/payment/Bridge";
+import Bridge from "@hot-labs/kit/ui/payment/Bridge";
 
 <Bridge widget hot={wibe3} onClose={() => {}} onProcess={() => {}} />;
 ```
@@ -795,7 +795,7 @@ import Bridge from "@hot-labs/wibe3/ui/payment/Bridge";
 ### Payment Component
 
 ```typescript
-import Payment from "@hot-labs/wibe3/ui/payment/Payment";
+import Payment from "@hot-labs/kit/ui/payment/Payment";
 
 <Payment hot={wibe3} token={token} amount={amount} receiver={address} onClose={() => {}} />;
 ```
@@ -838,7 +838,7 @@ import Payment from "@hot-labs/wibe3/ui/payment/Payment";
 
 ```typescript
 import { observer } from "mobx-react-lite";
-import { HotConnector } from "@hot-labs/wibe3";
+import { HotConnector } from "@hot-labs/kit";
 
 const wibe3 = new HotConnector({
   projectId: "your-project-id",
@@ -895,8 +895,8 @@ const App = observer(() => {
 
 ```typescript
 import { observer } from "mobx-react-lite";
-import { HotConnector, OmniToken } from "@hot-labs/wibe3";
-import Bridge from "@hot-labs/wibe3/ui/payment/Bridge";
+import { HotConnector, OmniToken } from "@hot-labs/kit";
+import Bridge from "@hot-labs/kit/ui/payment/Bridge";
 
 const wibe3 = new HotConnector({
   projectId: "your-project-id",

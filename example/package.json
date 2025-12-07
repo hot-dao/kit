@@ -8,7 +8,7 @@
     "build": "vite build && echo '*' > dist/CORS"
   },
   "dependencies": {
-    "@hot-labs/wibe3": "^1.0.33",
+    "@hot-labs/kit": "^1.0.33",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -641,9 +641,9 @@
     "@solana/web3.js" "1.68.0"
     cosmjs-types "0.11.0"
 
-"@hot-labs/wibe3@^1.0.32":
+"@hot-labs/kit@^1.0.32":
   version "1.0.32"
-  resolved "https://registry.yarnpkg.com/@hot-labs/wibe3/-/wibe3-1.0.32.tgz#f8b670297fe7c4dbdc180c7770e5a983bf61d58e"
+  resolved "https://registry.yarnpkg.com/@hot-labs/kit/-/kit-1.0.32.tgz#f8b670297fe7c4dbdc180c7770e5a983bf61d58e"
   integrity sha512-Gf2QzsGy1wukxNrowluaOZkvhjOl46qg2n+dQ2N5unxA2LaSpTOH240E0hbUM3zU6rDCh7wHiPYfPC3RU/zbGw==
   dependencies:
     "@cosmjs/stargate" "^0.37.0"

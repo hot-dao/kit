@@ -49,7 +49,7 @@ const Popup = ({ widget, children, header, onClose, style }: { widget?: boolean;
           <Footer>
             <img src="https://tgapp.herewallet.app/images/hot/hot-icon.png" alt="HOT Connector" />
             <p>HOT Connector</p>
-            <GetWalletLink href="https://download.hot-labs.org/wibe3" target="_blank">
+            <GetWalletLink href="https://download.hot-labs.org/kit" target="_blank">
               Don't have a wallet?
             </GetWalletLink>
           </Footer>
