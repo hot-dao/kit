@@ -110,12 +110,8 @@ class EvmWallet extends OmniWallet {
 
   async sendTransaction(chain: number, request: TransactionRequest): Promise<string> {
     if (!this.provider.request) throw "not impl";
-    const provider = new BrowserProvider(this.provider as any);
-    const signer = new JsonRpcSigner(provider, this.address);
-
     await this.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${chain.toString(16)}` }] });
-    const tx = await signer.sendTransaction(request);
-    return tx.hash;
+    return await this.provider.request({ method: "eth_sendTransaction", params: [request] });
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {

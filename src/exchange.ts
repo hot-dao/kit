@@ -135,15 +135,15 @@ export class Exchange {
 
     const receipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
     if (receipientWallet instanceof NearWallet && token.type === WalletType.NEAR) {
-      await receipientWallet.registerToken(token.address);
+      await receipientWallet.registerToken(token.originalAddress);
     }
 
     await bridge.withdrawToken({
       signIntents: async (intents) => sender.signIntents(intents),
       intentAccount: sender.omniAddress,
       receiver: recipient.address,
-      token: token.address,
-      chain: token.chain,
+      token: token.originalAddress,
+      chain: token.originalChain,
       gasless: true,
       amount: amount,
     });

@@ -7,11 +7,11 @@ import { AminoTypes, createDefaultAminoConverters } from "@cosmjs/stargate";
 import { createWasmAminoConverters, wasmTypes } from "@cosmjs/cosmwasm-stargate";
 import { Registry } from "@cosmjs/proto-signing";
 
-export const signAmino = async (keplr: Keplr, rpcEndpoint: string, account: any, signDoc: any) => {
+export const signTx = async (keplr: Keplr, rpcEndpoint: string, account: any, signDoc: any) => {
   const registry = new Registry([...defaultRegistryTypes, ...wasmTypes]);
   const aminoTypes = new AminoTypes({ ...createDefaultAminoConverters(), ...createWasmAminoConverters() });
 
-  const offlineSigner = keplr.getOfflineSignerOnlyAmino(signDoc.chainId);
+  const offlineSigner = keplr.getOfflineSigner(signDoc.chainId);
   const client = await SigningStargateClient.connectWithSigner(rpcEndpoint, offlineSigner, { registry, aminoTypes });
 
   const authInfo = AuthInfo.decode(signDoc.authInfoBytes);

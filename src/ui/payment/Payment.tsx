@@ -56,7 +56,8 @@ export const Payment = observer(({ connector, recipient, token: need, amount: ne
         if (need.originalChain === Network.Gonka || need.originalChain === Network.Juno) {
           if (token.id === need.id) return null;
           if (token.originalAddress !== need.originalAddress) return null;
-          if (availableBalance <= need.float(needAmount)) return null;
+
+          if (availableBalance < need.float(needAmount)) return null;
           return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
         }
 

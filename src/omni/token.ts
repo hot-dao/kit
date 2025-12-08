@@ -90,8 +90,8 @@ export class Token {
   }
 
   get reserve() {
-    if (this.chain === Network.Gonka) return 0.001;
-    if (this.chain === Network.Juno) return 0.001;
+    if (this.chain === Network.Gonka) return 0.01;
+    if (this.chain === Network.Juno) return 0.01;
 
     if (this.address !== "native") return 0;
     if (this.chain === Network.Hot) return 0;

@@ -26,9 +26,9 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
       <WCPopup //
         title={wallet?.name || "WalletConnect"}
         icon={wallet?.icon || qrcode.icon}
+        deeplink={qrcode.deeplink}
         uri={qrcode.uri}
         onClose={onClose}
-        deeplink={qrcode.deeplink}
       />
     );
   }
@@ -41,7 +41,7 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
 
           <h3 style={{ fontSize: 32, margin: "12px 0 0", fontWeight: "bold", textAlign: "center" }}>{wallet.name}</h3>
           <p style={{ textAlign: "center" }}>{error}</p>
-          <PopupButton style={{ marginTop: "auto" }} onClick={() => window.open(wallet.download, "_blank")}>
+          <PopupButton disabled={loading} style={{ marginTop: "auto" }} onClick={() => window.open(wallet.download, "_blank")}>
             {loading ? "Connecting..." : "Get wallet"}
           </PopupButton>
         </div>

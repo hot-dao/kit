@@ -160,30 +160,12 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         address: address,
         publicKeyHex: publicKey,
         disconnect: () => keplr.disable(),
-        sendTransaction: async (signDoc: any, opts = { preferNoSetFee: true }) => {
+        sendTransaction: async (signDoc: any) => {
           await keplr.enable(Object.keys(this.cosmosChains));
           const account = await keplr.getKey(signDoc.chainId);
           const rpcEndpoint = this.getConfig(signDoc.chainId)?.rpc || "";
-
-          try {
-            const protoSignResponse = await keplr.signDirect(signDoc.chainId, account.bech32Address, signDoc, opts);
-
-            // Build a TxRaw and serialize it for broadcasting
-            const protobufTx = TxRaw.encode({
-              bodyBytes: protoSignResponse.signed.bodyBytes,
-              authInfoBytes: protoSignResponse.signed.authInfoBytes,
-              signatures: [Buffer.from(protoSignResponse.signature.signature, "base64")],
-            }).finish();
-
-            const client = await StargateClient.connect(rpcEndpoint);
-            const result = await client.broadcastTx(protobufTx);
-            if (result.code !== 0) throw "Transaction failed";
-            return result.transactionHash;
-          } catch (e: any) {
-            if (!e?.toString()?.includes("SIGN_MODE_DIRECT")) throw e;
-            const signer = await import("./amino");
-            return await signer.signAmino(keplr, rpcEndpoint, account, signDoc);
-          }
+          const signer = await import("./amino");
+          return await signer.signTx(keplr, rpcEndpoint, account, signDoc);
         },
       })
     );
