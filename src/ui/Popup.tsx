@@ -1,5 +1,7 @@
 import { createRoot } from "react-dom/client";
 import React, { useEffect, useRef } from "react";
+
+import { CloseIcon } from "./icons/close";
 import { PopupRoot, ModalContainer, ModalContent, ModalHeader, ModalBody, Footer, GetWalletLink, ModalOverlay } from "./styles";
 
 export const present = (render: (close: () => void) => React.ReactNode) => {
@@ -53,7 +55,14 @@ const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: P
       <ModalContainer>
         <ModalOverlay ref={containerRef} onClick={onClose} style={{ opacity: 0, transition: "all 0.2s ease-in-out" }} />
         <ModalContent ref={contentRef} $mobileFullscreen={mobileFullscreen} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
-          {header && <ModalHeader>{header}</ModalHeader>}
+          {header && (
+            <ModalHeader>
+              <button onClick={onClose} style={{ position: "absolute", right: 16, top: 16 }}>
+                <CloseIcon />
+              </button>
+              {header}
+            </ModalHeader>
+          )}
           <ModalBody style={{ overflowX: "hidden", ...style }}>{children}</ModalBody>
           <Footer>
             <img src="https://tgapp.herewallet.app/images/hot/hot-icon.png" alt="HOT Connector" />

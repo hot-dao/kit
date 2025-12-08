@@ -87,6 +87,11 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
 
   const availableBalance = sender !== "qr" ? +Math.max(0, from.float(hot.balance(sender, from)) - from.reserve).toFixed(FIXED) : 0;
 
+  let title = "Exchange";
+  if (from.chain === -4) title = `Withdraw ${from.symbol}`;
+  if (to.chain === -4) title = `Deposit ${to.symbol}`;
+  if (to.chain === from.chain) title = "Exchange";
+
   useEffect(() => {
     localStorage.setItem("bridge:from", from.id);
     localStorage.setItem("bridge:to", to.id);
@@ -187,7 +192,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
 
   if (processing?.status === "qr") {
     return (
-      <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null} mobileFullscreen={setup?.mobileFullscreen}>
+      <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <DepositQR //
           review={processing.review}
           onConfirm={() => onProcess(process(processing.review))}
@@ -199,7 +204,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
 
   if (processing?.status === "processing") {
     return (
-      <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null} mobileFullscreen={setup?.mobileFullscreen}>
+      <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="loading" src="/loading.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
@@ -211,7 +216,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
 
   if (processing?.status === "success") {
     return (
-      <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null} mobileFullscreen={setup?.mobileFullscreen}>
+      <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src="/success.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
@@ -226,7 +231,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
 
   if (processing?.status === "error") {
     return (
-      <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null} mobileFullscreen={setup?.mobileFullscreen}>
+      <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src="/error.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
@@ -250,7 +255,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess }: Brid
   };
 
   return (
-    <Popup widget={widget} onClose={onClose} header={setup?.title ? <p>{setup?.title}</p> : null} mobileFullscreen={setup?.mobileFullscreen}>
+    <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
       <div style={{ display: "flex", flexDirection: "column", gap: 32, width: "100%", height: "100%" }}>
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>

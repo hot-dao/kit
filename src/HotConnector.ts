@@ -285,7 +285,7 @@ export class HotConnector {
     return () => this.events.off("disconnect", handler);
   }
 
-  async withdraw(token: OmniToken, amount: number, settings?: { title?: string; sender?: OmniWallet }) {
+  async withdraw(token: OmniToken, amount: number, settings?: { sender?: OmniWallet }) {
     const tokensList = await tokens.getTokens();
     const omniToken = tokensList.find((t) => t.address === token)!;
     const originalToken = tokensList.find((t) => t.chain === omniToken.originalChain && t.address === omniToken.originalAddress)!;
@@ -301,7 +301,6 @@ export class HotConnector {
 
     return openBridge(this, {
       mobileFullscreen: true,
-      // title: settings?.title,
       sender: sender,
       recipient: recipient,
       to: originalToken,
@@ -310,7 +309,7 @@ export class HotConnector {
     });
   }
 
-  async deposit(token: OmniToken, amount: number, settings?: { title?: string }) {
+  async deposit(token: OmniToken, amount: number) {
     const tokensList = await tokens.getTokens();
     const omni = tokensList.find((t) => t.address === token)!;
     const orig = tokensList.find((t) => t.chain === omni.originalChain && t.address === omni.originalAddress)!;
@@ -323,7 +322,6 @@ export class HotConnector {
       type: "exactOut",
       readonlyAmount: true,
       readonlyTo: true,
-      // title: settings?.title,
       recipient: recipient,
       amount: amount,
       from: orig,
