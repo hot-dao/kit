@@ -300,7 +300,8 @@ export class HotConnector {
       })[0];
 
     return openBridge(this, {
-      //  title: settings?.title,
+      mobileFullscreen: true,
+      // title: settings?.title,
       sender: sender,
       recipient: recipient,
       to: originalToken,
@@ -317,11 +318,12 @@ export class HotConnector {
     const recipient = Recipient.fromWallet(this.wallets.find((w) => !!w.omniAddress));
 
     return openBridge(this, {
+      mobileFullscreen: true,
       sender: sender,
       type: "exactOut",
       readonlyAmount: true,
       readonlyTo: true,
-      title: settings?.title,
+      // title: settings?.title,
       recipient: recipient,
       amount: amount,
       from: orig,

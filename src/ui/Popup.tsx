@@ -16,7 +16,16 @@ export const present = (render: (close: () => void) => React.ReactNode) => {
   );
 };
 
-const Popup = ({ widget, children, header, onClose, style }: { widget?: boolean; children: React.ReactNode; header?: React.ReactNode; onClose: () => void; style?: React.CSSProperties }) => {
+interface PopupProps {
+  widget?: boolean;
+  children: React.ReactNode;
+  header?: React.ReactNode;
+  onClose: () => void;
+  style?: React.CSSProperties;
+  mobileFullscreen?: boolean;
+}
+
+const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: PopupProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +52,7 @@ const Popup = ({ widget, children, header, onClose, style }: { widget?: boolean;
     <PopupRoot>
       <ModalContainer>
         <ModalOverlay ref={containerRef} onClick={onClose} style={{ opacity: 0, transition: "all 0.2s ease-in-out" }} />
-        <ModalContent ref={contentRef} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
+        <ModalContent ref={contentRef} $mobileFullscreen={mobileFullscreen} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
           {header && <ModalHeader>{header}</ModalHeader>}
           <ModalBody style={{ overflowX: "hidden", ...style }}>{children}</ModalBody>
           <Footer>

@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 
 const font = `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"`;
 
@@ -33,7 +33,7 @@ export const ModalOverlay = styled.div`
   z-index: 1;
 `;
 
-export const ModalContent = styled.div`
+export const ModalContent = styled.div<{ $mobileFullscreen?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -54,6 +54,17 @@ export const ModalContent = styled.div`
     border-bottom-right-radius: 0;
     border: none;
     border-top: 1.5px solid rgba(255, 255, 255, 0.1);
+
+    ${(props: { $mobileFullscreen?: boolean }) =>
+      props.$mobileFullscreen &&
+      css`
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        height: 100%;
+        border-radius: 0;
+        max-height: 100%;
+        border: none;
+      `}
   }
 `;
 

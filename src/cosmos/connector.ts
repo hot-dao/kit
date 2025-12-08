@@ -8,6 +8,7 @@ import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector, OmniConnectorOptions, WC_ICON } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 
+import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
 
 export interface CosmosConnectorOptions extends OmniConnectorOptions {
@@ -162,10 +163,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         disconnect: () => keplr.disable(),
         sendTransaction: async (signDoc: any) => {
           await keplr.enable(Object.keys(this.cosmosChains));
-          const account = await keplr.getKey(signDoc.chainId);
           const rpcEndpoint = this.getConfig(signDoc.chainId)?.rpc || "";
-          const signer = await import("./amino");
-          return await signer.signTx(keplr, rpcEndpoint, account, signDoc);
+          return await signAndSendTx(keplr, rpcEndpoint, signDoc);
         },
       })
     );

@@ -1,18 +1,18 @@
 import type { Keplr } from "@keplr-wallet/provider-extension";
 import { TxRaw, AuthInfo, TxBody } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
-import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import { defaultRegistryTypes, SigningStargateClient } from "@cosmjs/stargate";
-
-import { AminoTypes, createDefaultAminoConverters } from "@cosmjs/stargate";
 import { createWasmAminoConverters, wasmTypes } from "@cosmjs/cosmwasm-stargate";
-import { Registry } from "@cosmjs/proto-signing";
+import { defaultRegistryTypes, SigningStargateClient } from "@cosmjs/stargate";
+import { AminoTypes, createDefaultAminoConverters } from "@cosmjs/stargate";
+import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
+import { OfflineSigner, Registry } from "@cosmjs/proto-signing";
 
-export const signTx = async (keplr: Keplr, rpcEndpoint: string, account: any, signDoc: any) => {
+export const signAndSendTx = async (keplr: Keplr, rpcEndpoint: string, signDoc: any) => {
   const registry = new Registry([...defaultRegistryTypes, ...wasmTypes]);
   const aminoTypes = new AminoTypes({ ...createDefaultAminoConverters(), ...createWasmAminoConverters() });
 
-  const offlineSigner = keplr.getOfflineSigner(signDoc.chainId);
-  const client = await SigningStargateClient.connectWithSigner(rpcEndpoint, offlineSigner, { registry, aminoTypes });
+  const account = await keplr.getKey(signDoc.chainId);
+  const offlineSigner = await keplr.getOfflineSignerAuto(signDoc.chainId);
+  const client = await SigningStargateClient.connectWithSigner(rpcEndpoint, offlineSigner as OfflineSigner, { registry, aminoTypes });
 
   const authInfo = AuthInfo.decode(signDoc.authInfoBytes);
   const txBody = TxBody.decode(signDoc.bodyBytes);
