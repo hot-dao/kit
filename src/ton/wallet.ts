@@ -5,7 +5,7 @@ import { toUserFriendlyAddress } from "@tonconnect/ui";
 import { base58, base64, hex } from "@scure/base";
 
 import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 import { OmniConnector } from "../OmniConnector";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";

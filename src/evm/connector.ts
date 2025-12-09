@@ -2,7 +2,7 @@ import MetaMaskSDK from "@metamask/sdk";
 import { runInAction } from "mobx";
 
 import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
-import { Network, WalletType } from "../core/config";
+import { Network, WalletType } from "../core/chains";
 import { isInjected } from "../hot-wallet/iframe";
 import { HotConnector } from "../HotConnector";
 import EvmWallet, { EvmProvider } from "./wallet";

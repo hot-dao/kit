@@ -13,7 +13,7 @@ import {
   createTransferCheckedInstruction,
 } from "@solana/spl-token";
 
-import { Network, WalletType } from "../core/config";
+import { Network, WalletType } from "../core/chains";
 import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 

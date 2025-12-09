@@ -2,7 +2,7 @@ import { makeObservable, observable, runInAction } from "mobx";
 import { OneClickService } from "@defuse-protocol/one-click-sdk-typescript";
 
 import { defaultTokens } from "./defaultTokens";
-import { Network, OmniToken } from "./config";
+import { Network, OmniToken } from "./chains";
 import { Token } from "./token";
 
 class TokensStorage {

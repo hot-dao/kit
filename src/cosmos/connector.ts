@@ -1,19 +1,16 @@
-import type { Keplr } from "@keplr-wallet/provider-extension";
+import { Keplr } from "@keplr-wallet/provider-extension";
 import { TxRaw } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
 import { StargateClient } from "@cosmjs/stargate";
+import { runInAction } from "mobx";
 import { hex } from "@scure/base";
 
-import { WalletType } from "../core/config";
+import { chains, WalletType } from "../core/chains";
 import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 
 import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
-
-export interface CosmosConnectorOptions {
-  cosmosChains?: Record<string, { chain: string; rpc: string; denom: string; prefix: string }>;
-}
 
 declare global {
   interface Window {
@@ -42,8 +39,6 @@ const wallets = {
 };
 
 export default class CosmosConnector extends OmniConnector<CosmosWallet> {
-  cosmosChains: Record<string, { chain: string; rpc: string; denom: string; prefix: string }>;
-
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.COSMOS];
   icon = "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
@@ -51,12 +46,12 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   isSupported = true;
   id = "cosmos";
 
-  constructor(wibe3: HotConnector, options?: CosmosConnectorOptions) {
+  constructor(wibe3: HotConnector) {
     super(wibe3);
 
     this.options = [
       {
-        name: "keplr" in window ? "Keplr" : "Keplr Mobile",
+        name: "Keplr",
         download: "https://www.keplr.app/get",
         icon: "https://cdn.prod.website-files.com/667dc891bc7b863b5397495b/68a4ca95f93a9ab64dc67ab4_keplr-symbol.svg",
         type: "keplr" in window ? "extension" : "external",
@@ -71,16 +66,23 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       },
     ];
 
-    this.cosmosChains = {
-      "juno-1": { chain: "juno-1", rpc: "https://juno-rpc.publicnode.com", denom: "ujuno", prefix: "juno" },
-      "gonka-mainnet": { chain: "gonka-mainnet", rpc: "https://dev.herewallet.app/api/v1/evm/rpc/4444119", denom: "ngonka", prefix: "gonka" },
-      "cosmoshub-4": { chain: "cosmoshub-4", rpc: "https://rpc.cosmoshub.certus.one", denom: "uatom", prefix: "cosmos" },
-      ...options?.cosmosChains,
-    };
+    Keplr.getKeplr().then((keplr) => {
+      const option = this.options.find((option) => option.id === "keplr")!;
+      runInAction(() => {
+        option.type = keplr ? "extension" : "external";
+        option.name = keplr ? "Keplr" : "Keplr Mobile";
+      });
+    });
 
-    this.getStorage().then(({ type, address, publicKey }) => {
+    this.getStorage().then(async ({ type, address, publicKey }) => {
       if (!address || !publicKey) return;
-      if (type === "keplr" && window.keplr) this.setKeplrWallet(window.keplr, address, publicKey);
+
+      if (type === "keplr") {
+        const keplr = await Keplr.getKeplr();
+        if (keplr) this.setKeplrWallet(keplr, address, publicKey);
+        else this.disconnect();
+      }
+
       if (type === "leap" && window.leap) this.setKeplrWallet(window.leap, address, publicKey);
     });
 
@@ -101,8 +103,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       .catch(() => {});
   }
 
-  getConfig(chain: string) {
-    return this.cosmosChains[chain];
+  get chains() {
+    return chains.getByType(WalletType.COSMOS).map((t) => t.key);
   }
 
   async setupWalletConnect(id?: "keplr" | "leap"): Promise<CosmosWallet> {
@@ -141,7 +143,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           },
         });
 
-        const client = await StargateClient.connect(this.getConfig(signDoc.chainId)?.rpc || "");
+        const client = await StargateClient.connect(chains.getByKey(signDoc.chainId).rpc || "");
         const protobufTx = TxRaw.encode({
           bodyBytes: signed.bodyBytes,
           authInfoBytes: signed.authInfoBytes,
@@ -164,8 +166,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         publicKeyHex: publicKey,
         disconnect: () => keplr.disable(),
         sendTransaction: async (signDoc: any) => {
-          await keplr.enable(Object.keys(this.cosmosChains));
-          const rpcEndpoint = this.getConfig(signDoc.chainId)?.rpc || "";
+          await keplr.enable(this.chains);
+          const rpcEndpoint = chains.get(signDoc.chainId)?.rpc || "";
           return await signAndSendTx(keplr, rpcEndpoint, signDoc);
         },
       })
@@ -181,7 +183,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           cosmos: {
             methods: ["cosmos_getAccounts", "cosmos_signDirect"],
             events: ["chainChanged", "accountsChanged"],
-            chains: Object.keys(this.cosmosChains).map((chain) => `cosmos:${chain}`),
+            chains: this.chains.map((chain) => `cosmos:${chain}`),
             rpcMap: {},
           },
         },
@@ -200,7 +202,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       chainName: "Gonka",
     });
 
-    await extension.enable(Object.keys(this.cosmosChains));
+    await extension.enable(this.chains);
     const account = await extension.getKey("gonka-mainnet");
     await this.setStorage({ type, address: account.bech32Address, publicKey: hex.encode(account.pubKey) });
     return await this.setKeplrWallet(extension, account.bech32Address, hex.encode(account.pubKey));
@@ -214,7 +216,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           cosmos: {
             methods: ["cosmos_getAccounts", "cosmos_signDirect"],
             events: ["chainChanged", "accountsChanged"],
-            chains: Object.keys(this.cosmosChains).map((chain) => `cosmos:${chain}`),
+            chains: this.chains.map((chain) => `cosmos:${chain}`),
             rpcMap: {},
           },
         },
@@ -222,7 +224,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     }
 
     if (id === "keplr") {
-      return await this.connectKeplr("keplr", window.keplr);
+      const keplr = await Keplr.getKeplr();
+      return await this.connectKeplr("keplr", keplr);
     }
 
     if (id === "leap") {

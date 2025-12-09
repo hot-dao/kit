@@ -6,7 +6,7 @@ import type { HotConnector } from "../HotConnector";
 import type { OmniWallet } from "../OmniWallet";
 import type { TransferIntent, MtWithdrawIntent, FtWithdrawIntent, TokenDiffIntent, AuthCallIntent } from "./types";
 
-import { OmniToken } from "./config";
+import { OmniToken } from "./chains";
 import { tokens } from "./tokens";
 import { rpc } from "./nearRpc";
 

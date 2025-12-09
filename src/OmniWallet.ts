@@ -1,7 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
 import { openAuthPopup } from "./ui/connect/AuthPopup";
-import { OmniToken, WalletType } from "./core/config";
+import { OmniToken, WalletType } from "./core/chains";
 import { OmniConnector } from "./OmniConnector";
 import { Intents } from "./core/Intents";
 import { ReviewFee } from "./core/bridge";

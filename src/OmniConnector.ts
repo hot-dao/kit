@@ -6,7 +6,7 @@ import { LocalStorage } from "./storage";
 import { HotConnector } from "./HotConnector";
 
 import { OmniWallet } from "./OmniWallet";
-import { WalletType } from "./core/config";
+import { WalletType } from "./core/chains";
 import { openWCRequest } from "./ui/router";
 
 export enum ConnectorType {

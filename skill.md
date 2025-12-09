@@ -52,26 +52,30 @@ In `tsconfig.json`, ensure you have:
 ```typescript
 import { HotConnector } from "@hot-labs/kit";
 
+import near from "@hot-labs/kit/near"; // optional
+import stellar from "@hot-labs/kit/stellar"; // optional
+import ton from "@hot-labs/kit/ton"; // optional
+import solana from "@hot-labs/kit/solana"; // optional
+import evm from "@hot-labs/kit/evm"; // optional
+
 export const wibe3 = new HotConnector({
-  projectId: "your-project-id",
-  tonManifestUrl: "http://localhost:1241/hot-connector/tonconnect-manifest.json",
-  metadata: {
-    name: "Your App Name",
-    description: "App Description",
-    url: "https://your-app.com",
-    icons: ["https://your-app.com/logo.png"],
+  connectors: [near(), evm(), solana(), ton(), stellar()],
+  walletConnect: {
+    projectId: "your-reown-project-id",
+    metadata: {
+      name: "Your App Name",
+      description: "App Description",
+      url: "https://your-app.com",
+      icons: ["https://your-app.com/logo.png"],
+    },
   },
 });
 ```
 
 ### Configuration Parameters
 
-- `projectId` (required) - Project ID for WalletConnect
-- `tonManifestUrl` - URL manifest for TON wallets (optional)
-- `tonWalletsUrl` - URL for TON wallets list (optional)
-- `metadata` - Application metadata for display in wallets
-- `webWallet` - Web wallet URL (optional)
-- `tonApi` - TON API URL (optional)
+- `walletConnect` (optional) - settings for WalletConnect
+- `connectors` - available chains to connect
 
 ## Core Methods and Properties
 
@@ -91,11 +95,13 @@ export const wibe3 = new HotConnector({
 ### Connecting Wallets
 
 ```typescript
+import { WalletType } from "@hot-labs/kit";
+
 // Open connection dialog
 await wibe3.connect();
 
 // Connect specific wallet type
-await wibe3.connect("evm"); // or "solana", "near", "ton", "cosmos", "stellar"
+await wibe3.connect(WalletType.EVM); // or "solana", "near", "ton", "cosmos", "stellar"
 ```
 
 ### Working with Wallets
@@ -136,18 +142,13 @@ await wibe3.fetchTokens(wallet);
 
 ```typescript
 // Send payment
-await wibe3.payment(token, amount, receiverAddress);
+await wibe3.requestToken(token, amount, receiverAddress);
 
 // Withdraw token (bridge from omni to original network)
-await wibe3.withdraw(token, amount, {
-  title: "Withdraw",
-  sender: wallet, // optional
-});
+await wibe3.withdraw(token, amount);
 
 // Deposit token (bridge from original network to omni)
-await wibe3.deposit(token, amount, {
-  title: "Deposit",
-});
+await wibe3.deposit(token, amount);
 
 // Open bridge interface
 await wibe3.openBridge();
@@ -289,6 +290,7 @@ The `requestToken` method:
 ### Transfer with Message (msg parameter)
 
 The `transfer` method supports an optional `msg` parameter that allows you to attach a message to the transfer. This can be useful for:
+
 - Including payment metadata (order IDs, descriptions, etc.)
 - Adding context to transfers
 - Passing data to smart contracts

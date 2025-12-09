@@ -6,7 +6,7 @@ import { LogoutIcon } from "../icons/logout";
 import { openBridge, openConnector } from "../router";
 import { HotConnector } from "../../HotConnector";
 import { formatter } from "../../core/utils";
-import { OmniToken } from "../../core/config";
+import { OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
 import Popup from "../Popup";
 

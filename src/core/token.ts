@@ -1,7 +1,7 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { Asset, Networks } from "@stellar/stellar-base";
 
-import { Network, OmniToken, WalletType, chainsMap, reverseChainsMap } from "./config";
+import { Network, OmniToken, WalletType, chains } from "./chains";
 import { formatter } from "./utils";
 
 export interface IToken {
@@ -24,8 +24,8 @@ export class Token {
 
   constructor(readonly info: TokenResponse & { omni?: true }) {
     this.originalChainSymbol = info.blockchain;
-    this.originalChain = reverseChainsMap[info.blockchain];
-    this.chain = info.omni ? -4 : reverseChainsMap[info.blockchain];
+    this.originalChain = chains.getByKey(info.blockchain).id || 0;
+    this.chain = info.omni ? -4 : chains.getByKey(info.blockchain).id || 0;
 
     if (this.chain === Network.Near) {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
@@ -40,12 +40,12 @@ export class Token {
 
     this.decimals = info.decimals;
     this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;
-    this.usd = info.price;
+    this.usd = info.price || 0;
     this.omniAddress = info.assetId;
   }
 
   get chainIcon() {
-    return chainsMap[this.chain]?.logo || `https://storage.herewallet.app/ft/${this.chain}:native.png`;
+    return chains.get(this.chain)?.logo || `https://storage.herewallet.app/ft/${this.chain}:native.png`;
   }
 
   get originalChainIcon() {
@@ -54,7 +54,7 @@ export class Token {
   }
 
   get chainName() {
-    return chainsMap[this.chain]?.name || this.originalChainSymbol;
+    return chains.get(this.chain)?.name || this.originalChainSymbol;
   }
 
   get id() {
@@ -67,26 +67,7 @@ export class Token {
   }
 
   get type() {
-    if (this.chain === Network.Hot) return WalletType.OMNI;
-    if (this.chain === Network.Near) return WalletType.NEAR;
-    if (this.chain === Network.Solana) return WalletType.SOLANA;
-    if (this.chain === Network.OmniTon) return WalletType.TON;
-    if (this.chain === Network.Ton) return WalletType.TON;
-    if (this.chain === Network.Stellar) return WalletType.STELLAR;
-    if (this.chain === Network.Juno) return WalletType.COSMOS;
-    if (this.chain === Network.Gonka) return WalletType.COSMOS;
-    if (this.chain === Network.Btc) return WalletType.Btc;
-    if (this.chain === Network.Tron) return WalletType.Tron;
-    if (this.chain === Network.Zcash) return WalletType.Zcash;
-    if (this.chain === Network.Xrp) return WalletType.Xrp;
-    if (this.chain === Network.Doge) return WalletType.Doge;
-    if (this.chain === Network.Ada) return WalletType.Ada;
-    if (this.chain === Network.Aptos) return WalletType.Aptos;
-    if (this.chain === Network.Sui) return WalletType.Sui;
-    if (this.chain === Network.Litecoin) return WalletType.Litecoin;
-    if (this.chain === Network.Cardano) return WalletType.Cardano;
-    if (this.chain > 0) return WalletType.EVM;
-    return WalletType.unknown;
+    return chains.get(this.chain)?.type || WalletType.unknown;
   }
 
   get reserve() {

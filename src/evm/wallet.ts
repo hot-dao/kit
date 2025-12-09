@@ -4,7 +4,7 @@ import { JsonRpcSigner } from "ethers";
 
 import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 import { erc20abi } from "./abi";

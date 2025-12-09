@@ -4,7 +4,7 @@ import { Action } from "@near-js/transactions";
 
 import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { rpc, TGAS } from "../core/nearRpc";
 import { Token } from "../core/token";

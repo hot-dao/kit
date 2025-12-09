@@ -14,7 +14,7 @@ Implements NEAR Intents support for the following networks:
 
 Also supported: Passkey accounts and Google Auth via HOT MPC Network
 
-# Vite: Node polyfills and React plugins
+## Installation: Setup Vite Node polyfills and React plugins
 
 Wibe3 require you to install node polyfills and react to work, for vite you need to complete the following extra steps:
 
@@ -36,6 +36,8 @@ export default defineConfig({
 
 ```ts
 import { HotConnector } from "@hot-labs/kit";
+
+// Tree-shaking - use only chains what you need
 import stellar from "@hot-labs/kit/stellar";
 import solana from "@hot-labs/kit/solana";
 import cosmos from "@hot-labs/kit/cosmos";
@@ -46,14 +48,15 @@ import evm from "@hot-labs/kit/evm";
 const connector = new HotConnector({
   connectors: [near(), evm(), solana(), ton(), stellar(), cosmos()],
 
-  // optional for WalletConnect
-  projectId: "1292473190ce7eb75c9de67e15aaad99",
-  // optional for WalletConnect
-  metadata: {
-    name: "Example App",
-    description: "Example App",
-    url: window.location.origin,
-    icons: ["/favicon.ico"],
+  // optional
+  walletConnect: {
+    projectId: "1292473190ce7eb75c9de67e15aaad99",
+    metadata: {
+      name: "Example App",
+      description: "Example App",
+      url: window.location.origin,
+      icons: ["/favicon.ico"],
+    },
   },
 });
 
@@ -62,6 +65,8 @@ connector.onDisconnect(({ wallet }) => {});
 ```
 
 ## Server side usage
+
+On Node.js you can't use `@hot-labs/kit` because it's client-side library with UI dependencies, but you can use core package for working with Intents primitives and HotBridge primitives
 
 ```ts
 import { Intents, OmniToken } from "@hot-labs/kit/core";

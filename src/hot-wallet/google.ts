@@ -5,7 +5,7 @@ import uuid4 from "uuid4";
 
 import { ConnectorType, OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 
 import EvmWallet from "../evm/wallet";
 import NearWallet from "../near/wallet";

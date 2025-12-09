@@ -1,9 +1,10 @@
-export { OmniToken, WalletType, Network, chainsMap, reverseChainsMap } from "./config";
-export { Intents } from "./Intents";
-export { Token } from "./token";
-export { tokens } from "./tokens";
-export { bridge } from "./bridge";
+export { OmniToken, WalletType, Network, chains } from "./chains";
+export { createHotBridge, HotBridge, ReviewFee } from "./bridge";
+export { rpc as nearRpc, TGAS } from "./nearRpc";
+export { EventEmitter } from "./events";
 export { Recipient } from "./recipient";
 export { formatter } from "./utils";
-export { rpc as nearRpc, TGAS } from "./nearRpc";
+export { Intents } from "./Intents";
+export { tokens } from "./tokens";
+export { Token } from "./token";
 export * from "./types";

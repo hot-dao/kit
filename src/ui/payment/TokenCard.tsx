@@ -1,12 +1,13 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 
+import { chains } from "../../core/chains";
 import { formatter } from "../../core/utils";
 import { Token } from "../../core/token";
+
 import { HotConnector } from "../../HotConnector";
 import { OmniWallet } from "../../OmniWallet";
 import { PopupOption } from "../styles";
-import { chainsMap } from "../../core/config";
 
 const images = {
   cached: new Map<string, Promise<void>>(),
@@ -56,7 +57,7 @@ export const TokenIcon = observer(({ token, wallet }: { token: Token; wallet?: O
     <div style={{ position: "relative", width: 40, height: 40 }}>
       <ImageView src={token.icon} alt={token.symbol} size={40} />
       <ImageView src={token.chainIcon} alt={token.symbol} size={14} style={{ position: "absolute", bottom: 0, right: 0 }} />
-      {token.chain === -4 && wallet?.type && <ImageView src={wallet.icon} alt={chainsMap[wallet.type]?.name || ""} size={14} style={{ position: "absolute", bottom: 0, left: 0 }} />}
+      {token.chain === -4 && wallet?.type && <ImageView src={wallet.icon} alt={chains.get(wallet.type)?.name || ""} size={14} style={{ position: "absolute", bottom: 0, left: 0 }} />}
     </div>
   );
 });

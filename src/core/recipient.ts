@@ -3,7 +3,7 @@ import { hex, base32, base58 } from "@scure/base";
 
 import { type OmniWallet } from "../OmniWallet";
 import { tonApi } from "../ton/utils";
-import { WalletType } from "./config";
+import { WalletType } from "./chains";
 
 export class Recipient {
   constructor(readonly type: WalletType, readonly address: string, readonly omniAddress: string) {}

@@ -12,7 +12,7 @@ import { Recipient } from "../../core/recipient";
 import { OmniWallet } from "../../OmniWallet";
 import { BridgeReview } from "../../exchange";
 import { HotConnector } from "../../HotConnector";
-import { WalletType } from "../../core/config";
+import { WalletType } from "../../core/chains";
 import { Token } from "../../core/token";
 
 import Popup from "../Popup";

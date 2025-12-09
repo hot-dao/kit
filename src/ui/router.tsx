@@ -3,7 +3,7 @@ import { OmniConnector } from "../OmniConnector";
 import { BridgeReview } from "../exchange";
 import { Token } from "../core/token";
 import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 
 import { present } from "./Popup";

@@ -6,7 +6,7 @@ import { openBridge, openConnector } from "../router";
 import { Recipient } from "../../core/recipient";
 import { BridgeReview } from "../../exchange";
 import { OmniWallet } from "../../OmniWallet";
-import { Network } from "../../core/config";
+import { Network } from "../../core/chains";
 import { Token } from "../../core/token";
 import Popup from "../Popup";
 

@@ -7,7 +7,7 @@ import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
 import { HotConnector } from "../HotConnector";
 import { OmniWallet } from "../OmniWallet";
 import { isInjected } from "../hot-wallet/iframe";
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 
 import SolanaProtocolWallet from "./protocol";
 import { getWallets } from "./wallets";

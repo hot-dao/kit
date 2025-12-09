@@ -1,42 +1,48 @@
 import { computed, makeObservable, observable, runInAction } from "mobx";
 
-import { openBridge, openConnector, openPayment, openProfile, openWalletPicker } from "./ui/router";
-import { ConnectorType, OmniConnector } from "./OmniConnector";
-import { chainsMap, Network, WalletType } from "./core/config";
-import { OmniWallet } from "./OmniWallet";
-
-import { Exchange } from "./exchange";
-import { OmniToken } from "./core/config";
-import { formatter } from "./core/utils";
-import { Token } from "./core/token";
+import { ChainConfig, chains, Network, WalletType } from "./core/chains";
+import { createHotBridge, HotBridge } from "./core/bridge";
 import { EventEmitter } from "./core/events";
-
-import NearWallet from "./near/wallet";
-import EvmWallet from "./evm/wallet";
-import SolanaWallet from "./solana/wallet";
-import StellarWallet from "./stellar/wallet";
-import TonWallet from "./ton/wallet";
-import CosmosWallet from "./cosmos/wallet";
-import { Intents } from "./core/Intents";
 import { Recipient } from "./core/recipient";
+import { OmniToken } from "./core/chains";
+import { formatter } from "./core/utils";
+import { Intents } from "./core/Intents";
 import { tokens } from "./core/tokens";
 import { rpc } from "./core/nearRpc";
+import { Token } from "./core/token";
+
+import type CosmosWallet from "./cosmos/wallet";
+import type NearWallet from "./near/wallet";
+import type EvmWallet from "./evm/wallet";
+import type SolanaWallet from "./solana/wallet";
+import type StellarWallet from "./stellar/wallet";
+import type TonWallet from "./ton/wallet";
+
+import { openBridge, openConnector, openPayment, openProfile, openWalletPicker } from "./ui/router";
+import { ConnectorType, OmniConnector } from "./OmniConnector";
+import { OmniWallet } from "./OmniWallet";
+import { Exchange } from "./exchange";
 
 interface HotConnectorOptions {
+  chains?: Record<number, ChainConfig>;
   connectors?: ((wibe3: HotConnector) => Promise<OmniConnector>)[];
-  projectId?: string;
-  metadata?: {
-    name: string;
-    description: string;
-    url: string;
-    icons: string[];
+  walletConnect?: {
+    projectId?: string;
+    metadata?: {
+      name: string;
+      description: string;
+      url: string;
+      icons: string[];
+    };
   };
 }
 
 export class HotConnector {
   public connectors: OmniConnector[] = [];
   public balances: Record<string, Record<string, bigint>> = {};
-  public exchange = new Exchange(this);
+
+  public hotBridge: HotBridge;
+  public exchange: Exchange;
 
   private events = new EventEmitter<{
     connect: { wallet: OmniWallet };
@@ -47,15 +53,8 @@ export class HotConnector {
   public settings: {
     webWallet: string;
     projectId?: string;
-    metadata?: {
-      name: string;
-      description: string;
-      url: string;
-      icons: string[];
-    };
-  } = {
-    webWallet: "https://app.hot-labs.org",
-  };
+    metadata?: { name: string; description: string; url: string; icons: string[] };
+  } = { webWallet: "https://app.hot-labs.org" };
 
   constructor(options?: HotConnectorOptions) {
     makeObservable(this, {
@@ -72,6 +71,13 @@ export class HotConnector {
       cosmos: computed,
     });
 
+    this.settings.projectId = options?.walletConnect?.projectId ?? undefined;
+    this.settings.metadata = options?.walletConnect?.metadata ?? undefined;
+    Object.values(options?.chains ?? {}).forEach((chain) => chains.register(chain));
+
+    this.hotBridge = createHotBridge();
+    this.exchange = new Exchange(this);
+
     const connectors: OmniConnector[] = [];
     const tasks = options?.connectors?.map(async (initConnector, index) => {
       const connector = await initConnector(this);
@@ -83,9 +89,6 @@ export class HotConnector {
     Promise.all(tasks ?? []).then(() => {
       this.connectors = connectors.filter((t) => t != null);
     });
-
-    this.settings.projectId = options?.projectId ?? undefined;
-    this.settings.metadata = options?.metadata ?? undefined;
 
     this.connectors.forEach((t) => {
       t.onConnect((payload) => this.events.emit("connect", payload));
@@ -101,11 +104,13 @@ export class HotConnector {
       if (!wallet) return;
       runInAction(() => (this.balances[`${wallet.type}:${wallet.address}`] = {}));
     });
+
+    tokens.startTokenPolling();
   }
 
   setOmniChainBranding(branding: { name: string; icon: string }) {
-    chainsMap[Network.Hot].name = branding.name;
-    chainsMap[Network.Hot].logo = branding.icon;
+    chains.get(Network.Hot).name = branding.name;
+    chains.get(Network.Hot).logo = branding.icon;
   }
 
   getWalletConnector(type: WalletType): OmniConnector | null {
@@ -171,6 +176,30 @@ export class HotConnector {
 
   get cosmos(): CosmosWallet | null {
     return this.wallets.find((w) => w.type === WalletType.COSMOS) as CosmosWallet | null;
+  }
+
+  isCosmosWallet(wallet?: OmniWallet): wallet is CosmosWallet {
+    return wallet?.type === WalletType.COSMOS;
+  }
+
+  isEvmWallet(wallet?: OmniWallet): wallet is EvmWallet {
+    return wallet?.type === WalletType.EVM;
+  }
+
+  isSolanaWallet(wallet?: OmniWallet): wallet is SolanaWallet {
+    return wallet?.type === WalletType.SOLANA;
+  }
+
+  isStellarWallet(wallet?: OmniWallet): wallet is StellarWallet {
+    return wallet?.type === WalletType.STELLAR;
+  }
+
+  isTonWallet(wallet?: OmniWallet): wallet is TonWallet {
+    return wallet?.type === WalletType.TON;
+  }
+
+  isNearWallet(wallet?: OmniWallet): wallet is NearWallet {
+    return wallet?.type === WalletType.NEAR;
   }
 
   getChainBalances(chain: number) {

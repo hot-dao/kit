@@ -6,7 +6,7 @@ import { formatter } from "../../core/utils";
 import { Token } from "../../core/token";
 import { HotConnector } from "../../HotConnector";
 import { OmniWallet } from "../../OmniWallet";
-import { Network, OmniToken } from "../../core/config";
+import { Network, OmniToken } from "../../core/chains";
 import { PopupOption } from "../styles";
 import Popup from "../Popup";
 

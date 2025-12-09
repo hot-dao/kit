@@ -6,7 +6,7 @@ import { PopupOption, PopupOptionInfo } from "../styles";
 
 import { ConnectorType, OmniConnector } from "../../OmniConnector";
 import { OmniWallet } from "../../OmniWallet";
-import { WalletType } from "../../core/config";
+import { WalletType } from "../../core/chains";
 import { HotConnector } from "../../HotConnector";
 import { openWalletPicker } from "../router";
 import { formatter } from "../../core/utils";

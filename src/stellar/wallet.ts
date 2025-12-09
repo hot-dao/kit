@@ -2,12 +2,12 @@ import { base64, base58, hex, base32 } from "@scure/base";
 import { Address, Asset, BASE_FEE, Claimant, Contract, Memo, nativeToScVal, Networks, Operation, TimeoutInfinite, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-base";
 import { rpc } from "@stellar/stellar-sdk";
 
-import { WalletType } from "../core/config";
+import { WalletType } from "../core/chains";
 import { OmniWallet } from "../OmniWallet";
 import { OmniConnector } from "../OmniConnector";
-import { bridge, ReviewFee } from "../core/bridge";
+import { ReviewFee } from "../core/bridge";
 import { formatter } from "../core/utils";
-import { Network } from "../core/config";
+import { Network } from "../core/chains";
 import { Token } from "../core/token";
 
 interface ProtocolWallet {
@@ -31,6 +31,10 @@ class StellarWallet extends OmniWallet {
 
   constructor(readonly connector: OmniConnector, readonly wallet: ProtocolWallet) {
     super(connector);
+  }
+
+  get rpc() {
+    return this.connector.wibe3.hotBridge.stellar;
   }
 
   get address() {
@@ -81,8 +85,8 @@ class StellarWallet extends OmniWallet {
     const asset = await this.getAssetFromContractId(token);
     const sendAmount = formatter.formatAmount(amount, 7);
 
-    const account = await bridge.stellar.callSoroban((s) => s.getAccount(this.address));
-    const baseFee = await bridge.stellar.callHorizon((h) => h.fetchBaseFee()).catch(() => +BASE_FEE);
+    const account = await this.connector.wibe3.hotBridge.stellar.callSoroban((s) => s.getAccount(this.address));
+    const baseFee = await this.connector.wibe3.hotBridge.stellar.callHorizon((h) => h.fetchBaseFee()).catch(() => +BASE_FEE);
     const builder = new TransactionBuilder(account, {
       memo: memo ? Memo.text(memo) : undefined,
       networkPassphrase: Networks.PUBLIC,
@@ -101,13 +105,13 @@ class StellarWallet extends OmniWallet {
         )
       );
 
-      const tx = await bridge.stellar.callSoroban((s) => s.prepareTransaction(builder.build() as any));
+      const tx = await this.rpc.callSoroban((s) => s.prepareTransaction(builder.build() as any));
       const fee = BigInt(Math.floor(baseFee * tx.operations.length));
       return { fee: new ReviewFee({ baseFee: fee, priorityFee: 0n, gasLimit: 1n, chain: Network.Stellar }), tx: tx as unknown as Transaction };
     }
 
     let needXlm = 0;
-    const receiverAccount = await bridge.stellar.callHorizon((h) => h.loadAccount(receiver)).catch(() => null);
+    const receiverAccount = await this.rpc.callHorizon((h) => h.loadAccount(receiver)).catch(() => null);
     const claimableBalance = Operation.createClaimableBalance({ amount: amount.toString(), claimants: [new Claimant(receiver)], asset });
 
     if (receiverAccount == null) {
@@ -163,7 +167,7 @@ class StellarWallet extends OmniWallet {
     if (!this.wallet.signTransaction) throw "not impl";
     const result = await this.wallet.signTransaction(transaction);
     const txObject = new Transaction(result.signedTxXdr, Networks.PUBLIC);
-    const { hash } = await bridge.stellar.callHorizon((t) => t.submitTransaction(txObject as any));
+    const { hash } = await this.rpc.callHorizon((t) => t.submitTransaction(txObject as any));
     return hash;
   }
 
@@ -195,7 +199,7 @@ class StellarWallet extends OmniWallet {
 
   static async isTokenActivated(address: string, token: string) {
     if (address === "native") return true;
-    const data = await bridge.stellar.callHorizon((h) => h.loadAccount(address));
+    const data = await fetch(`https://horizon.stellar.org/accounts/${address}`).then((res) => res.json());
     return data.balances.some((ft: any) => {
       if (!ft.asset_issuer) return false;
       const asset = new Asset(ft.asset_code, ft.asset_issuer).contractId(Networks.PUBLIC);
@@ -206,7 +210,7 @@ class StellarWallet extends OmniWallet {
   async changeTrustline(address: string) {
     if (address === "native") return;
     const asset = await this.getAssetFromContractId(address);
-    const account = await bridge.stellar.callHorizon((h) => h.loadAccount(this.address));
+    const account = await this.rpc.callHorizon((h) => h.loadAccount(this.address));
     const trustlineOp = Operation.changeTrust({ asset: asset, source: this.address });
     const trustlineTx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: Networks.PUBLIC }) //
       .addOperation(trustlineOp)
@@ -224,7 +228,7 @@ class StellarWallet extends OmniWallet {
     }
 
     const tx = await this.buildSmartContactTx(ACCOUNT_FOR_SIMULATE, id, ASSET_CONTRACT_METHOD.NAME);
-    const result = (await bridge.stellar.callSoroban((s) => s.simulateTransaction(tx as any))) as unknown as rpc.Api.SimulateTransactionSuccessResponse;
+    const result = (await this.rpc.callSoroban((s) => s.simulateTransaction(tx as any))) as unknown as rpc.Api.SimulateTransactionSuccessResponse;
 
     const value = result?.result?.retval?.value();
     if (!value) throw "Asset not found";
@@ -236,7 +240,7 @@ class StellarWallet extends OmniWallet {
   }
 
   async buildSmartContactTx(publicKey: string, contactId: string, method: string, ...args: any[]) {
-    const account = await bridge.stellar.callSoroban((s) => s.getAccount(publicKey));
+    const account = await this.rpc.callSoroban((s) => s.getAccount(publicKey));
     const contract = new Contract(contactId);
     const builtTx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: Networks.PUBLIC });
 
@@ -253,7 +257,7 @@ class StellarWallet extends OmniWallet {
       Address.fromString(contract).toScVal()
     );
 
-    const result = (await bridge.stellar.callSoroban((s) => s.simulateTransaction(tx as any))) as unknown as rpc.Api.SimulateTransactionSuccessResponse;
+    const result = (await this.rpc.callSoroban((s) => s.simulateTransaction(tx as any))) as unknown as rpc.Api.SimulateTransactionSuccessResponse;
     if (result) return BigInt(this.i128ToInt(result.result?.retval.value() as xdr.Int128Parts));
     return 0n;
   }

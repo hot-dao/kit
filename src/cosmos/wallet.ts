@@ -1,7 +1,7 @@
 import { StargateClient } from "@cosmjs/stargate";
 
 import { OmniWallet, SignedAuth } from "../OmniWallet";
-import { chainsMap, WalletType } from "../core/config";
+import { chains, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import CosmosConnector from "./connector";
 
@@ -68,7 +68,7 @@ export default class CosmosWallet extends OmniWallet {
   }
 
   async fetchBalance(chain: number, token: string): Promise<bigint> {
-    const config = this.connector.getConfig(chainsMap[chain].id);
+    const config = chains.get(chain);
     if (!config) throw new Error("Config not found");
     const client = await StargateClient.connect(config.rpc);
     const balance = await client.getBalance(this.address, token);
