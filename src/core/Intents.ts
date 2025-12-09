@@ -47,7 +47,7 @@ export class Intents {
     return this;
   }
 
-  transfer(args: { recipient: string; token: OmniToken; amount: number | bigint; msg?: string; tgas?: number }) {
+  transfer(args: { recipient: string; token: OmniToken; amount: number | bigint; memo?: string; msg?: string; tgas?: number }) {
     const omniToken = tokens.get(args.token);
     const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
     const intent: TransferIntent = {
@@ -55,6 +55,7 @@ export class Intents {
       tokens: { [omniToken.omniAddress]: amount },
       receiver_id: args.recipient.toLowerCase(),
       intent: "transfer",
+      memo: args.memo,
       msg: args.msg,
     };
 
@@ -63,7 +64,7 @@ export class Intents {
     return this;
   }
 
-  batchTransfer(args: { recipient: string; tokens: Record<OmniToken, number | bigint>; msg?: string; tgas?: number }) {
+  batchTransfer(args: { recipient: string; tokens: Record<OmniToken, number | bigint>; memo?: string; msg?: string; tgas?: number }) {
     const tokensList: Record<string, string> = {};
     for (const [token, amount] of Object.entries(args.tokens)) {
       const omniToken = tokens.get(token);
@@ -77,6 +78,7 @@ export class Intents {
       receiver_id: args.recipient.toLowerCase(),
       min_gas: args.tgas ? (BigInt(args.tgas) * TGAS).toString() : undefined,
       tokens: tokensList,
+      memo: args.memo,
       msg: args.msg,
     };
 
@@ -134,6 +136,7 @@ export class Intents {
       return this.batchTransfer({
         recipient: rawIntent.receiver_id,
         tokens,
+        memo: rawIntent.memo,
         msg: rawIntent.msg,
         tgas: rawIntent.min_gas ? Number(BigInt(rawIntent.min_gas) / TGAS) : undefined,
       });

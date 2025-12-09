@@ -54,7 +54,7 @@ import { HotConnector } from "@hot-labs/kit";
 
 export const wibe3 = new HotConnector({
   projectId: "your-project-id",
-  tonWalletsUrl: "http://localhost:1241/hot-connector/tonconnect-manifest.json",
+  tonManifestUrl: "http://localhost:1241/hot-connector/tonconnect-manifest.json",
   metadata: {
     name: "Your App Name",
     description: "App Description",
@@ -67,7 +67,8 @@ export const wibe3 = new HotConnector({
 ### Configuration Parameters
 
 - `projectId` (required) - Project ID for WalletConnect
-- `tonWalletsUrl` - URL manifest for TON wallets
+- `tonManifestUrl` - URL manifest for TON wallets (optional)
+- `tonWalletsUrl` - URL for TON wallets list (optional)
 - `metadata` - Application metadata for display in wallets
 - `webWallet` - Web wallet URL (optional)
 - `tonApi` - TON API URL (optional)
@@ -285,6 +286,55 @@ The `requestToken` method:
 
 **Always call `requestToken` before using `wallet.intents` methods.**
 
+### Transfer with Message (msg parameter)
+
+The `transfer` method supports an optional `msg` parameter that allows you to attach a message to the transfer. This can be useful for:
+- Including payment metadata (order IDs, descriptions, etc.)
+- Adding context to transfers
+- Passing data to smart contracts
+
+```typescript
+// Example 1: Transfer with JSON message
+const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+await wallet.intents
+  .transfer({
+    amount,
+    token: OmniToken.USDC,
+    recipient: "petya.near",
+    msg: JSON.stringify({
+      type: "payment",
+      orderId: "ORDER-12345",
+      description: "Payment for order #12345",
+      timestamp: Date.now(),
+    }),
+  })
+  .execute();
+
+// Example 2: Transfer with simple text message
+const { wallet: msgWallet, amount: msgAmount } = await wibe3.requestToken(OmniToken.USDT, 5);
+
+await msgWallet.intents
+  .transfer({
+    amount: msgAmount,
+    token: OmniToken.USDT,
+    recipient: "alice.near",
+    msg: "Payment for services", // Simple text message
+  })
+  .execute();
+
+// Example 3: Transfer with msg and custom gas
+await wallet.intents
+  .transfer({
+    amount: 100,
+    token: OmniToken.USDC,
+    recipient: "bob.near",
+    msg: JSON.stringify({ invoice: "INV-001" }),
+    tgas: 100, // Custom gas limit (optional)
+  })
+  .execute();
+```
+
 ### Cross-Chain Transfer Examples
 
 To transfer from one chain to another (e.g., TON wallet to NEAR address), you need to use omni tokens and intents:
@@ -303,22 +353,35 @@ await wallet.intents
   })
   .execute();
 
-// Example 2: Direct transfer using wallet.intents (recommended for cross-chain)
+// Example 2: Transfer with message (msg parameter)
 // Request token first
 const { wallet: transferWallet, amount: transferAmount } = await wibe3.requestToken(OmniToken.USDC, 10);
 
-// Transfer omni token to NEAR address
+// Transfer omni token to NEAR address with a message
 const txHash = await transferWallet.intents
   .transfer({
     amount: transferAmount,
     token: OmniToken.USDC,
     recipient: "petya.near",
+    msg: JSON.stringify({ type: "payment", orderId: "12345" }), // Optional message
   })
   .execute();
 
 console.log("Transfer completed:", txHash);
 
-// Example 3: Using payment method (opens UI)
+// Example 3: Transfer with simple text message
+const { wallet: msgWallet, amount: msgAmount } = await wibe3.requestToken(OmniToken.USDT, 5);
+
+await msgWallet.intents
+  .transfer({
+    amount: msgAmount,
+    token: OmniToken.USDT,
+    recipient: "alice.near",
+    msg: "Payment for services", // Simple text message
+  })
+  .execute();
+
+// Example 4: Using payment method (opens UI)
 const { wallet: paymentWallet } = await wibe3.requestToken(OmniToken.USDT, 1);
 await wibe3.payment(
   OmniToken.USDT, // OmniToken
@@ -341,6 +404,16 @@ await wallet.intents
     recipient: "petya.near",
     token: OmniToken.USDC,
     amount: amount,
+  })
+  .execute();
+
+// Transfer with message (msg parameter)
+await wallet.intents
+  .transfer({
+    recipient: "petya.near",
+    token: OmniToken.USDC,
+    amount: amount,
+    msg: JSON.stringify({ orderId: "123", description: "Payment" }), // Optional message
   })
   .execute();
 
@@ -372,10 +445,10 @@ await wallet.intents
   })
   .execute();
 
-// Chain multiple operations
+// Chain multiple operations with messages
 await wallet.intents
-  .transfer({ recipient: "alice.near", token: OmniToken.USDC, amount: 5 })
-  .transfer({ recipient: "bob.near", token: OmniToken.USDT, amount: 3 })
+  .transfer({ recipient: "alice.near", token: OmniToken.USDC, amount: 5, msg: "Payment 1" })
+  .transfer({ recipient: "bob.near", token: OmniToken.USDT, amount: 3, msg: "Payment 2" })
   .authCall({ contractId: "contract.near", msg: "{}", attachNear: 0n, tgas: 30 })
   .execute();
 ```
@@ -662,51 +735,6 @@ const nfts: NFT[] = [
 
 For minting a single NFT using omni chain intents:
 
-### NFT UI Recommendation: Trade On HOT Craft
-
-When working with NFTs in your UI, it's **recommended to add a "Trade On HOT Craft" button** that links to the HOT Craft marketplace:
-
-```typescript
-import { observer } from "mobx-react-lite";
-
-const NFTComponent = observer(() => {
-  return (
-    <div>
-      {/* Your NFT display */}
-      <div>
-        <img src={nft.image} alt={nft.title} />
-        <h3>{nft.title}</h3>
-        <p>{nft.description}</p>
-      </div>
-
-      {/* Recommended: Trade On HOT Craft button */}
-      <a
-        href="https://hotcraft.art/"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: "inline-block",
-          padding: "12px 24px",
-          backgroundColor: "#007bff",
-          color: "white",
-          textDecoration: "none",
-          borderRadius: "8px",
-          fontWeight: "bold",
-        }}
-      >
-        Trade On HOT Craft
-      </a>
-    </div>
-  );
-});
-```
-
-**Why add this button?**
-
-- Provides users with a marketplace to trade their NFTs
-- Improves user experience by offering trading functionality
-- Connects your app with the HOT Craft ecosystem
-
 ```typescript
 async function mintSingleNFT(collection: string, nft: NFT, tokenId: string) {
   // Get wallet first
@@ -763,6 +791,51 @@ await mintSingleNFT(
   "1"
 );
 ```
+
+### NFT UI Recommendation: Trade On HOT Craft
+
+When working with NFTs in your UI, it's **recommended to add a "Trade On HOT Craft" button** that links to the HOT Craft marketplace:
+
+```typescript
+import { observer } from "mobx-react-lite";
+
+const NFTComponent = observer(() => {
+  return (
+    <div>
+      {/* Your NFT display */}
+      <div>
+        <img src={nft.image} alt={nft.title} />
+        <h3>{nft.title}</h3>
+        <p>{nft.description}</p>
+      </div>
+
+      {/* Recommended: Trade On HOT Craft button */}
+      <a
+        href="https://hotcraft.art/"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-block",
+          padding: "12px 24px",
+          backgroundColor: "#007bff",
+          color: "white",
+          textDecoration: "none",
+          borderRadius: "8px",
+          fontWeight: "bold",
+        }}
+      >
+        Trade On HOT Craft
+      </a>
+    </div>
+  );
+});
+```
+
+**Why add this button?**
+
+- Provides users with a marketplace to trade their NFTs
+- Improves user experience by offering trading functionality
+- Connects your app with the HOT Craft ecosystem
 
 ### Events
 
@@ -934,6 +1007,32 @@ const App = observer(() => {
     }
   };
 
+  const handleTransferWithMsg = async () => {
+    try {
+      // Request omni token
+      const { wallet, amount } = await wibe3.requestToken(OmniToken.USDC, 10);
+
+      // Transfer with message
+      await wallet.intents
+        .transfer({
+          amount,
+          token: OmniToken.USDC,
+          recipient: "petya.near",
+          msg: JSON.stringify({
+            type: "payment",
+            orderId: "ORDER-12345",
+            description: "Payment for order #12345",
+          }),
+        })
+        .execute();
+
+      alert("Transfer with message successful!");
+    } catch (error) {
+      console.error("Transfer failed:", error);
+      alert("Transfer failed");
+    }
+  };
+
   return (
     <div>
       <button onClick={handleConnect}>{wibe3.wallets.length > 0 ? "Connected" : "Connect Wallet"}</button>
@@ -941,6 +1040,7 @@ const App = observer(() => {
         <div>
           <div>Connected wallets: {wibe3.wallets.length}</div>
           <button onClick={handleOmniTransfer}>Transfer USDT to petya.near (Cross-chain via Omni)</button>
+          <button onClick={handleTransferWithMsg}>Transfer USDC with message</button>
         </div>
       )}
       <Bridge widget hot={wibe3} onClose={() => {}} onProcess={() => {}} />
