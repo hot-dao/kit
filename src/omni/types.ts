@@ -2,6 +2,7 @@ export interface TransferIntent {
   intent: "transfer";
   tokens: Record<string, string>;
   receiver_id: string;
+  memo?: string;
   msg?: string;
   min_gas?: string;
 }
