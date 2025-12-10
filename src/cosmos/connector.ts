@@ -170,7 +170,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         disconnect: () => keplr.disable(),
         sendTransaction: async (signDoc: any) => {
           await keplr.enable(this.chains);
-          const rpcEndpoint = chains.get(signDoc.chainId)?.rpc || "";
+          const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
           return await signAndSendTx(keplr, rpcEndpoint, signDoc);
         },
       })
