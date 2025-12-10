@@ -2,7 +2,7 @@ import { makeObservable, observable, runInAction } from "mobx";
 import { OneClickService } from "@defuse-protocol/one-click-sdk-typescript";
 
 import { defaultTokens } from "./defaultTokens";
-import { Network, OmniToken } from "./chains";
+import { chains, Network, OmniToken } from "./chains";
 import { Token } from "./token";
 
 class TokensStorage {
@@ -10,9 +10,7 @@ class TokensStorage {
   private initialTokensLoader = this.refreshTokens().catch(() => {});
 
   constructor() {
-    makeObservable(this, {
-      list: observable,
-    });
+    makeObservable(this, { list: observable });
   }
 
   get(id: OmniToken | string, chain = Network.Hot): Token {
@@ -25,14 +23,15 @@ class TokensStorage {
   }
 
   async startTokenPolling() {
+    await this.initialTokensLoader;
     await new Promise((resolve) => setTimeout(resolve, 10_000));
     await this.refreshTokens().catch(() => {});
     await this.startTokenPolling();
   }
 
   async refreshTokens() {
-    await this.initialTokensLoader;
     const list = await OneClickService.getTokens();
+
     list.unshift({
       blockchain: "gonka-mainnet" as any,
       priceUpdatedAt: "2025-11-23T18:01:00.349Z",
@@ -53,7 +52,10 @@ class TokensStorage {
     });
 
     runInAction(() => {
-      this.list = list.flatMap((t) => [new Token(t), new Token({ ...t, omni: true })]);
+      this.list = list.flatMap((t) => {
+        if (!chains.getByKey(t.blockchain)) return [];
+        return [new Token(t), new Token({ ...t, omni: true })];
+      });
     });
 
     return this.list;

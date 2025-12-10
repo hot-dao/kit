@@ -59,6 +59,7 @@ export class HotConnector {
   constructor(options?: HotConnectorOptions) {
     makeObservable(this, {
       balances: observable,
+
       walletsTokens: computed,
       wallets: computed,
       tokens: computed,

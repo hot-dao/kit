@@ -16,7 +16,6 @@ export class Token {
   address: string;
   decimals: number;
   symbol: string;
-  usd: number;
   omniAddress: string;
   originalChain: number;
   originalAddress: string;
@@ -24,8 +23,8 @@ export class Token {
 
   constructor(readonly info: TokenResponse & { omni?: true }) {
     this.originalChainSymbol = info.blockchain;
-    this.originalChain = chains.getByKey(info.blockchain).id || 0;
-    this.chain = info.omni ? -4 : chains.getByKey(info.blockchain).id || 0;
+    this.originalChain = chains.getByKey(info.blockchain)?.id || 0;
+    this.chain = info.omni ? -4 : chains.getByKey(info.blockchain)?.id || 0;
 
     if (this.chain === Network.Near) {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
@@ -38,10 +37,13 @@ export class Token {
       this.originalAddress = info.contractAddress || "native";
     }
 
-    this.decimals = info.decimals;
     this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;
-    this.usd = info.price || 0;
     this.omniAddress = info.assetId;
+    this.decimals = info.decimals;
+  }
+
+  get usd() {
+    return this.info.price;
   }
 
   get chainIcon() {

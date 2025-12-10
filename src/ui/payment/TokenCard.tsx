@@ -1,5 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
+import styled from "styled-components";
 
 import { chains } from "../../core/chains";
 import { formatter } from "../../core/utils";
@@ -70,15 +71,28 @@ export const TokenCard = observer(({ token, onSelect, hot, wallet }: { token: To
     <PopupOption key={token.id} onClick={() => onSelect(token, wallet)}>
       <TokenIcon token={token} wallet={wallet} />
 
-      <div style={{ marginTop: -2, display: "flex", flexDirection: "column", gap: 4, textAlign: "left" }}>
+      <TokenWrap style={{ marginTop: -2, textAlign: "left" }}>
         <p style={{ textAlign: "left", fontSize: 20, fontWeight: "bold" }}>{symbol}</p>
         <p style={{ textAlign: "left", fontSize: 14, color: "#c6c6c6" }}>${formatter.amount(token.usd)}</p>
-      </div>
+      </TokenWrap>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
+      <TokenWrap style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
         <p style={{ textAlign: "right", fontSize: 20 }}>{token.readable(balance)}</p>
         <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${token.readable(balance, token.usd)}</p>
-      </div>
+      </TokenWrap>
     </PopupOption>
   );
 });
+
+const TokenWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &,
+  p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`;

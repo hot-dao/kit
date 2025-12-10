@@ -335,6 +335,15 @@ const chainsRepository: Record<number, ChainConfig> = {
     rpc: rpc(Network.Sui),
     type: WalletType.Sui,
   },
+  [Network.Xlayer]: {
+    id: Network.Xlayer,
+    key: "xlayer",
+    name: "Xlayer",
+    logo: "https://storage.herewallet.app/ft/196:native.png",
+    currency: { id: "native", symbol: "XLAYER", decimals: 6, logo: logo(Network.Xlayer) },
+    rpc: rpc(Network.Xlayer),
+    type: WalletType.EVM,
+  },
   [Network.Hot]: {
     id: Network.Hot,
     key: "hot",
@@ -380,7 +389,7 @@ export const chains = {
   getByType: (type: WalletType) => Object.values(chainsRepository).filter((chain) => chain.type === type),
   getByKey: (key: string) => {
     const chain = Object.values(chainsRepository).find((chain) => chain.key === key);
-    if (!chain) throw new Error(`Chain ${key} not found`);
+    if (!chain) return null;
     return chain;
   },
 

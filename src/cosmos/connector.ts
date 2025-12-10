@@ -143,7 +143,10 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           },
         });
 
-        const client = await StargateClient.connect(chains.getByKey(signDoc.chainId).rpc || "");
+        const chain = chains.getByKey(signDoc.chainId);
+        if (!chain) throw new Error("Chain not found");
+
+        const client = await StargateClient.connect(chain.rpc);
         const protobufTx = TxRaw.encode({
           bodyBytes: signed.bodyBytes,
           authInfoBytes: signed.authInfoBytes,
