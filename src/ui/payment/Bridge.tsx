@@ -74,6 +74,11 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     return hot.wallets.find((w) => w.type === from.type);
   });
 
+  useEffect(() => {
+    if (from.type === WalletType.OMNI) setSender(hot.priorityWallet);
+    if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet!));
+  }, [hot.priorityWallet]);
+
   const [recipient, setRecipient] = useState<Recipient | undefined>(() => {
     if (setup?.recipient) return setup.recipient;
     if (to.type === WalletType.OMNI) return Recipient.fromWallet(hot.priorityWallet!);
@@ -267,7 +272,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <p style={{ fontWeight: "bold" }}>{from.chain === -4 ? "Withdraw HEX from:" : "Send from:"}</p>
               <BadgeButton onClick={() => openSelectSender({ hot, type: from.type, onSelect: (wallet) => setSender(wallet) })}>
-                <p>{formatter.truncateAddress(sender === "qr" ? "QR code" : sender?.address ?? "Connect wallet")}</p>
+                <p>{formatter.truncateAddress(sender === "qr" ? "QR code" : sender?.address ?? "Select sender")}</p>
               </BadgeButton>
             </div>
           </div>

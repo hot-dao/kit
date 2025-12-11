@@ -12,10 +12,7 @@ import StellarWallet from "./stellar/wallet";
 import { HotConnector } from "./HotConnector";
 import { OmniWallet } from "./OmniWallet";
 import { formatter } from "./core";
-import { loadMaybeExtraCurrency } from "@ton/core";
-
-OpenAPI.BASE = "https://1click.chaindefuser.com";
-OpenAPI.TOKEN = "";
+import { api } from "./core/api";
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {
@@ -57,7 +54,10 @@ interface BridgeRequest {
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class Exchange {
-  constructor(readonly wibe3: HotConnector) {}
+  constructor(readonly wibe3: HotConnector) {
+    OpenAPI.BASE = api.getOneClickApiUrl();
+    OpenAPI.HEADERS = { "api-key": api.apiKey };
+  }
 
   async getToken(chain: number, address: string): Promise<string | null> {
     if (chain === Network.Hot) return address;
@@ -186,7 +186,7 @@ export class Exchange {
     const deadlineTime = 20 * 60 * 1000;
     const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
-    const noFee = from.symbol === to.symbol;
+    const noFee = from.symbol === to.symbol || (from.symbol.toLowerCase().includes("usd") && to.symbol.toLowerCase().includes("usd"));
 
     if (sender !== "qr" && directChains.includes(from.chain) && to.chain === Network.Hot && from.omniAddress === to.omniAddress) {
       const fee = await this.wibe3.hotBridge.getDepositFee({

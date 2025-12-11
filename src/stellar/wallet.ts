@@ -9,6 +9,7 @@ import { ReviewFee } from "../core/bridge";
 import { formatter } from "../core/utils";
 import { Network } from "../core/chains";
 import { Token } from "../core/token";
+import { Commitment } from "../core";
 
 interface ProtocolWallet {
   signTransaction?: (transaction: Transaction) => Promise<{ signedTxXdr: string }>;
@@ -149,20 +150,6 @@ class StellarWallet extends OmniWallet {
     return this.sendTransaction(tx);
   }
 
-  async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
-    const seed = hex.encode(window.crypto.getRandomValues(new Uint8Array(32)));
-    const msgBuffer = new TextEncoder().encode(`${domain}_${seed}`);
-    const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
-
-    return {
-      signed: await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) }),
-      publicKey: `ed25519:${this.publicKey}`,
-      chainId: WalletType.STELLAR,
-      address: this.address,
-      seed,
-    };
-  }
-
   async sendTransaction(transaction: Transaction) {
     if (!this.wallet.signTransaction) throw "not impl";
     const result = await this.wallet.signTransaction(transaction);
@@ -176,7 +163,7 @@ class StellarWallet extends OmniWallet {
     return await this.wallet.signMessage(message);
   }
 
-  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Record<string, any>> {
+  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Commitment> {
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
 
     const message = JSON.stringify({

@@ -51,15 +51,10 @@ In `tsconfig.json`, ensure you have:
 
 ```typescript
 import { HotConnector } from "@hot-labs/kit";
-
-import near from "@hot-labs/kit/near"; // optional
-import stellar from "@hot-labs/kit/stellar"; // optional
-import ton from "@hot-labs/kit/ton"; // optional
-import solana from "@hot-labs/kit/solana"; // optional
-import evm from "@hot-labs/kit/evm"; // optional
+import { defaultConnectors } from "@hot-labs/kit/defaultConnectors"; // optional
 
 export const wibe3 = new HotConnector({
-  connectors: [near(), evm(), solana(), ton(), stellar()],
+  connectors: defaultConnectors,
   walletConnect: {
     projectId: "your-reown-project-id",
     metadata: {

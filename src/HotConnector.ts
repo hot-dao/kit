@@ -10,7 +10,7 @@ import { Intents } from "./core/Intents";
 import { tokens } from "./core/tokens";
 import { rpc } from "./core/nearRpc";
 import { Token } from "./core/token";
-import { Api } from "./core/api";
+import { api } from "./core/api";
 
 import type CosmosWallet from "./cosmos/wallet";
 import type NearWallet from "./near/wallet";
@@ -43,7 +43,6 @@ export class HotConnector {
   public connectors: OmniConnector[] = [];
   public balances: Record<string, Record<string, bigint>> = {};
 
-  public api: Api;
   public hotBridge: HotBridge;
   public exchange: Exchange;
 
@@ -63,6 +62,7 @@ export class HotConnector {
     makeObservable(this, {
       balances: observable,
 
+      priorityWallet: computed,
       walletsTokens: computed,
       wallets: computed,
       tokens: computed,
@@ -75,7 +75,7 @@ export class HotConnector {
       cosmos: computed,
     });
 
-    this.api = new Api({ baseUrl: "https://dev.herewallet.app", apiKey: options?.apiKey ?? "" });
+    api.apiKey = options?.apiKey ?? "";
     this.settings.projectId = options?.walletConnect?.projectId ?? undefined;
     this.settings.metadata = options?.walletConnect?.metadata ?? undefined;
     Object.values(options?.chains ?? {}).forEach((chain) => chains.register(chain));

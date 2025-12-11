@@ -1,8 +1,9 @@
 import { StargateClient } from "@cosmjs/stargate";
-import { OmniWallet, SignedAuth } from "../OmniWallet";
+import { OmniWallet } from "../OmniWallet";
 import { chains, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import CosmosConnector from "./connector";
+import { Commitment } from "../core";
 
 interface ProtocolWallet {
   disconnect?: () => Promise<void>;
@@ -48,11 +49,7 @@ export default class CosmosWallet extends OmniWallet {
     throw "Not impl";
   }
 
-  signIntentsWithAuth(): Promise<SignedAuth> {
-    throw new Error("Method not implemented.");
-  }
-
-  signIntents(): Promise<Record<string, any>> {
+  signIntents(): Promise<Commitment> {
     throw new Error("Method not implemented.");
   }
 

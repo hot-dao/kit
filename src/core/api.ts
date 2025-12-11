@@ -1,4 +1,4 @@
-import { SignedAuth } from "../OmniWallet";
+import { Commitment } from "./types";
 
 export class ApiError extends Error {
   name = "ApiError";
@@ -23,13 +23,8 @@ export interface TokenType {
 }
 
 export class Api {
-  public baseUrl: string;
-  public apiKey: string;
-
-  constructor(params: { baseUrl: string; apiKey: string }) {
-    this.baseUrl = params.baseUrl;
-    this.apiKey = params.apiKey;
-  }
+  public baseUrl = "https://dev.herewallet.app";
+  public apiKey = "";
 
   async request(url: string, options: RequestInit) {
     options.headers = {
@@ -43,8 +38,19 @@ export class Api {
     return await response.json();
   }
 
-  async auth(commitment: SignedAuth): Promise<string> {
-    return await this.request(`/api/v1/wibe3/auth`, { method: "POST", body: JSON.stringify({ commitment }) });
+  getRpcUrl(chain: number) {
+    return `${this.baseUrl}/api/v1/evm/rpc/1001/${chain}`;
+  }
+
+  getOneClickApiUrl() {
+    return `${this.baseUrl}/api/v1/wibe3/1click`;
+  }
+
+  async auth(commitment: Commitment, seed: string): Promise<string> {
+    return await this.request(`/api/v1/wibe3/auth`, {
+      body: JSON.stringify({ commitment, seed }),
+      method: "POST",
+    });
   }
 
   async validateAuth(jwt: string) {
@@ -56,10 +62,8 @@ export class Api {
 
   async getPortfolio(chain: number, address: string): Promise<TokenType[]> {
     const result = await this.request(`/api/v1/wibe3/portfolio`, {
+      body: JSON.stringify({ accounts: { [chain]: address } }),
       method: "POST",
-      body: JSON.stringify({
-        accounts: { [chain]: address },
-      }),
     });
 
     return result.balances?.[chain] || [];
@@ -91,3 +95,5 @@ export class Api {
     });
   }
 }
+
+export const api = new Api();

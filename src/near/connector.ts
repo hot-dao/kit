@@ -33,11 +33,11 @@ class Connector extends OmniConnector<NearWallet> {
     this.connector.whenManifestLoaded.then(() => {
       runInAction(() => {
         this.options = this.connector.wallets.map((w) => ({
+          type: "external" as const,
           download: w.manifest.website,
           name: w.manifest.name,
           icon: w.manifest.icon,
           id: w.manifest.id,
-          type: "external" as const,
         }));
       });
     });

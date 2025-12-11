@@ -20,17 +20,21 @@ import { OmniWallet } from "../OmniWallet";
 import { Token } from "../core/token";
 import { formatter } from "../core/utils";
 import { ReviewFee } from "../core/bridge";
+import { Commitment } from "../core";
+import { api } from "../core/api";
 
 import { ISolanaProtocolWallet } from "./protocol";
 
 class SolanaWallet extends OmniWallet {
   readonly type = WalletType.SOLANA;
-  readonly connection: Connection;
 
   constructor(readonly connector: OmniConnector, readonly wallet: ISolanaProtocolWallet) {
     super(connector);
-    this.connection = new Connection("https://api0.herewallet.app/api/v1/evm/rpc/1001", {
-      httpHeaders: { "Api-Key": connector.wibe3.api.apiKey },
+  }
+
+  getConnection() {
+    return new Connection(api.getRpcUrl(Network.Solana), {
+      httpHeaders: { "Api-Key": api.apiKey },
     });
   }
 
@@ -47,13 +51,15 @@ class SolanaWallet extends OmniWallet {
   }
 
   async fetchBalance(_: number, address: string) {
+    const connection = this.getConnection();
+
     if (address === "native") {
-      const balance = await this.connection.getBalance(new PublicKey(this.address));
+      const balance = await connection.getBalance(new PublicKey(this.address));
       return BigInt(balance);
     }
 
     const ATA = getAssociatedTokenAddressSync(new PublicKey(address), new PublicKey(this.address));
-    const meta = await this.connection.getTokenAccountBalance(ATA);
+    const meta = await connection.getTokenAccountBalance(ATA);
     return BigInt(meta.value.amount);
   }
 
@@ -62,25 +68,12 @@ class SolanaWallet extends OmniWallet {
     super.disconnect();
   }
 
-  async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
-    const seed = hex.encode(window.crypto.getRandomValues(new Uint8Array(32)));
-    const msgBuffer = new TextEncoder().encode(`${domain}_${seed}`);
-    const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
-
-    return {
-      signed: await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) }),
-      publicKey: `ed25519:${this.address}`,
-      chainId: WalletType.SOLANA,
-      address: this.address,
-      seed,
-    };
-  }
-
   async buildTranferInstructions(token: Token, amount: bigint, receiver: string, fee: ReviewFee) {
     const destination = new PublicKey(receiver);
     const owner = new PublicKey(this.address);
+    const connection = this.getConnection();
 
-    const reserve = await this.connection.getMinimumBalanceForRentExemption(0);
+    const reserve = await connection.getMinimumBalanceForRentExemption(0);
     let additionalFee = 0n;
 
     if (token.address === "native") {
@@ -96,7 +89,7 @@ class SolanaWallet extends OmniWallet {
     }
 
     const mint = new PublicKey(token.address);
-    const mintAccount = await this.connection.getAccountInfo(mint);
+    const mintAccount = await connection.getAccountInfo(mint);
     const tokenProgramId = mintAccount?.owner.equals(TOKEN_2022_PROGRAM_ID) ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
 
     const tokenFrom = getAssociatedTokenAddressSync(mint, owner, false, tokenProgramId);
@@ -104,11 +97,11 @@ class SolanaWallet extends OmniWallet {
 
     const instructions: TransactionInstruction[] = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: Number(fee.baseFee) }), ComputeBudgetProgram.setComputeUnitLimit({ units: Number(fee.gasLimit) })];
 
-    const isRegistered = await getAccount(this.connection, tokenTo, "confirmed", tokenProgramId).catch(() => null);
+    const isRegistered = await getAccount(connection, tokenTo, "confirmed", tokenProgramId).catch(() => null);
     if (isRegistered == null) {
       const inst = createAssociatedTokenAccountInstruction(new PublicKey(this.address), tokenTo, destination, mint, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID);
       instructions.push(inst);
-      additionalFee += BigInt(await getMinimumBalanceForRentExemptAccount(this.connection));
+      additionalFee += BigInt(await getMinimumBalanceForRentExemptAccount(connection));
     }
 
     if (tokenProgramId === TOKEN_2022_PROGRAM_ID) {
@@ -121,7 +114,8 @@ class SolanaWallet extends OmniWallet {
   }
 
   async transferFee(token: Token, receiver: string): Promise<ReviewFee> {
-    const { blockhash } = await this.connection.getLatestBlockhash();
+    const connection = this.getConnection();
+    const { blockhash } = await connection.getLatestBlockhash();
     const fee = new ReviewFee({ chain: Network.Solana, gasLimit: 1_400_000n, baseFee: 100n });
     const { instructions, additionalFee, reserve } = await this.buildTranferInstructions(token, 1n, receiver, fee);
 
@@ -134,10 +128,10 @@ class SolanaWallet extends OmniWallet {
     });
 
     if (priorityFeeData?.priorityFeeLevels == null) throw "Failed to fetch gas";
-    const simulate = await this.connection.simulateTransaction(tx).catch(() => null);
+    const simulate = await connection.simulateTransaction(tx).catch(() => null);
     const unitsConsumed = formatter.bigIntMax(BigInt(simulate?.value.unitsConsumed || 10_000n), 10_000n);
 
-    const msgFee = await this.connection.getFeeForMessage(msgForEstimate);
+    const msgFee = await connection.getFeeForMessage(msgForEstimate);
     const medium = BigInt(priorityFeeData.priorityFeeLevels.medium);
     const high = BigInt(priorityFeeData.priorityFeeLevels.high);
     const veryHigh = BigInt(priorityFeeData.priorityFeeLevels.veryHigh);
@@ -158,7 +152,7 @@ class SolanaWallet extends OmniWallet {
   }
 
   async getPriorityFeeEstimate(params: any): Promise<any> {
-    const response = await fetch("https://api0.herewallet.app/api/v1/evm/helius/staked", {
+    const response = await fetch(api.baseUrl + "/api/v1/wibe3/helius/staked", {
       body: JSON.stringify({ jsonrpc: "2.0", id: "helius-sdk", method: "getPriorityFeeEstimate", params: [params] }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
@@ -178,20 +172,23 @@ class SolanaWallet extends OmniWallet {
 
   async sendTransaction(instructions: TransactionInstruction[]): Promise<string> {
     if (!this.wallet.sendTransaction) throw "not impl";
-    const { blockhash } = await this.connection.getLatestBlockhash();
+    const connection = this.getConnection();
+    const { blockhash } = await connection.getLatestBlockhash();
     const message = new TransactionMessage({ payerKey: new PublicKey(this.address), recentBlockhash: blockhash, instructions });
     const transaction = new VersionedTransaction(message.compileToV0Message());
-    return await this.wallet.sendTransaction(transaction, this.connection, { preflightCommitment: "confirmed" });
+    return await this.wallet.sendTransaction(transaction, connection, { preflightCommitment: "confirmed" });
   }
 
   async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
     const native = await this.fetchBalance(chain, "native");
+    const connection = this.getConnection();
+
     try {
       const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist }), method: "POST" });
       const { balances } = await res.json();
       return { ...balances, native };
     } catch {
-      const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(new PublicKey(this.address), { programId: TOKEN_PROGRAM_ID });
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(this.address), { programId: TOKEN_PROGRAM_ID });
       const balances = Object.fromEntries(
         tokenAccounts.value.map((account) => {
           const { mint, tokenAmount } = account.account.data.parsed.info;
@@ -208,7 +205,7 @@ class SolanaWallet extends OmniWallet {
     return this.wallet.signMessage(message);
   }
 
-  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Record<string, any>> {
+  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Commitment> {
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
 
     const message = JSON.stringify({

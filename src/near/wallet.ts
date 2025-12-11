@@ -8,6 +8,7 @@ import { WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { rpc, TGAS } from "../core/nearRpc";
 import { Token } from "../core/token";
+import { Commitment } from "../core";
 
 export default class NearWallet extends OmniWallet {
   readonly type = WalletType.NEAR;
@@ -188,27 +189,7 @@ export default class NearWallet extends OmniWallet {
     return await this.sendTransaction({ receiverId: args.token.address, actions });
   }
 
-  async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
-    if (!this.wallet) throw "not impl";
-    const accounts = await this.wallet.getAccounts();
-    if (accounts.length === 0) throw new Error("No account found");
-    const { accountId, publicKey } = accounts[0];
-
-    const seed = hex.encode(window.crypto.getRandomValues(new Uint8Array(32)));
-    const msgBuffer = new TextEncoder().encode(`${domain}_${seed}`);
-    const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
-
-    return {
-      signed: await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) }),
-      chainId: WalletType.NEAR,
-      publicKey: publicKey,
-      address: accountId,
-      domain,
-      seed,
-    };
-  }
-
-  async signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Record<string, any>> {
+  async signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Commitment> {
     if (!this.wallet) throw "not impl";
 
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));

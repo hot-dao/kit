@@ -8,6 +8,8 @@ import { WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 import { erc20abi } from "./abi";
+import { Commitment } from "../core";
+import { api } from "../core/api";
 
 export interface EvmProvider {
   request: (args: any) => Promise<any>;
@@ -28,8 +30,8 @@ class EvmWallet extends OmniWallet {
     if (chain < 1 || chain == null) throw "Invalid chain";
     if (this.rpcs[chain]) return this.rpcs[chain];
 
-    const request = new FetchRequest(`https://api0.herewallet.app/api/v1/evm/rpc/${chain}`);
-    request.setHeader("Api-Key", this.connector.wibe3.api.apiKey);
+    const request = new FetchRequest(api.getRpcUrl(chain));
+    request.setHeader("Api-Key", api.apiKey);
 
     const rpc = new JsonRpcProvider(request, chain, { staticNetwork: true });
     this.rpcs[chain] = rpc;
@@ -73,20 +75,6 @@ class EvmWallet extends OmniWallet {
     const erc20 = new ethers.Contract(address, erc20abi, rpc);
     const balance = await erc20.balanceOf(this.address);
     return BigInt(balance);
-  }
-
-  async signIntentsWithAuth(domain: string, intents?: Record<string, any>[]) {
-    const seed = hex.encode(window.crypto.getRandomValues(new Uint8Array(32)));
-    const msgBuffer = new TextEncoder().encode(`${domain}_${seed}`);
-    const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
-
-    return {
-      signed: await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) }),
-      chainId: WalletType.EVM,
-      publicKey: this.address,
-      address: this.address,
-      seed,
-    };
   }
 
   async signMessage(msg: string) {
@@ -138,7 +126,7 @@ class EvmWallet extends OmniWallet {
     return await this.sendTransaction(args.token.chain, tx);
   }
 
-  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Record<string, any>> {
+  async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Commitment> {
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
 
     const message = JSON.stringify({

@@ -14,28 +14,19 @@ export interface TonConnectorOptions {
 }
 
 const hotWallet = {
-  app_name: "hot",
   name: "HOT",
+  app_name: "hot",
   image: "https://raw.githubusercontent.com/hot-dao/media/main/logo.png",
   about_url: "https://hot-labs.org/",
   universal_url: "https://t.me/herewalletbot?attach=wallet",
   bridge: [
-    {
-      type: "sse",
-      url: "https://sse-bridge.hot-labs.org",
-    },
-    {
-      type: "js",
-      key: "hotWallet",
-    },
+    { type: "sse", url: "https://sse-bridge.hot-labs.org" },
+    { type: "js", key: "hotWallet" },
   ],
   platforms: ["ios", "android", "chrome", "firefox", "macos", "windows", "linux"],
   features: [
-    {
-      name: "SendTransaction",
-      maxMessages: 4,
-      extraCurrencySupported: false,
-    },
+    { name: "SendTransaction", maxMessages: 4, extraCurrencySupported: false },
+    { name: "SignData", types: ["text", "binary", "cell"] },
   ],
 };
 
@@ -69,6 +60,7 @@ class TonConnector extends OmniConnector<TonWallet> {
         connector: new TonConnect({
           walletsListSource: url,
           manifestUrl: this.args?.tonManifestUrl,
+          walletsRequiredFeatures: { signData: { types: ["text"] } },
         }),
       });
 

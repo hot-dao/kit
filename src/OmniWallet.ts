@@ -1,4 +1,5 @@
 import { sha256 } from "@noble/hashes/sha2.js";
+import { hex } from "@scure/base";
 
 import { openAuthPopup } from "./ui/connect/AuthPopup";
 import { OmniToken, WalletType } from "./core/chains";
@@ -6,23 +7,8 @@ import { OmniConnector } from "./OmniConnector";
 import { Intents } from "./core/Intents";
 import { ReviewFee } from "./core/bridge";
 import { Token } from "./core/token";
-
-export interface AuthCommitment {
-  tradingAddress: string;
-  signed: Record<string, any>;
-  address: string;
-  publicKey: string;
-  chainId: WalletType;
-  seed: string;
-}
-
-export interface SignedAuth {
-  signed: Record<string, any>;
-  address: string;
-  publicKey: string;
-  chainId: WalletType;
-  seed: string;
-}
+import { Commitment } from "./core";
+import { api } from "./core/api";
 
 export abstract class OmniWallet {
   constructor(readonly connector: OmniConnector) {}
@@ -39,9 +25,7 @@ export abstract class OmniWallet {
 
   abstract transferFee(token: Token, receiver: string, amount: bigint): Promise<ReviewFee>;
   abstract transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string>;
-
-  abstract signIntentsWithAuth(domain: string, intents?: Record<string, any>[]): Promise<SignedAuth>;
-  abstract signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Record<string, any>>;
+  abstract signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Commitment>;
 
   abstract fetchBalance(chain: number, address: string): Promise<bigint>;
   abstract fetchBalances(chain?: number, whitelist?: string[]): Promise<Record<string, bigint>>;
@@ -59,10 +43,13 @@ export abstract class OmniWallet {
     return new Intents(this.connector.wibe3).attachWallet(this);
   }
 
-  async auth(domain: string, intents?: Record<string, any>[]): Promise<string> {
+  async auth(intents?: Record<string, any>[]): Promise<string> {
     return openAuthPopup(this, async () => {
-      const signed = await this.signIntentsWithAuth(domain, intents);
-      return await this.connector.wibe3.api.auth(signed);
+      const seed = hex.encode(new Uint8Array(window.crypto.getRandomValues(new Uint8Array(32))));
+      const msgBuffer = new TextEncoder().encode(`${window.location.origin}_${seed}`);
+      const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
+      const signed = await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) });
+      return await api.auth(signed, seed);
     });
   }
 

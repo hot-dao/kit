@@ -136,23 +136,6 @@ class TonWallet extends OmniWallet {
     return tx;
   }
 
-  async signIntentsWithAuth(domain: string, intents?: Record<string, unknown>[]) {
-    const address = this.wallet.account?.address;
-    if (!address) throw new Error("Wallet not connected");
-
-    const seed = hex.encode(window.crypto.getRandomValues(new Uint8Array(32)));
-    const msgBuffer = new TextEncoder().encode(`${domain}_${seed}`);
-    const nonce = await window.crypto.subtle.digest("SHA-256", new Uint8Array(msgBuffer));
-
-    return {
-      signed: await this.signIntents(intents || [], { nonce: new Uint8Array(nonce) }),
-      publicKey: `ed25519:${this.publicKey}`,
-      chainId: WalletType.TON,
-      address: address,
-      seed,
-    };
-  }
-
   async signIntents(intents: Record<string, unknown>[], options?: { deadline?: number; nonce?: Uint8Array }) {
     if (!this.wallet.signData) throw "Not impl";
     const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));

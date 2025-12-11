@@ -41,7 +41,8 @@ export interface AuthCallIntent {
 }
 
 export interface Commitment {
-  deadline: string;
-  signer_id: string;
-  intents: TransferIntent | MtWithdrawIntent | FtWithdrawIntent | TokenDiffIntent | AuthCallIntent[];
+  signature: string;
+  public_key?: string;
+  payload: Record<string, any> | string;
+  standard: string;
 }

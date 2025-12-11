@@ -4,9 +4,10 @@ import { StargateClient } from "@cosmjs/stargate";
 import { runInAction } from "mobx";
 import { hex } from "@scure/base";
 
+import { api } from "../core/api";
 import { chains, WalletType } from "../core/chains";
-import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
+import { HotConnector } from "../HotConnector";
 import { OmniWallet } from "../OmniWallet";
 
 import { signAndSendTx } from "./helpers";
@@ -105,7 +106,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
   getClient(chain: string) {
     const rpc = chains.getByKey(chain)?.rpc || "";
-    return StargateClient.connect({ url: rpc, headers: { "Api-Key": this.wibe3.api.apiKey } });
+    return StargateClient.connect({ url: rpc, headers: { "Api-Key": api.apiKey } });
   }
 
   get chains() {
@@ -176,7 +177,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         sendTransaction: async (signDoc: any) => {
           await keplr.enable(this.chains);
           const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
-          return await signAndSendTx(keplr, rpcEndpoint, this.wibe3.api.apiKey, signDoc);
+          return await signAndSendTx(keplr, rpcEndpoint, api.apiKey, signDoc);
         },
       })
     );
