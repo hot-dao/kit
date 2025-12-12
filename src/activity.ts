@@ -11,9 +11,7 @@ export class Activity {
 
   constructor(private readonly kit: HotConnector) {
     makeObservable(this, { withdrawals: observable, withdrawalsList: computed });
-    kit.onConnect(({ wallet }) => {
-      this.fetchPendingWithdrawalsByWallet(wallet);
-    });
+    kit.onConnect(({ wallet }) => this.fetchPendingWithdrawalsByWallet(wallet));
   }
 
   get withdrawalsList() {
@@ -81,6 +79,7 @@ export class Activity {
   }
 
   async fetchPendingWithdrawalsByWallet(wallet: OmniWallet) {
+    if (wallet.type === WalletType.NEAR) return;
     const tasks = chains.getByType(wallet.type).map((t) => this.fetchPendingWithdrawalsByChain(t.id, wallet));
     await Promise.all(tasks);
   }

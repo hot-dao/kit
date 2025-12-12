@@ -60,7 +60,7 @@
     "@cosmjs/math" "^0.37.0"
     "@cosmjs/utils" "^0.37.0"
 
-"@cosmjs/cosmwasm-stargate@^0.37.0":
+"@cosmjs/cosmwasm-stargate@0.37.0", "@cosmjs/cosmwasm-stargate@^0.37.0":
   version "0.37.0"
   resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.37.0.tgz#b87a9c61c7c37cf0cacb9e35eb8b98e0f20ca5cf"
   integrity sha512-q3bezZzAIyPpUT89CpQrOhI6xJU4wiMU0ufN5nsPtRaZ1Cn8mwoj76j56wb7lvwsAPIk7ALjVbQwULmn7hii6A==
@@ -455,11 +455,12 @@
   resolved "https://registry.yarnpkg.com/@hot-labs/near-connect/-/near-connect-0.8.1.tgz#f8a4f3e0f85c22fee84c3c75c57723d2cbc672fa"
   integrity sha512-cJRZFQTrY4Nwnmv/zM10HfzcywM4NX6pZOR9Vkdx/nuoHWc7VA/hpN0RR9j/5EYhXdF09k16qkY/vc1Zk2YuMg==
 
-"@hot-labs/omni-sdk@^2.24.3":
-  version "2.24.3"
-  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.24.3.tgz#d703a23f95c03ee10ead5141ca020a70c6002a9c"
-  integrity sha512-J57+VbRqAUqtxgB4xiZITjNXytCQEXK03np/17QZ+YU1pdKYBSqz3bxxOC3xWxkPWQKnAyYtDS1XpIDvZoR3Ag==
+"@hot-labs/omni-sdk@^2.24.5":
+  version "2.24.5"
+  resolved "https://registry.yarnpkg.com/@hot-labs/omni-sdk/-/omni-sdk-2.24.5.tgz#fa243749995ad5fe018e9282bd6d44544cd312c3"
+  integrity sha512-hAYjbwpCAFQ5hKMPEa85M6ZwRnNEktIoCJbAVvGudCWKLs1ltw1k6y4GfhhukzFB0NrjWq88NXtpCEzUGhEE5Q==
   dependencies:
+    "@cosmjs/cosmwasm-stargate" "0.37.0"
     "@near-js/crypto" "2.2.5"
     "@near-js/providers" "2.2.5"
     "@near-js/transactions" "2.2.5"

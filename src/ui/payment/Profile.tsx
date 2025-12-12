@@ -111,7 +111,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
                 </div>
 
                 <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
-                  <p style={{ color: "#d6d6d6" }}>{withdrawal.loading ? <Loader /> : "Complete"}</p>
+                  <p style={{ color: "#d6d6d6" }}>{withdrawal.loading ? <Loader /> : "Withdraw"}</p>
                 </div>
               </PopupOption>
             );

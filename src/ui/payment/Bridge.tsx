@@ -165,8 +165,11 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 
   const process = async (review: BridgeReview) => {
     try {
-      setProcessing({ status: "processing", message: "Signing transaction", review });
-      const result = await hot.exchange.makeSwap(review, { log: (message: string) => setProcessing({ status: "processing", message, review }) });
+      const log = (message: string) => setProcessing({ status: "processing", message, review });
+      hot.hotBridge.logger = { log, warn: console.warn };
+      log("Signing transaction");
+
+      const result = await hot.exchange.makeSwap(review, { log });
       setProcessing({ status: "success", message: "Transaction signed", review: result });
       if (setup?.autoClose) onClose();
       return result;

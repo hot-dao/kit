@@ -131,14 +131,16 @@ export class Exchange {
     throw new Error("Unsupported token");
   }
 
-  async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient }) {
+  async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient }, pending: { log: (message: string) => void }) {
     const { sender, token, amount, recipient } = args;
 
     const receipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
     if (this.wibe3.isNearWallet(receipientWallet) && token.type === WalletType.NEAR) {
+      pending.log("Registering NEAR token");
       await receipientWallet.registerToken(token.originalAddress);
     }
 
+    pending.log("Withdrawing token");
     await this.wibe3.hotBridge.withdrawToken({
       signIntents: async (intents) => sender.signIntents(intents),
       intentAccount: sender.omniAddress,
@@ -303,7 +305,7 @@ export class Exchange {
 
     if (review.qoute === "withdraw") {
       if (sender === "qr") throw new Error("Sender is QR");
-      await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient });
+      await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient }, pending);
       const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
       if (recipientWallet) this.wibe3.fetchToken(review.to, recipientWallet);
       this.wibe3.fetchToken(review.from, sender);
