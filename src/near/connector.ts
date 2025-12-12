@@ -17,12 +17,13 @@ class Connector extends OmniConnector<NearWallet> {
   constructor(readonly wibe3: HotConnector, connector?: NearConnector) {
     super(wibe3);
 
-    this.connector =
-      connector ||
-      new NearConnector({
+    if (connector) this.connector = connector;
+    else {
+      this.connector = new NearConnector({
+        walletConnect: this.initWalletConnect().then((t) => t.client),
         network: "mainnet",
-        walletConnect: this.wibe3.settings?.projectId ? { projectId: this.wibe3.settings.projectId, metadata: this.wibe3.settings.metadata } : undefined,
       });
+    }
 
     this.connector.on("wallet:signOut", () => this.removeWallet());
     this.connector.getConnectedWallet().then(async ({ wallet }) => {

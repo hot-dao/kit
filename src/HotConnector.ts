@@ -23,6 +23,7 @@ import { openBridge, openConnector, openPayment, openProfile, openWalletPicker }
 import { ConnectorType, OmniConnector } from "./OmniConnector";
 import { OmniWallet } from "./OmniWallet";
 import { Exchange } from "./exchange";
+import { Activity } from "./activity";
 
 interface HotConnectorOptions {
   apiKey: string;
@@ -43,6 +44,7 @@ export class HotConnector {
   public connectors: OmniConnector[] = [];
   public balances: Record<string, Record<string, bigint>> = {};
 
+  public activity: Activity;
   public hotBridge: HotBridge;
   public exchange: Exchange;
 
@@ -82,6 +84,7 @@ export class HotConnector {
 
     this.hotBridge = createHotBridge();
     this.exchange = new Exchange(this);
+    this.activity = new Activity(this);
 
     const connectors: OmniConnector[] = [];
     const tasks = options?.connectors?.map(async (initConnector, index) => {

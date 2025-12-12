@@ -1,6 +1,5 @@
 import { NearWalletBase, SignMessageParams, SignedMessage, SignAndSendTransactionParams } from "@hot-labs/near-connect";
 import { base64, base58 } from "@scure/base";
-import { Action } from "@near-js/transactions";
 
 import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
@@ -39,29 +38,7 @@ export default class NearWallet extends OmniWallet {
 
   async sendTransaction(params: SignAndSendTransactionParams): Promise<string> {
     if (!this.wallet) throw "not impl";
-    const actions = (params.actions as any).map((action: Action) => {
-      if ((action as any)["type"]) return action;
-      if (action.functionCall) {
-        return {
-          type: "FunctionCall",
-          params: {
-            methodName: action.functionCall.methodName,
-            args: JSON.parse(Buffer.from(action.functionCall.args).toString("utf8")),
-            gas: String(action.functionCall.gas),
-            deposit: String(action.functionCall.deposit),
-          },
-        };
-      }
-
-      if (action.transfer) {
-        return {
-          type: "Transfer",
-          params: { deposit: String(action.transfer.deposit) },
-        };
-      }
-    });
-
-    const result = await this.wallet.signAndSendTransaction({ receiverId: params.receiverId, actions });
+    const result = await this.wallet.signAndSendTransaction(params);
     return result.transaction.hash;
   }
 

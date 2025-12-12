@@ -1,6 +1,6 @@
 {
   "name": "@hot-labs/kit",
-  "version": "1.0.53",
+  "version": "1.0.55",
   "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
@@ -31,7 +31,7 @@
     "@cosmjs/stargate": "^0.37.0",
     "@creit.tech/stellar-wallets-kit": "^1.9.1",
     "@defuse-protocol/one-click-sdk-typescript": "^0.1.13",
-    "@hot-labs/near-connect": "^0.6.10",
+    "@hot-labs/near-connect": "^0.8.1",
     "@hot-labs/omni-sdk": "^2.24.3",
     "@keplr-wallet/proto-types": "^0.12.291",
     "@keplr-wallet/provider-extension": "^0.12.291",

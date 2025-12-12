@@ -12,7 +12,6 @@ import StellarWallet from "./stellar/wallet";
 import { HotConnector } from "./HotConnector";
 import { OmniWallet } from "./OmniWallet";
 import { formatter } from "./core";
-import { api } from "./core/api";
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {

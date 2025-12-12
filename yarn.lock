@@ -450,10 +450,10 @@
     "@emurgo/cardano-serialization-lib-browser" "^13.2.0"
     "@emurgo/cardano-serialization-lib-nodejs" "13.2.0"
 
-"@hot-labs/near-connect@^0.6.10":
-  version "0.6.11"
-  resolved "https://registry.yarnpkg.com/@hot-labs/near-connect/-/near-connect-0.6.11.tgz#efb7c623f65059fca0e385c105ac049d7f05ee89"
-  integrity sha512-MTohG1YIcl/he+Vf/GsCnBciGJaFHe5p49avz5gXtDbCJxH+ZJn/0/XeROBa68wi478Q23y6he5tUsBy7XDTYA==
+"@hot-labs/near-connect@^0.8.1":
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/@hot-labs/near-connect/-/near-connect-0.8.1.tgz#f8a4f3e0f85c22fee84c3c75c57723d2cbc672fa"
+  integrity sha512-cJRZFQTrY4Nwnmv/zM10HfzcywM4NX6pZOR9Vkdx/nuoHWc7VA/hpN0RR9j/5EYhXdF09k16qkY/vc1Zk2YuMg==
 
 "@hot-labs/omni-sdk@^2.24.3":
   version "2.24.3"

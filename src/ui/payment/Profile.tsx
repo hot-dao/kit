@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { LogoutIcon } from "../icons/logout";
 import { openBridge, openConnector } from "../router";
@@ -10,8 +10,28 @@ import { OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
 import Popup from "../Popup";
 
-import { ImageView, TokenCard } from "./TokenCard";
+import { ImageView, TokenCard, TokenIcon } from "./TokenCard";
 import ExchangeIcon from "../icons/exchange";
+import { PopupOption } from "../styles";
+
+export const Loader = styled.div`
+  border: 4px solid #2a2a2a;
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto;
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
 
 export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
   let totalBalance = 0;
@@ -73,6 +93,31 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
           <ExchangeIcon size={32} strokeColor="#d2d2d2" />
         </ExchangeButton>
       </div>
+
+      {hot.activity.withdrawalsList.length > 0 && (
+        <TokenCards style={{ marginTop: 16 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Pending withdrawals</p>
+          {hot.activity.withdrawalsList.map((withdrawal) => {
+            const token = tokens.get(withdrawal.token as OmniToken, withdrawal.chain);
+            return (
+              <PopupOption key={withdrawal.nonce} onClick={() => hot.activity.finishWithdrawal(withdrawal)} disabled={withdrawal.loading}>
+                <TokenIcon token={token} />
+
+                <div>
+                  <p style={{ marginTop: -4, textAlign: "left", fontSize: 20, fontWeight: "bold" }}>
+                    {token.float(withdrawal.amount)} {token.symbol}
+                  </p>
+                  <p style={{ textAlign: "left", fontSize: 12, color: "#828282" }}>{new Date(withdrawal.timestamp).toLocaleString()}</p>
+                </div>
+
+                <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
+                  <p style={{ color: "#d6d6d6" }}>{withdrawal.loading ? <Loader /> : "Complete"}</p>
+                </div>
+              </PopupOption>
+            );
+          })}
+        </TokenCards>
+      )}
 
       {tokensList.filter((t) => t != null && t.chain === -4).length > 0 && (
         <TokenCards style={{ marginTop: 16 }}>
