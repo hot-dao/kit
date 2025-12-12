@@ -33,7 +33,7 @@ export class Token {
       this.address = info.contractAddress ? new Asset(info.symbol, info.contractAddress).contractId(Networks.PUBLIC) : "native";
       this.originalAddress = this.address;
     } else {
-      this.address = info.omni ? info.assetId : info.contractAddress || "native";
+      this.address = info.contractAddress || "native";
       this.originalAddress = info.contractAddress || "native";
     }
 
