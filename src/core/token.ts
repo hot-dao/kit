@@ -26,15 +26,20 @@ export class Token {
     this.originalChain = chains.getByKey(info.blockchain)?.id || 0;
     this.chain = info.omni ? -4 : chains.getByKey(info.blockchain)?.id || 0;
 
-    if (this.chain === Network.Near) {
+    if (this.originalChain === Network.Near) {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
       this.originalAddress = this.address;
-    } else if (this.chain === Network.Stellar) {
+    } else if (this.originalChain === Network.Stellar) {
       this.address = info.contractAddress ? new Asset(info.symbol, info.contractAddress).contractId(Networks.PUBLIC) : "native";
       this.originalAddress = this.address;
     } else {
       this.address = info.omni ? info.assetId : info.contractAddress || "native";
       this.originalAddress = info.contractAddress || "native";
+    }
+
+    if (info.omni) {
+      this.originalAddress = this.address;
+      this.address = info.assetId;
     }
 
     this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;

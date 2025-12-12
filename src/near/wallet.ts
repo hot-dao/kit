@@ -1,5 +1,5 @@
 import { NearWalletBase, SignMessageParams, SignedMessage, SignAndSendTransactionParams } from "@hot-labs/near-connect";
-import { base64, base58, hex } from "@scure/base";
+import { base64, base58 } from "@scure/base";
 import { Action } from "@near-js/transactions";
 
 import { OmniConnector } from "../OmniConnector";
@@ -103,6 +103,7 @@ export default class NearWallet extends OmniWallet {
   }
 
   async needRegisterToken(token: string, address: string): Promise<boolean> {
+    if (token === "native") return false;
     const storage = await rpc.viewMethod({ contractId: token, methodName: "storage_balance_of", args: { account_id: address } }).catch(() => null);
     return storage == null;
   }

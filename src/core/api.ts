@@ -39,7 +39,7 @@ export class Api {
   }
 
   getRpcUrl(chain: number) {
-    return `${this.baseUrl}/api/v1/evm/rpc/1001/${chain}`;
+    return `${this.baseUrl}/api/v1/evm/rpc/${chain}`;
   }
 
   getOneClickApiUrl() {

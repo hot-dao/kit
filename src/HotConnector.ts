@@ -341,12 +341,11 @@ export class HotConnector {
 
     return openBridge(this, {
       mobileFullscreen: true,
-      readonlyAmount: !!amount,
-      sender: sender,
       recipient: recipient,
       to: originalToken,
       from: omniToken,
       amount: amount,
+      sender: sender,
     });
   }
 
