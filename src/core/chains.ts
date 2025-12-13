@@ -133,9 +133,9 @@ const chainsRepository: Record<number, ChainConfig> = {
     logo: "https://storage.herewallet.app/ft/4444119:ngonka.png",
     currency: { id: "ngonka", symbol: "GNK", decimals: 6, logo: logo(Network.Gonka) },
     rpc: rpc(Network.Gonka),
-    prefix: "gonka",
     type: WalletType.COSMOS,
     gasLimit: 200000n,
+    prefix: "gonka",
   },
   [Network.Monad]: {
     id: Network.Monad,

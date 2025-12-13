@@ -1,10 +1,10 @@
-import MetaMaskSDK from "@metamask/sdk";
 import { runInAction } from "mobx";
 
-import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
+import HOT from "../hot-wallet/iframe";
 import { Network, WalletType } from "../core/chains";
-import { isInjected } from "../hot-wallet/iframe";
+import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
 import { HotConnector } from "../HotConnector";
+
 import EvmWallet, { EvmProvider } from "./wallet";
 
 class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
@@ -13,14 +13,6 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   type = ConnectorType.WALLET;
   name = "EVM Wallet";
   id = "evm";
-
-  MMSDK = new MetaMaskSDK({
-    dappMetadata: {
-      name: "Wibe3",
-      url: window.location.href,
-      // iconUrl: "https://mydapp.com/icon.png" // Optional
-    },
-  });
 
   constructor(wibe3: HotConnector) {
     super(wibe3);
@@ -104,7 +96,7 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   }
 
   async getConnectedWallet() {
-    if (isInjected()) return { type: "wallet", id: "org.hot-labs" };
+    if (HOT.isInjected) return { type: "wallet", id: "org.hot-labs" };
     return await this.getStorage();
   }
 

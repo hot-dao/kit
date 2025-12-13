@@ -1,4 +1,4 @@
-import { isInjected, requestHot } from "../hot-wallet/iframe";
+import HOT from "../hot-wallet/iframe";
 
 class HotEvmProvider {
   _events = new Map<string, Set<any>>();
@@ -6,7 +6,7 @@ class HotEvmProvider {
   isHotWallet = true;
   isMetaMask = true;
 
-  request = (request: any) => requestHot("ethereum", request);
+  request = (request: any) => HOT.request("ethereum", request);
   removeListener() {}
   on() {}
 }
@@ -31,7 +31,7 @@ function announceProvider(provider: HotEvmProvider) {
   );
 }
 
-if (isInjected()) {
+if (HOT.isInjected) {
   const hotProvider = new HotEvmProvider();
   window.addEventListener("eip6963:requestProvider", () => announceProvider(hotProvider));
   announceProvider(hotProvider);

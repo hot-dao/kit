@@ -6,8 +6,8 @@ import { runInAction } from "mobx";
 import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
 import { HotConnector } from "../HotConnector";
 import { OmniWallet } from "../OmniWallet";
-import { isInjected } from "../hot-wallet/iframe";
 import { WalletType } from "../core/chains";
+import HOT from "../hot-wallet/iframe";
 
 import SolanaProtocolWallet from "./protocol";
 import { getWallets } from "./wallets";
@@ -117,7 +117,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
   }
 
   async getConnectedWallet() {
-    if (isInjected()) return { type: "wallet", id: "HOT Wallet" };
+    if (HOT.isInjected) return { type: "wallet", id: "HOT Wallet" };
     return this.getStorage();
   }
 

@@ -169,17 +169,18 @@ export const Footer = styled.div`
 `;
 
 export const GetWalletLink = styled.a`
-  color: rgba(255, 255, 255, 0.5);
+  color: #fff;
   text-align: center;
   font-size: 16px;
   font-style: normal;
   font-weight: 500;
   margin-left: auto;
   text-decoration: none;
-  transition: color 0.2s ease-in-out;
+  transition: opacity 0.2s ease-in-out;
+  opacity: 0.8;
 
   &:hover {
-    color: rgba(255, 255, 255, 1);
+    opacity: 1;
   }
 `;
 

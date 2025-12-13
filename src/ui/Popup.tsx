@@ -65,9 +65,13 @@ const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: P
           )}
           <ModalBody style={{ overflowX: "hidden", ...style }}>{children}</ModalBody>
           <Footer>
-            <img src="https://tgapp.herewallet.app/images/hot/hot-icon.png" alt="HOT Connector" />
-            <p>HOT Connector</p>
-            <GetWalletLink href="https://download.hot-labs.org/kit" target="_blank">
+            <GetWalletLink href="https://hot-labs.org" rel="noreferrer" target="_blank" style={{ marginLeft: 0, display: "flex", alignItems: "center", gap: 4 }}>
+              <p>Secured by</p>
+              <img src="https://tgapp.herewallet.app/images/hot/hot-icon.png" alt="HOT Labs" />
+              <p>HOT</p>
+            </GetWalletLink>
+
+            <GetWalletLink href="https://download.hot-labs.org/kit" rel="noreferrer" target="_blank">
               Don't have a wallet?
             </GetWalletLink>
           </Footer>

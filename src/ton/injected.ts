@@ -1,6 +1,6 @@
-import { isInjected, requestHot } from "../hot-wallet/iframe";
+import HOT from "../hot-wallet/iframe";
 
-if (isInjected()) {
+if (HOT.isInjected) {
   // @ts-expect-error: hotWallet is not defined
   window.hotWallet = {
     tonconnect: {
@@ -33,19 +33,19 @@ if (isInjected()) {
       isWalletBrowser: true,
 
       connect: (_: number, request: any) => {
-        return requestHot("ton:connect", request);
+        return HOT.request("ton:connect", request);
       },
 
       restoreConnection: () => {
-        return requestHot("ton:restoreConnection", {});
+        return HOT.request("ton:restoreConnection", {});
       },
 
       disconnect: () => {
-        return requestHot("ton:disconnect", {});
+        return HOT.request("ton:disconnect", {});
       },
 
       send: async (request: any) => {
-        return requestHot("ton:send", request);
+        return HOT.request("ton:send", request);
       },
 
       listen: () => {

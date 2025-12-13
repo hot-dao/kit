@@ -1,6 +1,6 @@
 import { Transaction, VersionedTransaction, PublicKey } from "@solana/web3.js";
 
-import { isInjected, requestHot } from "../../hot-wallet/iframe";
+import HOT from "../../hot-wallet/iframe";
 import { registerWallet } from "./register";
 import { GhostWallet } from "./solana-wallet";
 
@@ -25,17 +25,17 @@ const hotSolana = {
   publicKey: null as PublicKey | null,
 
   async connect(options: any) {
-    const { publicKey } = await requestHot("solana:connect", options);
+    const { publicKey } = await HOT.request("solana:connect", options);
     hotSolana.publicKey = new PublicKey(publicKey);
     return { publicKey: hotSolana.publicKey };
   },
 
   async disconnect() {
-    return await requestHot("solana:disconnect", {});
+    return await HOT.request("solana:disconnect", {});
   },
 
   async signAllTransactions(transactions: any[]) {
-    const result = await requestHot("solana:signAllTransactions", {
+    const result = await HOT.request("solana:signAllTransactions", {
       transactions: transactions.map((t) => t.serialize().toString("base64")),
     });
 
@@ -43,7 +43,7 @@ const hotSolana = {
   },
 
   async signTransaction(transaction: any) {
-    const result = await requestHot("solana:signAllTransactions", {
+    const result = await HOT.request("solana:signAllTransactions", {
       transactions: [transaction.serialize().toString("base64")],
     });
 
@@ -51,7 +51,7 @@ const hotSolana = {
   },
 
   async signAndSendTransaction(transaction: any, options: any) {
-    const result = await requestHot("solana:signAndSendTransaction", {
+    const result = await HOT.request("solana:signAndSendTransaction", {
       transaction: transaction.serialize().toString("base64"),
       options,
     });
@@ -61,11 +61,10 @@ const hotSolana = {
 
   async signIn(input: any) {
     throw "Not supported";
-    return await requestHot("solana:signIn", input);
   },
 
   async signMessage(message: string) {
-    const result = await requestHot("solana:signMessage", { message: Buffer.from(message).toString("base64") });
+    const result = await HOT.request("solana:signMessage", { message: Buffer.from(message).toString("base64") });
     return { signature: Buffer.from(result.signature, "base64") };
   },
 
@@ -84,15 +83,13 @@ HOT.subscribe("solana:accountChanged", (publicKey: string | null) => {
 });
 */
 
-if (isInjected()) {
-  registerWallet(new GhostWallet(hotSolana));
+registerWallet(new GhostWallet(hotSolana));
 
-  // New wallets no longer need to register wallet globals - and can
-  // ignore the code below. However if you have legacy apps relying on globals,
-  // this is the safest way to attach the reference to the window, guarding against errors.
-  try {
-    Object.defineProperty(window, "hotSolana", { value: hotSolana });
-  } catch (error) {
-    //
-  }
+// New wallets no longer need to register wallet globals - and can
+// ignore the code below. However if you have legacy apps relying on globals,
+// this is the safest way to attach the reference to the window, guarding against errors.
+try {
+  Object.defineProperty(window, "hotSolana", { value: hotSolana });
+} catch (error) {
+  //
 }

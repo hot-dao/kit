@@ -1,10 +1,10 @@
-import { TonConnectUI, TonConnect } from "@tonconnect/ui";
+import { TonConnectUI, TonConnect, Feature } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
 import { WalletType } from "../core/chains";
 import { HotConnector } from "../HotConnector";
 import { ConnectorType, OmniConnector } from "../OmniConnector";
-import { isInjected } from "../hot-wallet/iframe";
+import HOT from "../hot-wallet/iframe";
 import TonWallet from "./wallet";
 
 export interface TonConnectorOptions {
@@ -29,6 +29,8 @@ const hotWallet = {
     { name: "SignData", types: ["text", "binary", "cell"] },
   ],
 };
+
+const isSignDataFeature = (feature: Feature) => typeof feature === "object" && feature.name === "SignData" && feature.types.includes("text");
 
 class TonConnector extends OmniConnector<TonWallet> {
   type = ConnectorType.WALLET;
@@ -78,13 +80,15 @@ class TonConnector extends OmniConnector<TonWallet> {
     tonConnect.connector.restoreConnection();
     tonConnect.getWallets().then((wallets) => {
       runInAction(() => {
-        this.options = wallets.map((w) => ({
-          name: w.name,
-          icon: w.imageUrl,
-          id: w.appName,
-          download: w.aboutUrl,
-          type: "external" as const,
-        }));
+        this.options = wallets
+          .filter((t) => t.features?.some(isSignDataFeature))
+          .map((w) => ({
+            name: w.name,
+            icon: w.imageUrl,
+            id: w.appName,
+            download: w.aboutUrl,
+            type: "external" as const,
+          }));
       });
     });
 
@@ -94,7 +98,7 @@ class TonConnector extends OmniConnector<TonWallet> {
       tcRoot.style.position = "fixed";
     }
 
-    if (isInjected()) {
+    if (HOT.isInjected) {
       tonConnect.getWallets().then((wallets) => {
         const wallet = wallets.find((w) => w.appName === "hot");
         if (wallet) tonConnect.connector.connect(wallet, { tonProof: "wibe3" });

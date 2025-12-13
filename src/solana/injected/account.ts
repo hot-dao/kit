@@ -1,9 +1,8 @@
-import { SolanaSignAndSendTransaction, SolanaSignMessage, SolanaSignTransaction } from "@solana/wallet-standard-features";
 import type { WalletAccount } from "@wallet-standard/base";
 import { SOLANA_CHAINS } from "./utils";
 
 const chains = SOLANA_CHAINS;
-const features = [SolanaSignAndSendTransaction, SolanaSignTransaction, SolanaSignMessage] as const;
+const features = ["solana:signAndSendTransaction", "solana:signMessage", "solana:signMessage"] as const;
 
 export class GhostWalletAccount implements WalletAccount {
   readonly #address: WalletAccount["address"];
