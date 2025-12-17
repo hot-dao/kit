@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Commitment, formatter, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
@@ -12,7 +12,6 @@ import { openConnector } from "../router";
 
 import { OmniWallet } from "../../OmniWallet";
 import { HotConnector } from "../../HotConnector";
-import { Connector } from "../connect/ConnectWallet";
 import Popup from "../Popup";
 
 import { TokenCard, TokenIcon } from "./TokenCard";
@@ -91,6 +90,11 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
     fetch(animations.failed);
   });
 
+  useEffect(() => {
+    if (connector.wallets.length !== 0) return;
+    openConnector(connector);
+  }, [connector.wallets.length]);
+
   const [flow, setFlow] = useState<{
     token?: Token;
     wallet?: OmniWallet;
@@ -159,10 +163,6 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
       throw error;
     }
   };
-
-  if (connector.wallets.length === 0) {
-    return <Connector hot={connector} onClose={onClose} title={title} />;
-  }
 
   if (flow?.step === "success") {
     return (
