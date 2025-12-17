@@ -2,7 +2,6 @@ import { StargateClient } from "@cosmjs/stargate";
 import { OmniWallet } from "../OmniWallet";
 import { chains, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
-import CosmosConnector from "./connector";
 import { Commitment } from "../core";
 
 interface ProtocolWallet {

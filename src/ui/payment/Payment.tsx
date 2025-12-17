@@ -1,6 +1,8 @@
 import { observer } from "mobx-react-lite";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
+import { WalletIcon } from "../icons/wallet";
+import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
 import { Commitment, formatter, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
 import { Network } from "../../core/chains";
@@ -15,15 +17,15 @@ import { HotConnector } from "../../HotConnector";
 import Popup from "../Popup";
 
 import { TokenCard, TokenIcon } from "./TokenCard";
-import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
-import { WalletIcon } from "../icons/wallet";
+import { HorizontalStepper } from "./Stepper";
 import { Loader } from "./Profile";
 
 interface PaymentProps {
   intents: Intents;
   connector: HotConnector;
-  onClose: () => void;
-  onConfirm: (task: Promise<string>) => void;
+  payload?: Record<string, any>;
+  onReject: (message: string) => void;
+  onSuccess: (task: { paymentId: string; tx: string }) => void;
 }
 
 const animations = {
@@ -32,56 +34,9 @@ const animations = {
   loading: "https://hex.exchange/loading.json",
 };
 
-interface Step {
-  label: string;
-  completed?: boolean;
-  active?: boolean;
-}
+const PAY_SLIPPAGE = 0.002;
 
-interface StepperProps {
-  steps: Step[];
-  currentStep: number;
-  style?: React.CSSProperties;
-}
-
-export const HorizontalStepper: React.FC<StepperProps> = ({ steps, currentStep, style }) => {
-  return (
-    <div style={{ padding: "0 32px 32px", display: "flex", alignItems: "center", width: "100%", margin: "16px 0", ...style }}>
-      {steps.map((step, idx) => {
-        const isCompleted = idx < currentStep;
-        const isActive = idx === currentStep;
-
-        return (
-          <React.Fragment key={idx}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div
-                style={{
-                  width: 16,
-                  height: 16,
-                  position: "relative",
-                  borderRadius: "50%",
-                  border: isActive || isCompleted ? "2px solid #ffffff" : "2px solid #a0a0a0",
-                  background: isCompleted ? "#ffffff" : "#333",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.2s",
-                  zIndex: 1,
-                }}
-              >
-                <p style={{ fontSize: 16, color: "#fff", opacity: isActive ? 1 : 0.5, position: "absolute", top: 24, width: 100 }}>{step.label}</p>
-              </div>
-            </div>
-
-            {idx < steps.length - 1 && <div style={{ transition: "background 0.2s", flex: 1, height: 2, background: idx < currentStep ? "#ffffff" : "#333", margin: "0 6px", borderRadius: 24, minWidth: 24 }} />}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
-export const Payment = observer(({ connector, intents, onClose, onConfirm }: PaymentProps) => {
+export const Payment = observer(({ connector, intents, payload, onReject, onSuccess }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -97,8 +52,8 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
     token?: Token;
     wallet?: OmniWallet;
     commitment?: Commitment;
-    review?: BridgeReview;
-
+    review?: BridgeReview | "direct";
+    data?: { paymentId: string; tx: string };
     step?: "selectToken" | "sign" | "transfer" | "success" | "error" | "loading";
     success?: boolean;
     loading?: boolean;
@@ -112,25 +67,36 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
   const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
 
-    setFlow({ token: from, wallet, review: undefined, step: "sign" });
-    const review = await connector.exchange.reviewSwap({
-      recipient: Recipient.fromWallet(wallet)!,
-      amount: needAmount,
-      sender: wallet,
-      refund: wallet,
-      slippage: 0.005,
-      type: "exactOut",
-      to: need,
-      from,
-    });
+    // Set signer as payer wallet if not set another
+    if (!intents.signer) intents.attachWallet(wallet);
 
-    setFlow({ token: from, wallet, review, step: "sign" });
+    if (from.id === need.id) {
+      return setFlow({ token: from, wallet, review: "direct", step: "sign" });
+    }
+
+    try {
+      setFlow({ token: from, wallet, review: undefined, step: "sign" });
+      const review = await connector.exchange.reviewSwap({
+        recipient: Recipient.fromWallet(intents.signer)!,
+        amount: needAmount + (needAmount * BigInt(Math.floor(PAY_SLIPPAGE * 1000))) / BigInt(1000),
+        slippage: PAY_SLIPPAGE,
+        sender: wallet,
+        refund: wallet,
+        type: "exactOut",
+        to: need,
+        from,
+      });
+
+      setFlow({ token: from, wallet, review, step: "sign" });
+    } catch {
+      setFlow({ token: from, wallet, error: true, step: "sign" });
+    }
   };
 
   const signStep = async () => {
     try {
       setFlow((t) => (t ? { ...t, step: "sign", loading: true } : null));
-      const commitment = await intents.attachWallet(flow!.wallet!).sign();
+      const commitment = await intents.sign();
       setFlow((t) => (t ? { ...t, step: "transfer", commitment, loading: false } : null));
     } catch (error) {
       console.error(error);
@@ -144,19 +110,17 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
       const commitment = flow?.commitment;
       if (!commitment) throw new Error("Commitment not found");
       if (!flow?.review) throw new Error("Review not found");
-
       setFlow((t) => (t ? { ...t, step: "loading" } : null));
-      const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
 
-      if (typeof result.review.qoute === "object") {
-        const data = await api.pendingPayment(commitment, result.review.qoute.depositAddress!);
-        setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true } : null));
-        return data;
-      } else {
-        const hash = await Intents.publish([commitment]);
-        setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true } : null));
-        return { hash };
+      // make swap if need
+      let depositAddress: string | undefined;
+      if (flow.review != "direct") {
+        const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
+        depositAddress = typeof result.review?.qoute === "object" ? result.review?.qoute?.depositAddress : undefined;
       }
+
+      const data = await api.yieldIntentCall({ depositAddress, commitment, payload });
+      setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true, data } : null));
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -166,13 +130,13 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
 
   if (flow?.step === "success") {
     return (
-      <Popup onClose={onClose} header={<p>{title}</p>}>
+      <Popup header={<p>{title}</p>}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Payment successful</p>
         </div>
-        <PopupButton style={{ marginTop: "auto" }} onClick={() => onClose()}>
+        <PopupButton style={{ marginTop: "auto" }} onClick={() => onSuccess(flow.data!)}>
           Continue
         </PopupButton>
       </Popup>
@@ -181,7 +145,7 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
 
   if (flow?.step === "loading") {
     return (
-      <Popup onClose={onClose} header={<p>{title}</p>}>
+      <Popup header={<p>{title}</p>}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="loading" src={animations.loading} speed="1" style={{ marginTop: -64, width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
@@ -193,14 +157,14 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
 
   if (flow?.step === "error") {
     return (
-      <Popup onClose={onClose} header={<p>{title}</p>}>
+      <Popup header={<p>{title}</p>}>
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Payment failed</p>
-          <p style={{ fontSize: 14 }}>{flow.error?.toString?.() ?? "Unknown error"}</p>
+          <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{flow.error?.toString?.() ?? "Unknown error"}</p>
         </div>
-        <PopupButton onClick={() => onClose()}>Close</PopupButton>
+        <PopupButton onClick={() => onReject(flow.error?.toString?.() ?? "Unknown error")}>Close</PopupButton>
       </Popup>
     );
   }
@@ -209,7 +173,7 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
     if (!flow.token) return null;
     if (!flow.wallet) return null;
     return (
-      <Popup onClose={onClose} header={<p>{title}</p>}>
+      <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
         <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
 
         <PopupOption style={{ marginTop: 8 }}>
@@ -222,8 +186,8 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
 
           {flow.review ? (
             <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review?.amountIn ?? 0)}</p>
-              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
+              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0)}</p>
+              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
             </div>
           ) : (
             <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
@@ -232,7 +196,7 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
           )}
         </PopupOption>
 
-        <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={() => onConfirm(confirmPaymentStep())}>
+        <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={confirmPaymentStep}>
           {flow?.loading ? "Confirming..." : "Confirm payment"}
         </PopupButton>
       </Popup>
@@ -243,7 +207,7 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
     if (!flow.token) return null;
     if (!flow.wallet) return null;
     return (
-      <Popup onClose={onClose} header={<p>{title}</p>}>
+      <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
         <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={1} />
 
         <PopupOption style={{ marginTop: 8 }}>
@@ -256,40 +220,51 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
 
           {flow.review ? (
             <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review?.amountIn ?? 0)}</p>
-              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
+              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0)}</p>
+              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
             </div>
           ) : (
             <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <Loader />
+              {flow.error ? (
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Failed" style={{ display: "block", margin: "0 auto" }}>
+                  <circle cx="14" cy="14" r="13" stroke="#E74C3C" strokeWidth="2" />
+                  <path d="M9 9l10 10M19 9l-10 10" stroke="#E74C3C" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <Loader />
+              )}
             </div>
           )}
         </PopupOption>
 
-        <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={signStep}>
-          {flow?.loading ? "Signing..." : flow?.review ? "Sign review" : "Quoting..."}
-        </PopupButton>
+        {flow.error ? (
+          <PopupButton style={{ marginTop: 24 }} onClick={() => setFlow(null)}>
+            Select another token
+          </PopupButton>
+        ) : (
+          <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={signStep}>
+            {flow?.loading ? "Signing..." : flow?.review ? "Sign review" : "Quoting..."}
+          </PopupButton>
+        )}
       </Popup>
     );
   }
 
   return (
-    <Popup onClose={onClose} header={<p>{title}</p>}>
+    <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
       <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={0} />
 
       {connector.walletsTokens.map(({ token, wallet, balance }) => {
-        if (token.id === need.id) return null;
         const availableBalance = token.float(balance) - token.reserve;
 
         if (need.originalChain === Network.Gonka || need.originalChain === Network.Juno) {
           if (token.id === need.id) return null;
           if (token.originalAddress !== need.originalAddress) return null;
-
           if (availableBalance < need.float(needAmount)) return null;
           return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
         }
 
-        if (availableBalance * token.usd <= need.usd * need.float(needAmount)) return null;
+        if (availableBalance * token.usd <= need.usd * need.float(needAmount) * (1 + PAY_SLIPPAGE)) return null;
         return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
       })}
 

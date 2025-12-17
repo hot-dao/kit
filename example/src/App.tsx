@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { HotConnector, OmniToken } from "@hot-labs/kit";
+import { defaultConnectors } from "@hot-labs/kit/defaults";
+import cosmos from "@hot-labs/kit/cosmos";
+
 import { observer } from "mobx-react-lite";
+import { api } from "@hot-labs/kit/core/api";
 
 const wibe3 = new HotConnector({
   apiKey: "",
+  connectors: [...defaultConnectors, cosmos()],
   walletConnect: {
     projectId: "1292473190ce7eb75c9de67e15aaad99",
     metadata: {
@@ -28,10 +33,15 @@ export const MultichainExample = observer(() => {
         msg: JSON.stringify({
           merchant_id: "1lluzor.near",
           item_id: "f2122846a0ee5e229f166da95b720ead437d10291811d1754ca8dcc657ea8856",
-          memo: "",
+          memo: "custom_memo",
         }),
       })
-      .execute();
+      .depositAndExecute({ email: "test@test.com" });
+
+    api.paymentStatus("custom_memo").then((res) => {
+      console.log(res);
+    });
+
     console.log(result);
   };
 

@@ -1,33 +1,36 @@
 import { HotConnector } from "../HotConnector";
 import { OmniConnector } from "../OmniConnector";
-import { BridgeReview } from "../exchange";
-import { Token } from "../core/token";
 import { OmniWallet } from "../OmniWallet";
+
+import { BridgeReview } from "../exchange";
 import { WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 import { Intents } from "../core/Intents";
+import { Token } from "../core/token";
 
 import { present } from "./Popup";
-import { Payment } from "./payment/Payment";
-import { LogoutPopup } from "./connect/LogoutPopup";
-import { Bridge } from "./payment/Bridge";
-import { Profile } from "./payment/Profile";
 import { SelectTokenPopup } from "./payment/SelectToken";
-import { WalletPicker } from "./connect/WalletPicker";
-import { BridgeProps } from "./payment/Bridge";
-import { Connector } from "./connect/ConnectWallet";
-import { SelectSender } from "./payment/SelectSender";
 import { SelectRecipient } from "./payment/SelectRecipient";
+import { SelectSender } from "./payment/SelectSender";
+import { BridgeProps } from "./payment/Bridge";
+import { Payment } from "./payment/Payment";
+import { Profile } from "./payment/Profile";
+import { Bridge } from "./payment/Bridge";
+
+import { LogoutPopup } from "./connect/LogoutPopup";
+import { WalletPicker } from "./connect/WalletPicker";
+import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
 
-export const openPayment = (connector: HotConnector, intents: Intents) => {
-  return new Promise<Promise<string>>((resolve, reject) => {
+export const openPayment = (connector: HotConnector, intents: Intents, payload?: Record<string, any>) => {
+  return new Promise<{ paymentId: string; tx: string }>((resolve, reject) => {
     present((close) => (
       <Payment //
-        onClose={() => (close(), reject(new Error("User rejected")))}
-        onConfirm={resolve}
+        onReject={() => (close(), reject(new Error("User rejected")))}
+        onSuccess={(task) => (close(), resolve(task))}
         connector={connector}
         intents={intents}
+        payload={payload}
       />
     ));
   });

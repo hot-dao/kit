@@ -8,6 +8,16 @@ export class ApiError extends Error {
   }
 }
 
+export interface PaymentStatus {
+  payment_id: string;
+  timestamp: number;
+  amount: string;
+  token_id: string;
+  sender_id: string;
+  near_trx: string;
+  status: string;
+}
+
 export interface TokenType {
   icon: string;
   symbol: string;
@@ -69,16 +79,29 @@ export class Api {
     return result.balances?.[chain] || [];
   }
 
-  async pendingPayment(commitment: Commitment, depositAddress: string) {
+  async yieldIntentCall(args: { commitment: Commitment; depositAddress?: string; payload?: Record<string, any> }) {
     return await this.request(`/api/v1/wibe3/yield_intent_call`, {
-      body: JSON.stringify({ commitment, deposit_address: depositAddress }),
       method: "POST",
+      body: JSON.stringify({
+        commitment: args.commitment,
+        deposit_address: args.depositAddress,
+        ...args.payload,
+      }),
     });
+  }
+
+  async paymentStatus(memo: string): Promise<PaymentStatus> {
+    const result = await this.request(`/partners/processed_payments?memo=${memo}`, { method: "GET" });
+    return result.payments[0];
+  }
+
+  async getPayments(merchantId: string): Promise<PaymentStatus[]> {
+    const result = await this.request(`/partners/processed_payments?merchant_id=${merchantId}`, { method: "GET" });
+    return result.payments;
   }
 
   async publishIntents(signed: Record<string, any>[], hashes: string[]) {
     const result = await this.request(`/api/v1/wibe3/solver-bus`, {
-      headers: { "Content-Type": "application/json" },
       method: "POST",
       body: JSON.stringify({
         params: [{ signed_datas: signed, quote_hashes: hashes }],
@@ -93,7 +116,6 @@ export class Api {
 
   async getIntentsStatus(intentHash: string) {
     const result = await this.request(`/api/v1/wibe3/solver-bus`, {
-      headers: { "Content-Type": "application/json" },
       method: "POST",
       body: JSON.stringify({
         params: [{ intent_hash: intentHash }],

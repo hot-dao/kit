@@ -22,7 +22,7 @@ interface PopupProps {
   widget?: boolean;
   children: React.ReactNode;
   header?: React.ReactNode;
-  onClose: () => void;
+  onClose?: () => void;
   style?: React.CSSProperties;
   mobileFullscreen?: boolean;
 }
@@ -57,9 +57,12 @@ const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: P
         <ModalContent ref={contentRef} $mobileFullscreen={mobileFullscreen} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
           {header && (
             <ModalHeader>
-              <button onClick={onClose} style={{ position: "absolute", right: 16, top: 16 }}>
-                <CloseIcon />
-              </button>
+              {onClose != null && (
+                <button onClick={onClose} style={{ position: "absolute", right: 16, top: 16 }}>
+                  <CloseIcon />
+                </button>
+              )}
+
               {header}
             </ModalHeader>
           )}

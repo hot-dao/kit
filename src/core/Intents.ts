@@ -49,6 +49,18 @@ export class Intents {
     return this;
   }
 
+  /**
+   * Use this method to pay for a merchant's item created in pay.hot-labs.org
+   */
+  merchantPayment({ merchantId, token, itemId, email, amount, memo }: { token: OmniToken; merchantId: string; itemId: string; amount: number | bigint; memo: string; email: string }) {
+    return this.transfer({
+      msg: JSON.stringify({ merchant_id: merchantId, item_id: itemId, memo: memo }),
+      recipient: "pay.fi.tg",
+      amount,
+      token,
+    }).depositAndExecute({ email });
+  }
+
   transfer(args: { recipient: string; token: OmniToken; amount: number | bigint; memo?: string; msg?: string; tgas?: number }) {
     const omniToken = tokens.get(args.token);
     const amount = (typeof args.amount === "number" ? omniToken.int(args.amount) : args.amount).toString();
@@ -344,9 +356,15 @@ export class Intents {
     return await Intents.simulateIntents([signed]);
   }
 
-  async execute() {
+  async depositAndExecute(payload?: Record<string, any>) {
     if (!this.wibe3) throw new Error("No wibe3 attached");
-    return openPayment(this.wibe3, this);
+    return openPayment(this.wibe3, this, payload);
+  }
+
+  async execute() {
+    if (!this.signer) throw new Error("No signer attached");
+    const signed = await this.sign();
+    return await Intents.publish([signed], this.hashes);
   }
 
   async executeBatch(params = { checkTokens: true, chunkSize: this.intents.length, onSuccess: (bucket: number, hash: string) => {} }) {

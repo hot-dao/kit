@@ -22,7 +22,8 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "@hot-labs/kit": ["../src"]
+      "@hot-labs/kit": ["../src"],
+      "@hot-labs/kit/*": ["../src/*"]
     }
   },
 

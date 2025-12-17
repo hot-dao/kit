@@ -334,14 +334,11 @@ export class Exchange {
 
       const depositAddress = review.qoute.depositAddress!;
       let hash = "";
+
       if (review.from.chain === Network.Hot) {
         hash = await this.wibe3
           .intentsBuilder(sender)
-          .transfer({
-            amount: review.amountIn,
-            token: review.from.address as OmniToken,
-            recipient: depositAddress,
-          })
+          .transfer({ amount: review.amountIn, token: review.from.address as OmniToken, recipient: depositAddress })
           .execute();
       } else {
         hash = await sender.transfer({

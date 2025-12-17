@@ -15,7 +15,7 @@ const kitLocalPath = path.resolve(__dirname, "../src");
 const useLocalKit = process.env.NODE_ENV !== "production" && existsSync(kitLocalPath);
 if (!useLocalKit) {
   // @ts-expect-error: delete paths from tsconfig
-  delete tsconfig.compilerOptions.paths["@hot-labs/kit"];
+  delete tsconfig.compilerOptions.paths;
 }
 
 export default defineConfig({
