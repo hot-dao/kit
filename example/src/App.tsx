@@ -19,19 +19,20 @@ export const MultichainExample = observer(() => {
   const [signedIntent, setSignedIntent] = useState<string>("");
 
   const handlePay = async () => {
-    await wibe3
+    const result = await wibe3
       .intentsBuilder()
       .transfer({
         amount: 0.1,
         token: OmniToken.USDC,
         recipient: "pay.fi.tg",
         msg: JSON.stringify({
-          merchant_id: "nearai-dev.near",
-          item_id: "nearai",
-          memo: "test1",
+          merchant_id: "1lluzor.near",
+          item_id: "f2122846a0ee5e229f166da95b720ead437d10291811d1754ca8dcc657ea8856",
+          memo: "",
         }),
       })
       .execute();
+    console.log(result);
   };
 
   return (

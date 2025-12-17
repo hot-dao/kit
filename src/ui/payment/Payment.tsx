@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { Commitment, formatter, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
@@ -25,8 +25,6 @@ interface PaymentProps {
   onClose: () => void;
   onConfirm: (task: Promise<string>) => void;
 }
-
-import React from "react";
 
 const animations = {
   success: "https://hex.exchange/success.json",
@@ -151,12 +149,14 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
       const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
 
       if (typeof result.review.qoute === "object") {
-        await api.pendingPayment(commitment, result.review.qoute.depositAddress!);
+        const data = await api.pendingPayment(commitment, result.review.qoute.depositAddress!);
+        setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true } : null));
+        return data;
       } else {
-        await Intents.publish([commitment]);
+        const hash = await Intents.publish([commitment]);
+        setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true } : null));
+        return { hash };
       }
-
-      setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true } : null));
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -232,7 +232,7 @@ export const Payment = observer(({ connector, intents, onClose, onConfirm }: Pay
           )}
         </PopupOption>
 
-        <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={confirmPaymentStep}>
+        <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={() => onConfirm(confirmPaymentStep())}>
           {flow?.loading ? "Confirming..." : "Confirm payment"}
         </PopupButton>
       </Popup>
