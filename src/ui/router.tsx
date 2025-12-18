@@ -22,15 +22,14 @@ import { WalletPicker } from "./connect/WalletPicker";
 import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
 
-export const openPayment = (connector: HotConnector, intents: Intents, payload?: Record<string, any>) => {
-  return new Promise<{ paymentId: string; tx: string }>((resolve, reject) => {
+export const openPayment = (connector: HotConnector, intents: Intents) => {
+  return new Promise<{ depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }>((resolve, reject) => {
     present((close) => (
       <Payment //
         onReject={() => (close(), reject(new Error("User rejected")))}
-        onSuccess={(task) => (close(), resolve(task))}
+        onConfirm={(args) => (close(), resolve(args))}
         connector={connector}
         intents={intents}
-        payload={payload}
       />
     ));
   });

@@ -21,14 +21,20 @@ export class Intents {
     return new Intents();
   }
 
-  hashes: string[] = [];
-  intents: Intent[] = [];
-  signer?: OmniWallet;
-  nonce?: Uint8Array;
-  deadline?: Date;
-
+  signedHashes: string[] = [];
   commitments: Commitment[] = [];
   need = new Map<OmniToken, bigint>();
+  signer?: OmniWallet;
+
+  unsignedCommitment: {
+    intents: Intent[];
+    nonce?: Uint8Array;
+    deadline?: Date;
+  } = {
+    intents: [],
+    nonce: undefined,
+    deadline: undefined,
+  };
 
   addNeed(token: OmniToken, amount: bigint) {
     if (!this.need.has(token)) this.need.set(token, 0n);
@@ -38,7 +44,7 @@ export class Intents {
 
   authCall(args: { contractId: string; msg: string; attachNear: bigint; tgas: number }) {
     this.addNeed(OmniToken.NEAR, args.attachNear);
-    this.intents.push({
+    this.unsignedCommitment.intents.push({
       min_gas: (BigInt(args.tgas) * TGAS).toString(),
       attached_deposit: args.attachNear.toString(),
       contract_id: args.contractId,
@@ -58,7 +64,7 @@ export class Intents {
       recipient: "pay.fi.tg",
       amount,
       token,
-    }).depositAndExecute({ email });
+    }).yieldExecute({ email });
   }
 
   transfer(args: { recipient: string; token: OmniToken; amount: number | bigint; memo?: string; msg?: string; tgas?: number }) {
@@ -74,7 +80,7 @@ export class Intents {
     };
 
     this.addNeed(args.token, BigInt(amount));
-    this.intents.push(intent);
+    this.unsignedCommitment.intents.push(intent);
     return this;
   }
 
@@ -96,7 +102,7 @@ export class Intents {
       msg: args.msg,
     };
 
-    this.intents.push(intent);
+    this.unsignedCommitment.intents.push(intent);
     return this;
   }
 
@@ -119,7 +125,7 @@ export class Intents {
       }
     }
 
-    this.intents.push(intent);
+    this.unsignedCommitment.intents.push(intent);
     return this;
   }
 
@@ -156,7 +162,7 @@ export class Intents {
         this.addNeed(token, BigInt(rawIntent.amounts[i]));
       }
 
-      this.intents.push({
+      this.unsignedCommitment.intents.push({
         intent: "mt_withdraw",
         amounts: rawIntent.amounts,
         receiver_id: rawIntent.receiver_id,
@@ -211,12 +217,12 @@ export class Intents {
   }
 
   addPublicKey(publicKey: string) {
-    this.intents.push({ intent: "add_public_key", public_key: publicKey });
+    this.unsignedCommitment.intents.push({ intent: "add_public_key", public_key: publicKey });
     return this;
   }
 
   removePublicKey(publicKey: string) {
-    this.intents.push({ intent: "remove_public_key", public_key: publicKey });
+    this.unsignedCommitment.intents.push({ intent: "remove_public_key", public_key: publicKey });
     return this;
   }
 
@@ -229,7 +235,7 @@ export class Intents {
     if (standart === "nep245") {
       const mtContract = tokenParts[0];
       const tokenId = tokenParts.slice(1).join(":");
-      this.intents.push({
+      this.unsignedCommitment.intents.push({
         intent: "mt_withdraw",
         amounts: [amount],
         receiver_id: args.receiver,
@@ -243,7 +249,7 @@ export class Intents {
     }
 
     if (standart === "nep141") {
-      this.intents.push({
+      this.unsignedCommitment.intents.push({
         intent: "ft_withdraw",
         receiver_id: args.receiver,
         token: tokenParts.join(":"),
@@ -255,7 +261,7 @@ export class Intents {
     }
 
     if (standart === "nep171") {
-      this.intents.push({
+      this.unsignedCommitment.intents.push({
         intent: "nft_withdraw",
         receiver_id: args.receiver,
         token_id: tokenParts.join(":"),
@@ -270,7 +276,7 @@ export class Intents {
   }
 
   attachHashes(hashes: string[]) {
-    this.hashes.push(...hashes);
+    this.signedHashes.push(...hashes);
     return this;
   }
 
@@ -280,22 +286,22 @@ export class Intents {
   }
 
   attachDeadline(deadline: Date) {
-    this.deadline = deadline;
+    this.unsignedCommitment.deadline = deadline;
     return this;
   }
 
   attachNonce(nonce: Uint8Array) {
-    this.nonce = nonce;
+    this.unsignedCommitment.nonce = nonce;
     return this;
   }
 
   attachTimeout(seconds: number) {
-    this.deadline = new Date(Date.now() + seconds * 1000);
+    this.unsignedCommitment.deadline = new Date(Date.now() + seconds * 1000);
     return this;
   }
 
   attachSeed(seed: string) {
-    this.nonce = new Uint8Array(sha256(new TextEncoder().encode(seed))).slice(0, 32);
+    this.unsignedCommitment.nonce = new Uint8Array(sha256(new TextEncoder().encode(seed))).slice(0, 32);
     return this;
   }
 
@@ -308,10 +314,10 @@ export class Intents {
     const intAmount = typeof amount === "number" ? tokens.get(token).int(amount) : amount;
 
     // this.addNeed(token, -intAmount); Do we need to add the need here?
-    const tokenDiff = this.intents.find((intent) => intent.intent === "token_diff");
+    const tokenDiff = this.unsignedCommitment.intents.find((intent) => intent.intent === "token_diff");
 
     if (tokenDiff) tokenDiff.diff[token.toString()] = intAmount.toString();
-    else this.intents.push({ intent: "token_diff", diff: { [token.toString()]: intAmount.toString() } });
+    else this.unsignedCommitment.intents.push({ intent: "token_diff", diff: { [token.toString()]: intAmount.toString() } });
     return this;
   }
 
@@ -319,10 +325,10 @@ export class Intents {
     const intAmount = typeof amount === "number" ? tokens.get(token).int(amount) : amount;
 
     this.addNeed(token as OmniToken, intAmount);
-    const tokenDiff = this.intents.find((intent) => intent.intent === "token_diff");
+    const tokenDiff = this.unsignedCommitment.intents.find((intent) => intent.intent === "token_diff");
 
     if (tokenDiff) tokenDiff.diff[token.toString()] = (-intAmount).toString();
-    else this.intents.push({ intent: "token_diff", diff: { [token.toString()]: (-intAmount).toString() } });
+    else this.unsignedCommitment.intents.push({ intent: "token_diff", diff: { [token.toString()]: (-intAmount).toString() } });
     return this;
   }
 
@@ -332,9 +338,13 @@ export class Intents {
     if (!signer.omniAddress) throw new Error("No omni address");
 
     const commitments: Commitment[] = [];
-    for (const intent of this.intents) {
-      const signed = await signer.signIntents([intent], { deadline: this.deadline ? +this.deadline : undefined, nonce: this.nonce });
-      commitments.push(signed);
+    for (const intent of this.unsignedCommitment.intents) {
+      commitments.push(
+        await signer.signIntents([intent], {
+          deadline: this.unsignedCommitment.deadline ? +this.unsignedCommitment.deadline : undefined,
+          nonce: this.unsignedCommitment.nonce,
+        })
+      );
     }
 
     return commitments;
@@ -344,43 +354,61 @@ export class Intents {
     const signer = this.signer;
     if (!signer) throw new Error("No signer attached");
     if (!signer.omniAddress) throw new Error("No omni address");
-    return await signer.signIntents(this.intents, {
-      deadline: this.deadline ? +this.deadline : undefined,
-      nonce: this.nonce,
+    const commitment = await signer.signIntents(this.unsignedCommitment.intents, {
+      deadline: this.unsignedCommitment.deadline ? +this.unsignedCommitment.deadline : undefined,
+      nonce: this.unsignedCommitment.nonce,
     });
+
+    this.unsignedCommitment = { intents: [] };
+    this.commitments.push(commitment);
+    return this;
   }
 
   async simulate() {
-    if (!this.signer) throw new Error("No signer attached");
-    const signed = await this.sign();
-    return await Intents.simulateIntents([signed]);
+    if (this.commitments.length === 0) throw new Error("No commitments attached");
+    return await Intents.simulateIntents(this.commitments);
   }
 
-  async depositAndExecute(payload?: Record<string, any>) {
+  async yieldExecute(payload?: Record<string, any>) {
     if (!this.wibe3) throw new Error("No wibe3 attached");
-    return openPayment(this.wibe3, this, payload);
+    const { depositQoute, processing } = await openPayment(this.wibe3, this);
+    const depositAddress = depositQoute === "direct" ? undefined : typeof depositQoute?.qoute === "object" ? depositQoute?.qoute?.depositAddress : undefined;
+
+    if (depositAddress) {
+      const { near_trx } = await api.yieldIntentCall({ depositAddress, commitment: this.commitments[0], payload });
+      return near_trx;
+    }
+
+    await processing?.();
+    return this.execute();
+  }
+
+  async depositAndExecute() {
+    if (!this.wibe3) throw new Error("No wibe3 attached");
+    const { processing } = await openPayment(this.wibe3, this);
+    await processing?.();
+    return this.execute();
   }
 
   async execute() {
-    if (!this.signer) throw new Error("No signer attached");
-    const signed = await this.sign();
-    return await Intents.publish([signed], this.hashes);
+    const task = Intents.publish(this.commitments, this.signedHashes);
+    this.commitments = [];
+    this.signedHashes = [];
+
+    const hash = await task;
+    await rpc.waitTransactionResult(hash, "intents.near");
+    return hash;
   }
 
-  async executeBatch(params = { checkTokens: true, chunkSize: this.intents.length, onSuccess: (bucket: number, hash: string) => {} }) {
-    if (!this.signer) throw new Error("No signer attached");
-    const batches = formatter.chunk(this.intents, params.chunkSize);
+  async executeBatch(params = { checkTokens: true, chunkSize: this.unsignedCommitment.intents.length, onSuccess: (bucket: number, hash: string) => {} }) {
+    if (this.commitments.length === 0) throw new Error("No commitments attached");
+    const batches = formatter.chunk(this.unsignedCommitment.intents, params.chunkSize);
     let index = 0;
 
     const hashes: string[] = [];
     for (const batch of batches) {
-      const signed = await this.signer.signIntents(batch, {
-        deadline: this.deadline ? +this.deadline : undefined,
-        nonce: this.nonce,
-      });
-
-      const hash = await Intents.publish([...this.commitments, signed], this.hashes);
-      await rpc.waitTransactionResult(hash, "intents.near");
+      this.unsignedCommitment.intents = batch;
+      const hash = await this.sign().then(() => this.execute());
       params.onSuccess(index++, hash);
       hashes.push(hash);
     }

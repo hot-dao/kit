@@ -7,7 +7,6 @@ import { Commitment, formatter, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
 import { Network } from "../../core/chains";
 import { Token } from "../../core/token";
-import { api } from "../../core/api";
 
 import { BridgeReview } from "../../exchange";
 import { openConnector } from "../router";
@@ -23,9 +22,8 @@ import { Loader } from "./Profile";
 interface PaymentProps {
   intents: Intents;
   connector: HotConnector;
-  payload?: Record<string, any>;
   onReject: (message: string) => void;
-  onSuccess: (task: { paymentId: string; tx: string }) => void;
+  onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => void;
 }
 
 const animations = {
@@ -36,7 +34,7 @@ const animations = {
 
 const PAY_SLIPPAGE = 0.002;
 
-export const Payment = observer(({ connector, intents, payload, onReject, onSuccess }: PaymentProps) => {
+export const Payment = observer(({ connector, intents, onReject, onConfirm }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -53,9 +51,8 @@ export const Payment = observer(({ connector, intents, payload, onReject, onSucc
     wallet?: OmniWallet;
     commitment?: Commitment;
     review?: BridgeReview | "direct";
-    data?: { paymentId: string; tx: string };
+    success?: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> };
     step?: "selectToken" | "sign" | "transfer" | "success" | "error" | "loading";
-    success?: boolean;
     loading?: boolean;
     error?: any;
   } | null>(null);
@@ -96,8 +93,8 @@ export const Payment = observer(({ connector, intents, payload, onReject, onSucc
   const signStep = async () => {
     try {
       setFlow((t) => (t ? { ...t, step: "sign", loading: true } : null));
-      const commitment = await intents.sign();
-      setFlow((t) => (t ? { ...t, step: "transfer", commitment, loading: false } : null));
+      await intents.sign();
+      setFlow((t) => (t ? { ...t, step: "transfer", loading: false } : null));
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -107,20 +104,19 @@ export const Payment = observer(({ connector, intents, payload, onReject, onSucc
 
   const confirmPaymentStep = async () => {
     try {
-      const commitment = flow?.commitment;
-      if (!commitment) throw new Error("Commitment not found");
       if (!flow?.review) throw new Error("Review not found");
       setFlow((t) => (t ? { ...t, step: "loading" } : null));
 
-      // make swap if need
-      let depositAddress: string | undefined;
-      if (flow.review != "direct") {
-        const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
-        depositAddress = typeof result.review?.qoute === "object" ? result.review?.qoute?.depositAddress : undefined;
+      if (flow.review == "direct") {
+        return setFlow({ step: "success", loading: false, success: { depositQoute: "direct" } });
       }
 
-      const data = await api.yieldIntentCall({ depositAddress, commitment, payload });
-      setFlow((t) => (t ? { ...t, step: "success", loading: false, success: true, data } : null));
+      const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
+      setFlow({
+        loading: false,
+        step: "success",
+        success: { depositQoute: result.review, processing: result.processing },
+      });
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -136,7 +132,7 @@ export const Payment = observer(({ connector, intents, payload, onReject, onSucc
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Payment successful</p>
         </div>
-        <PopupButton style={{ marginTop: "auto" }} onClick={() => onSuccess(flow.data!)}>
+        <PopupButton style={{ marginTop: "auto" }} onClick={() => onConfirm(flow.success!)}>
           Continue
         </PopupButton>
       </Popup>

@@ -14,7 +14,6 @@ import {
 } from "@solana/spl-token";
 
 import { Network, WalletType } from "../core/chains";
-import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 
 import { Token } from "../core/token";
@@ -148,7 +147,7 @@ class SolanaWallet extends OmniWallet {
   }
 
   async getPriorityFeeEstimate(params: any): Promise<any> {
-    const response = await fetch(api.baseUrl + "/api/v1/wibe3/helius/staked", {
+    const response = await fetch(api.baseUrl + "/api/v1/evm/helius/staked", {
       body: JSON.stringify({ jsonrpc: "2.0", id: "helius-sdk", method: "getPriorityFeeEstimate", params: [params] }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
