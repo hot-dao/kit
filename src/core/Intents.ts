@@ -9,8 +9,9 @@ import { OmniToken } from "./chains";
 import { tokens } from "./tokens";
 import { api } from "./api";
 
-import { openConnectPrimaryWallet, openPayment, openToast } from "../ui/router";
+import { openConnector, openConnectPrimaryWallet, openPayment, openToast } from "../ui/router";
 import { formatter } from "./utils";
+import { BridgeReview } from "../exchange";
 
 export const TGAS = 1000000000000n;
 
@@ -66,7 +67,11 @@ export class Intents {
       recipient: "pay.fi.tg",
       amount,
       token,
-    }).yieldExecute({ email });
+    }).depositAndExecute({
+      title: `Pay ${this.wibe3?.omni(token).readable(amount)} ${this.wibe3?.omni(token).symbol}`,
+      serverSideProcessing: true,
+      payload: { email },
+    });
   }
 
   transfer(args: { recipient: string; token: OmniToken; amount: number | bigint; memo?: string; msg?: string; tgas?: number }) {
@@ -375,30 +380,40 @@ export class Intents {
     return await Intents.simulateIntents(this.commitments);
   }
 
-  async yieldExecute(payload?: Record<string, any>) {
+  async setupSigner() {
     if (!this.wibe3) throw new Error("No wibe3 attached");
-    const { depositQoute, processing } = await openPayment(this.wibe3, { intents: this });
-    const depositAddress = depositQoute === "direct" ? undefined : typeof depositQoute?.qoute === "object" ? depositQoute?.qoute?.depositAddress : undefined;
+    if (this.signer) return this.signer;
 
-    if (depositAddress) {
-      const { near_trx } = await api.yieldIntentCall({ depositAddress, commitment: this.commitments[0], payload });
-      return near_trx;
+    if (this.wibe3.priorityWallet) {
+      this.signer = this.wibe3.priorityWallet;
+      return this.signer;
     }
 
-    await processing?.();
-    return this.execute();
-  }
-
-  async depositAndExecute({ title = "Payment", message, allowedTokens }: { title?: string; message?: string; allowedTokens?: string[] } = {}) {
-    if (!this.wibe3) throw new Error("No wibe3 attached");
-
-    if (!this.signer) {
+    if (this.wibe3.wallets.length > 0) {
       await openConnectPrimaryWallet(this.wibe3);
       if (this.wibe3.priorityWallet == undefined) throw new Error("No signer attached");
       this.signer = this.wibe3.priorityWallet;
+      return this.signer;
     }
 
-    if (this.need.size === 0) return this.execute();
+    await openConnector(this.wibe3);
+    if (this.wibe3.priorityWallet == undefined) await openConnectPrimaryWallet(this.wibe3);
+    if (this.wibe3.priorityWallet == undefined) throw new Error("No signer attached");
+    this.signer = this.wibe3.priorityWallet;
+    return this.signer;
+  }
+
+  async openSignFlow({
+    title,
+    allowedTokens,
+    onConfirm,
+  }: {
+    title?: string; //
+    allowedTokens?: string[];
+    onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+  }) {
+    if (!this.wibe3) throw "Attach wibe3";
+    if (!this.signer) throw "Attach signer";
 
     // TODO: Handle multiple payables
     const payableToken = tokens.get(Array.from(this.need.keys())[0]);
@@ -406,26 +421,43 @@ export class Intents {
     const balance = await this.wibe3.fetchToken(payableToken!, this.signer);
     const prepaidAmount = formatter.bigIntMin(payableAmount, balance);
 
-    const { processing } = await openPayment(this.wibe3, {
-      intents: this,
+    return await openPayment(this.wibe3, {
+      onConfirm,
       needAmount: payableAmount - prepaidAmount,
-      payableToken,
       allowedTokens,
       prepaidAmount,
+      payableToken,
+      intents: this,
       title,
     });
+  }
 
+  async depositAndExecute({ title = "Payment", message, allowedTokens, serverSideProcessing, payload }: { title?: string; message?: string; allowedTokens?: string[]; serverSideProcessing?: boolean; payload?: Record<string, any> } = {}) {
+    await this.setupSigner();
+    if (this.need.size === 0) return this.execute();
+    await this.openSignFlow({
+      title,
+      allowedTokens,
+      onConfirm: async ({ depositQoute, processing }: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => {
+        if (!serverSideProcessing) return;
+
+        if (depositQoute === "direct" || typeof depositQoute?.qoute !== "object" || !depositQoute.qoute?.depositAddress) {
+          await processing?.();
+          await this.execute();
+          return;
+        }
+
+        await api.yieldIntentCall({
+          depositAddress: depositQoute.qoute.depositAddress,
+          commitment: this.commitments[0],
+          payload: payload || {},
+        });
+      },
+    });
+
+    if (serverSideProcessing) return;
     const close = openToast(message || "Executing payment");
-
-    try {
-      await processing?.();
-      const result = await this.execute();
-      close();
-      return result;
-    } catch (e) {
-      close();
-      throw e;
-    }
+    await this.execute().finally(() => close());
   }
 
   async execute() {

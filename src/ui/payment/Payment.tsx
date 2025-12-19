@@ -27,7 +27,8 @@ interface PaymentProps {
   needAmount: bigint;
   connector: HotConnector;
   onReject: (message: string) => void;
-  onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => void;
+  onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+  close: () => void;
 }
 
 const animations = {
@@ -49,7 +50,7 @@ const serializeError = (error: any) => {
   }
 };
 
-export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm }: PaymentProps) => {
+export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -118,7 +119,9 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
       }
 
       const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
-      setFlow({ loading: false, step: "success", success: { depositQoute: result.review, processing: result.processing } });
+      await onConfirm({ depositQoute: result.review, processing: result.processing });
+      setFlow({ loading: false, step: "success" });
+      setTimeout(() => close(), 2000);
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -134,7 +137,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction successful</p>
         </div>
-        <PopupButton style={{ marginTop: "auto" }} onClick={() => onConfirm(flow.success!)}>
+        <PopupButton style={{ marginTop: "auto" }} onClick={() => close()}>
           Continue
         </PopupButton>
       </Popup>

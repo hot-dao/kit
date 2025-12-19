@@ -3,7 +3,7 @@ import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 
 import { BridgeReview } from "../exchange";
-import { OmniToken, WalletType } from "../core/chains";
+import { WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 import { Intents } from "../core/Intents";
 import { Token } from "../core/token";
@@ -26,13 +26,30 @@ import Toast from "./Toast";
 
 export const openPayment = (
   connector: HotConnector,
-  { intents, title, allowedTokens, prepaidAmount, payableToken, needAmount }: { intents: Intents; title?: string; allowedTokens?: string[]; prepaidAmount: bigint; payableToken: Token; needAmount: bigint }
+  {
+    intents,
+    title,
+    allowedTokens,
+    prepaidAmount,
+    payableToken,
+    needAmount,
+    onConfirm,
+  }: {
+    intents: Intents;
+    title?: string;
+    allowedTokens?: string[];
+    prepaidAmount: bigint;
+    payableToken: Token;
+    needAmount: bigint;
+    onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+  }
 ) => {
-  return new Promise<{ depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }>((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     present((close) => (
       <Payment //
+        onConfirm={onConfirm}
+        close={() => (close(), resolve())}
         onReject={() => (close(), reject(new Error("User rejected")))}
-        onConfirm={(args) => (close(), resolve(args))}
         prepaidAmount={prepaidAmount}
         allowedTokens={allowedTokens}
         payableToken={payableToken}
@@ -73,7 +90,9 @@ export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
 };
 
 export const openConnector = (hot: HotConnector) => {
-  present((close) => <Connector hot={hot} onClose={close} />);
+  return new Promise<void>((resolve) => {
+    present((close) => <Connector hot={hot} onClose={() => (resolve(), close())} />);
+  });
 };
 
 export const openConnectPrimaryWallet = (hot: HotConnector) => {
