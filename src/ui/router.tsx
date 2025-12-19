@@ -3,7 +3,7 @@ import { OmniConnector } from "../OmniConnector";
 import { OmniWallet } from "../OmniWallet";
 
 import { BridgeReview } from "../exchange";
-import { WalletType } from "../core/chains";
+import { OmniToken, WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 import { Intents } from "../core/Intents";
 import { Token } from "../core/token";
@@ -17,21 +17,29 @@ import { Payment } from "./payment/Payment";
 import { Profile } from "./payment/Profile";
 import { Bridge } from "./payment/Bridge";
 
+import ConnectPrimaryWallet from "./connect/PrimaryWallet";
 import { LogoutPopup } from "./connect/LogoutPopup";
 import { WalletPicker } from "./connect/WalletPicker";
 import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
 import Toast from "./Toast";
 
-export const openPayment = (connector: HotConnector, intents: Intents, actionName?: string) => {
+export const openPayment = (
+  connector: HotConnector,
+  { intents, title, allowedTokens, prepaidAmount, payableToken, needAmount }: { intents: Intents; title?: string; allowedTokens?: string[]; prepaidAmount: bigint; payableToken: Token; needAmount: bigint }
+) => {
   return new Promise<{ depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }>((resolve, reject) => {
     present((close) => (
       <Payment //
-        actionName={actionName}
         onReject={() => (close(), reject(new Error("User rejected")))}
         onConfirm={(args) => (close(), resolve(args))}
+        prepaidAmount={prepaidAmount}
+        allowedTokens={allowedTokens}
+        payableToken={payableToken}
+        needAmount={needAmount}
         connector={connector}
         intents={intents}
+        title={title}
       />
     ));
   });
@@ -66,6 +74,12 @@ export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
 
 export const openConnector = (hot: HotConnector) => {
   present((close) => <Connector hot={hot} onClose={close} />);
+};
+
+export const openConnectPrimaryWallet = (hot: HotConnector) => {
+  return new Promise<void>((resolve) => {
+    present((close) => <ConnectPrimaryWallet hot={hot} onClose={() => (close(), resolve())} />);
+  });
 };
 
 export const openProfile = (hot: HotConnector) => {

@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 
 import { WalletIcon } from "../icons/wallet";
 import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
-import { Commitment, formatter, Intents } from "../../core";
+import { Commitment, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
-import { Network } from "../../core/chains";
 import { Token } from "../../core/token";
 
 import { BridgeReview } from "../../exchange";
@@ -15,13 +14,17 @@ import { OmniWallet } from "../../OmniWallet";
 import { HotConnector } from "../../HotConnector";
 import Popup from "../Popup";
 
-import { TokenCard, TokenIcon } from "./TokenCard";
+import { TokenCard } from "./TokenCard";
 import { HorizontalStepper } from "./Stepper";
 import { Loader } from "./Profile";
 
 interface PaymentProps {
   intents: Intents;
-  actionName?: string;
+  title?: string;
+  allowedTokens?: string[];
+  prepaidAmount: bigint;
+  payableToken: Token;
+  needAmount: bigint;
   connector: HotConnector;
   onReject: (message: string) => void;
   onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => void;
@@ -35,7 +38,18 @@ const animations = {
 
 const PAY_SLIPPAGE = 0.002;
 
-export const Payment = observer(({ connector, intents, actionName = "Payment", onReject, onConfirm }: PaymentProps) => {
+const serializeError = (error: any) => {
+  try {
+    if (error instanceof Error) return error.message;
+    if (typeof error === "object" && Object.keys(error).length > 0) return JSON.stringify(error);
+    if (typeof error === "string" || typeof error === "number") return error.toString();
+    return "";
+  } catch (error) {
+    return "Unknown error";
+  }
+};
+
+export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -56,21 +70,12 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
     step?: "selectToken" | "sign" | "transfer" | "success" | "error" | "loading";
     loading?: boolean;
     error?: any;
-  } | null>(null);
+  } | null>(needAmount === 0n ? { step: "sign", review: "direct" } : null);
 
-  const need = connector.omni(intents.need.keys().next().value!);
-  const needAmount = intents.need.values().next().value || 0n;
-  const title = `${actionName} for ${need.readable(needAmount)} ${need.symbol}`;
+  const paymentTitle = title || `Pay ${payableToken.readable(needAmount)} ${payableToken.symbol}`;
 
   const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
-
-    // Set signer as payer wallet if not set another
-    if (!intents.signer) intents.attachWallet(wallet);
-
-    if (from.id === need.id) {
-      return setFlow({ token: from, wallet, review: "direct", step: "sign" });
-    }
 
     try {
       setFlow({ token: from, wallet, review: undefined, step: "sign" });
@@ -81,7 +86,7 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
         sender: wallet,
         refund: wallet,
         type: "exactOut",
-        to: need,
+        to: payableToken,
         from,
       });
 
@@ -123,11 +128,11 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
 
   if (flow?.step === "success") {
     return (
-      <Popup header={<p>{title}</p>}>
+      <Popup header={<p>{paymentTitle}</p>}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{actionName} successful</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction successful</p>
         </div>
         <PopupButton style={{ marginTop: "auto" }} onClick={() => onConfirm(flow.success!)}>
           Continue
@@ -138,11 +143,11 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
 
   if (flow?.step === "loading") {
     return (
-      <Popup header={<p>{title}</p>}>
+      <Popup header={<p>{paymentTitle}</p>}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="loading" src={animations.loading} speed="1" style={{ marginTop: -64, width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -16, fontWeight: "bold" }}>Processing {actionName.toLowerCase()}</p>
+          <p style={{ fontSize: 24, marginTop: -16, fontWeight: "bold" }}>Transaction processing</p>
         </div>
       </Popup>
     );
@@ -150,85 +155,59 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
 
   if (flow?.step === "error") {
     return (
-      <Popup header={<p>{title}</p>}>
+      <Popup header={<p>{paymentTitle}</p>}>
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{actionName} failed</p>
-          <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{flow.error?.toString?.() ?? "Unknown error"}</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction failed</p>
+          <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{serializeError(flow.error)}</p>
         </div>
-        <PopupButton onClick={() => onReject(flow.error?.toString?.() ?? "Unknown error")}>Close</PopupButton>
+        <PopupButton onClick={() => onReject(serializeError(flow.error))}>Close</PopupButton>
       </Popup>
     );
   }
 
   if (flow?.step === "transfer") {
-    if (!flow.token) return null;
-    if (!flow.wallet) return null;
     return (
-      <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
+      <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
         <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
 
-        <PopupOption style={{ marginTop: 8 }}>
-          <TokenIcon token={flow.token} wallet={flow.wallet} />
+        {prepaidAmount > 0n && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
 
-          <div style={{ marginTop: -2, textAlign: "left" }}>
-            <p style={{ textAlign: "left", fontSize: 20, fontWeight: "bold" }}>{flow.token.symbol}</p>
-            <p style={{ textAlign: "left", fontSize: 14, color: "#c6c6c6" }}>${formatter.amount(flow.token.usd)}</p>
-          </div>
-
-          {flow.review ? (
-            <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0)}</p>
-              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
-            </div>
-          ) : (
-            <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <Loader />
-            </div>
-          )}
-        </PopupOption>
+        {flow.token != null && (
+          <TokenCard //
+            hot={connector}
+            token={flow.token}
+            wallet={flow.wallet}
+            amount={flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n}
+          />
+        )}
 
         <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={confirmPaymentStep}>
-          {flow?.loading ? "Confirming..." : `Confirm ${actionName.toLowerCase()}`}
+          {flow?.loading ? "Confirming..." : "Confirm transaction"}
         </PopupButton>
       </Popup>
     );
   }
 
   if (flow?.step === "sign") {
-    if (!flow.token) return null;
-    if (!flow.wallet) return null;
+    const rightControl = <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>{flow.error ? <ErrorIcon /> : <Loader />}</div>;
+
     return (
       <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
         <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={1} />
 
-        <PopupOption style={{ marginTop: 8 }}>
-          <TokenIcon token={flow.token} wallet={flow.wallet} />
+        {prepaidAmount > 0n && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
 
-          <div style={{ marginTop: -2, textAlign: "left" }}>
-            <p style={{ textAlign: "left", fontSize: 20, fontWeight: "bold" }}>{flow.token.symbol}</p>
-            <p style={{ textAlign: "left", fontSize: 14, color: "#c6c6c6" }}>${formatter.amount(flow.token.usd)}</p>
-          </div>
-
-          {flow.review ? (
-            <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              <p style={{ textAlign: "right", fontSize: 20 }}>{flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0)}</p>
-              <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${flow.token.readable(flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n, flow.token.usd)}</p>
-            </div>
-          ) : (
-            <div style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-              {flow.error ? (
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Failed" style={{ display: "block", margin: "0 auto" }}>
-                  <circle cx="14" cy="14" r="13" stroke="#E74C3C" strokeWidth="2" />
-                  <path d="M9 9l10 10M19 9l-10 10" stroke="#E74C3C" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              ) : (
-                <Loader />
-              )}
-            </div>
-          )}
-        </PopupOption>
+        {flow.token != null && (
+          <TokenCard //
+            hot={connector}
+            token={flow.token}
+            wallet={flow.wallet}
+            rightControl={flow.review ? undefined : rightControl}
+            amount={flow.review === "direct" ? needAmount : flow.review?.amountIn ?? 0n}
+          />
+        )}
 
         {flow.error ? (
           <PopupButton style={{ marginTop: 24 }} onClick={() => setFlow(null)}>
@@ -248,19 +227,20 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
       <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={0} />
 
       {connector.walletsTokens.map(({ token, wallet, balance }) => {
+        if (token.id === payableToken.id) return null;
         const availableBalance = token.float(balance) - token.reserve;
 
-        if (need.originalChain === Network.Gonka || need.originalChain === Network.Juno) {
-          if (token.id === need.id) return null;
-          if (token.originalAddress !== need.originalAddress) return null;
-          if (availableBalance < need.float(needAmount)) return null;
+        // Allow only tokens in the allowedTokens list
+        if (allowedTokens != null && !allowedTokens?.includes(token.omniAddress)) return null;
+
+        // same token as need and enough balance is direct deposit
+        if (token.originalChain === payableToken.originalChain && token.originalAddress === payableToken.originalAddress && availableBalance >= payableToken.float(needAmount)) {
           return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
         }
 
-        if (availableBalance * token.usd <= need.usd * need.float(needAmount) * (1 + PAY_SLIPPAGE)) return null;
+        if (availableBalance * token.usd <= payableToken.usd * payableToken.float(needAmount) * (1 + PAY_SLIPPAGE)) return null;
         return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
       })}
-
       <PopupOption onClick={() => openConnector(connector)}>
         <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <WalletIcon />
@@ -273,3 +253,12 @@ export const Payment = observer(({ connector, intents, actionName = "Payment", o
     </Popup>
   );
 });
+
+const ErrorIcon = () => {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Failed" style={{ display: "block", margin: "0 auto" }}>
+      <circle cx="14" cy="14" r="13" stroke="#E74C3C" strokeWidth="2" />
+      <path d="M9 9l10 10M19 9l-10 10" stroke="#E74C3C" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+};

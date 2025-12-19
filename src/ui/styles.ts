@@ -195,6 +195,7 @@ export const PopupOption = styled.button`
   outline: none;
   border: none;
   background: transparent;
+  width: 100%;
   gap: 12px;
 
   img {
@@ -264,6 +265,7 @@ export const PopupButton = styled.button`
 
 export const PopupRoot = styled.div`
   height: 100%;
+  width: 100%;
 
   h1,
   h2,

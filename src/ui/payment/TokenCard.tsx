@@ -63,26 +63,30 @@ export const TokenIcon = observer(({ token, wallet }: { token: Token; wallet?: O
   );
 });
 
-export const TokenCard = observer(({ token, onSelect, hot, wallet }: { token: Token; onSelect: (token: Token, wallet?: OmniWallet) => void; hot: HotConnector; wallet?: OmniWallet }) => {
-  const balance = hot.balance(wallet, token);
-  const symbol = token.chain === -4 && !token.isMainOmni ? `${token.originalChainSymbol}_${token.symbol}` : token.symbol;
+export const TokenCard = observer(
+  ({ token, onSelect, amount, hot, wallet, rightControl }: { rightControl?: React.ReactNode; token: Token; onSelect?: (token: Token, wallet?: OmniWallet) => void; amount?: bigint; hot: HotConnector; wallet?: OmniWallet }) => {
+    const balance = amount || hot.balance(wallet, token);
+    const symbol = token.chain === -4 && !token.isMainOmni ? `${token.symbol} (${token.originalChainSymbol})` : token.symbol;
 
-  return (
-    <PopupOption key={token.id} onClick={() => onSelect(token, wallet)}>
-      <TokenIcon token={token} wallet={wallet} />
+    return (
+      <PopupOption key={token.id} onClick={() => onSelect?.(token, wallet)}>
+        <TokenIcon token={token} wallet={wallet} />
 
-      <TokenWrap style={{ marginTop: -2, textAlign: "left" }}>
-        <p style={{ textAlign: "left", fontSize: 20, fontWeight: "bold" }}>{symbol}</p>
-        <p style={{ textAlign: "left", fontSize: 14, color: "#c6c6c6" }}>${formatter.amount(token.usd)}</p>
-      </TokenWrap>
+        <TokenWrap style={{ marginTop: -2, textAlign: "left" }}>
+          <p style={{ textAlign: "left", fontSize: 20, fontWeight: "bold" }}>{symbol}</p>
+          <p style={{ textAlign: "left", fontSize: 14, color: "#c6c6c6" }}>${formatter.amount(token.usd)}</p>
+        </TokenWrap>
 
-      <TokenWrap style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-        <p style={{ textAlign: "right", fontSize: 20 }}>{token.readable(balance)}</p>
-        <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${token.readable(balance, token.usd)}</p>
-      </TokenWrap>
-    </PopupOption>
-  );
-});
+        {rightControl || (
+          <TokenWrap style={{ paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
+            <p style={{ textAlign: "right", fontSize: 20 }}>{token.readable(balance)}</p>
+            <p style={{ textAlign: "right", fontSize: 14, color: "#c6c6c6" }}>${token.readable(balance, token.usd)}</p>
+          </TokenWrap>
+        )}
+      </PopupOption>
+    );
+  }
+);
 
 const TokenWrap = styled.div`
   display: flex;

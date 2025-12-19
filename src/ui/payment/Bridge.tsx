@@ -54,7 +54,7 @@ const FIXED = 6;
 export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSelectPair }: BridgeProps) => {
   const [isFiat, setIsFiat] = useState(false);
   const [type, setType] = useState<"exactIn" | "exactOut">(setup?.type || "exactIn");
-  const [value, setValue] = useState<string>(setup?.amount?.toString() ?? "");
+  const [value, setValue] = useState<string>(setup?.amount?.toFixed(6) ?? "");
   const [from, setFrom] = useState<Token>(setup?.from || tokens.list.find((t) => t.id === localStorage.getItem("bridge:from")) || tokens.list.find((t) => t.symbol === "NEAR")!);
   const [to, setTo] = useState<Token>(setup?.to || tokens.list.find((t) => t.id === localStorage.getItem("bridge:to")) || tokens.list.find((t) => t.symbol === "USDT")!);
 

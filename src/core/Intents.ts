@@ -9,7 +9,8 @@ import { OmniToken } from "./chains";
 import { tokens } from "./tokens";
 import { api } from "./api";
 
-import { openPayment, openToast } from "../ui/router";
+import { openConnectPrimaryWallet, openPayment, openToast } from "../ui/router";
+import { formatter } from "./utils";
 
 export const TGAS = 1000000000000n;
 
@@ -376,7 +377,7 @@ export class Intents {
 
   async yieldExecute(payload?: Record<string, any>) {
     if (!this.wibe3) throw new Error("No wibe3 attached");
-    const { depositQoute, processing } = await openPayment(this.wibe3, this);
+    const { depositQoute, processing } = await openPayment(this.wibe3, { intents: this });
     const depositAddress = depositQoute === "direct" ? undefined : typeof depositQoute?.qoute === "object" ? depositQoute?.qoute?.depositAddress : undefined;
 
     if (depositAddress) {
@@ -388,9 +389,32 @@ export class Intents {
     return this.execute();
   }
 
-  async depositAndExecute({ actionName = "Payment", message }: { actionName?: string; message?: string } = {}) {
+  async depositAndExecute({ title = "Payment", message, allowedTokens }: { title?: string; message?: string; allowedTokens?: string[] } = {}) {
     if (!this.wibe3) throw new Error("No wibe3 attached");
-    const { processing } = await openPayment(this.wibe3, this, actionName);
+
+    if (!this.signer) {
+      await openConnectPrimaryWallet(this.wibe3);
+      if (this.wibe3.priorityWallet == undefined) throw new Error("No signer attached");
+      this.signer = this.wibe3.priorityWallet;
+    }
+
+    if (this.need.size === 0) return this.execute();
+
+    // TODO: Handle multiple payables
+    const payableToken = tokens.get(Array.from(this.need.keys())[0]);
+    const payableAmount = this.need.get(payableToken.omniAddress as OmniToken) || 0n;
+    const balance = await this.wibe3.fetchToken(payableToken!, this.signer);
+    const prepaidAmount = formatter.bigIntMin(payableAmount, balance);
+
+    const { processing } = await openPayment(this.wibe3, {
+      intents: this,
+      needAmount: payableAmount - prepaidAmount,
+      payableToken,
+      allowedTokens,
+      prepaidAmount,
+      title,
+    });
+
     const close = openToast(message || "Executing payment");
 
     try {
