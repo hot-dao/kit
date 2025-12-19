@@ -21,6 +21,7 @@ import { Loader } from "./Profile";
 
 interface PaymentProps {
   intents: Intents;
+  actionName?: string;
   connector: HotConnector;
   onReject: (message: string) => void;
   onConfirm: (args: { depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }) => void;
@@ -34,7 +35,7 @@ const animations = {
 
 const PAY_SLIPPAGE = 0.002;
 
-export const Payment = observer(({ connector, intents, onReject, onConfirm }: PaymentProps) => {
+export const Payment = observer(({ connector, intents, actionName = "Payment", onReject, onConfirm }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -59,7 +60,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
 
   const need = connector.omni(intents.need.keys().next().value!);
   const needAmount = intents.need.values().next().value || 0n;
-  const title = `Payment ${need.readable(needAmount)} ${need.symbol}`;
+  const title = `${actionName} for ${need.readable(needAmount)} ${need.symbol}`;
 
   const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
@@ -112,11 +113,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
       }
 
       const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
-      setFlow({
-        loading: false,
-        step: "success",
-        success: { depositQoute: result.review, processing: result.processing },
-      });
+      setFlow({ loading: false, step: "success", success: { depositQoute: result.review, processing: result.processing } });
     } catch (error) {
       console.error(error);
       setFlow((t) => (t ? { ...t, step: "error", loading: false, error } : null));
@@ -130,7 +127,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Payment successful</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{actionName} successful</p>
         </div>
         <PopupButton style={{ marginTop: "auto" }} onClick={() => onConfirm(flow.success!)}>
           Continue
@@ -145,7 +142,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="loading" src={animations.loading} speed="1" style={{ marginTop: -64, width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -16, fontWeight: "bold" }}>Processing payment</p>
+          <p style={{ fontSize: 24, marginTop: -16, fontWeight: "bold" }}>Processing {actionName.toLowerCase()}</p>
         </div>
       </Popup>
     );
@@ -157,7 +154,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Payment failed</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{actionName} failed</p>
           <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{flow.error?.toString?.() ?? "Unknown error"}</p>
         </div>
         <PopupButton onClick={() => onReject(flow.error?.toString?.() ?? "Unknown error")}>Close</PopupButton>
@@ -193,7 +190,7 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
         </PopupOption>
 
         <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={confirmPaymentStep}>
-          {flow?.loading ? "Confirming..." : "Confirm payment"}
+          {flow?.loading ? "Confirming..." : `Confirm ${actionName.toLowerCase()}`}
         </PopupButton>
       </Popup>
     );
@@ -269,8 +266,8 @@ export const Payment = observer(({ connector, intents, onReject, onConfirm }: Pa
           <WalletIcon />
         </div>
         <PopupOptionInfo>
-          <p>Connect wallet</p>
-          <span className="wallet-address">To more pay options</span>
+          <p>Don't find the right token?</p>
+          <span className="wallet-address">Connect another wallet</span>
         </PopupOptionInfo>
       </PopupOption>
     </Popup>

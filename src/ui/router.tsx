@@ -21,11 +21,13 @@ import { LogoutPopup } from "./connect/LogoutPopup";
 import { WalletPicker } from "./connect/WalletPicker";
 import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
+import Toast from "./Toast";
 
-export const openPayment = (connector: HotConnector, intents: Intents) => {
+export const openPayment = (connector: HotConnector, intents: Intents, actionName?: string) => {
   return new Promise<{ depositQoute: BridgeReview | "direct"; processing?: () => Promise<BridgeReview> }>((resolve, reject) => {
     present((close) => (
       <Payment //
+        actionName={actionName}
         onReject={() => (close(), reject(new Error("User rejected")))}
         onConfirm={(args) => (close(), resolve(args))}
         connector={connector}
@@ -90,4 +92,8 @@ export const openWCRequest = <T,>(args: { task: () => Promise<T>; deeplink?: str
   const taskPromise = args.task();
   present((close) => <WCRequest deeplink={args.deeplink} name={args.name} icon={args.icon} onClose={close} task={taskPromise} />);
   return taskPromise;
+};
+
+export const openToast = (message: string) => {
+  return present(() => <Toast message={message} />);
 };

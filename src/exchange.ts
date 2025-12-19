@@ -184,7 +184,7 @@ export class Exchange {
     if (!intentFrom) throw new Error("Unsupported token");
     if (!intentTo) throw new Error("Unsupported token");
 
-    const deadlineTime = 20 * 60 * 1000;
+    const deadlineTime = 5 * 60 * 1000;
     const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
     const noFee = from.symbol === to.symbol || (from.symbol.toLowerCase().includes("usd") && to.symbol.toLowerCase().includes("usd"));

@@ -148,7 +148,12 @@ export const formatter = {
   },
 
   amount(value: Value, decimals = 24) {
-    const num = String(+formatter.num(value).toFixed(decimals));
+    if (+formatter.num(value) > 1_000_000_000_000_000_000) return `${formatter.round(+formatter.num(value) / 1_000_000_000_000_000, 2)}Q`;
+    if (+formatter.num(value) > 1_000_000_000_000_000) return `${formatter.round(+formatter.num(value) / 1_000_000_000_000, 2)}T`;
+    if (+formatter.num(value) > 1_000_000_000_000) return `${formatter.round(+formatter.num(value) / 1_000_000_000, 2)}B`;
+    if (+formatter.num(value) > 1_000_000_000) return `${formatter.round(+formatter.num(value) / 1_000_000, 2)}M`;
+    const num = formatter.num(value).toFixed(decimals);
+    if (+num === 0) return "0";
     return formatter.formatNumberWithSubscriptZeros(num, 3, 0.0001);
   },
 

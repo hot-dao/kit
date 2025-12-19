@@ -16,6 +16,11 @@ export const present = (render: (close: () => void) => React.ReactNode) => {
       div.remove();
     })
   );
+
+  return () => {
+    root.unmount();
+    div.remove();
+  };
 };
 
 interface PopupProps {
