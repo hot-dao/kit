@@ -5,14 +5,14 @@ import { ArrowRightIcon } from "../icons/arrow-right";
 import { PopupOption, PopupOptionInfo } from "../styles";
 
 import { ConnectorType, OmniConnector } from "../../OmniConnector";
-import { OmniWallet } from "../../OmniWallet";
-import { WalletType } from "../../core/chains";
 import { HotConnector } from "../../HotConnector";
-import { openWalletPicker } from "../router";
-import { formatter } from "../../core/utils";
-import Popup from "../Popup";
+import { OmniWallet } from "../../OmniWallet";
+import { ImageView } from "../uikit/image";
 
-import { ImageView } from "./TokenCard";
+import { WalletType } from "../../core/chains";
+import { formatter } from "../../core/utils";
+import { openWalletPicker } from "../router";
+import Popup from "../Popup";
 
 interface SelectSenderProps {
   type: WalletType;

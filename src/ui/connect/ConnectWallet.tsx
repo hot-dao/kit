@@ -7,10 +7,10 @@ import { ConnectorType, OmniConnector } from "../../OmniConnector";
 import { formatter } from "../../core/utils";
 import { WalletType } from "../../core";
 
-import { ImageView } from "../payment/TokenCard";
-import { PopupOption, PopupOptionInfo } from "../styles";
 import { openWalletPicker } from "../router";
+import { PopupOption, PopupOptionInfo } from "../styles";
 import { LogoutIcon } from "../icons/logout";
+import { ImageView } from "../uikit/image";
 import Popup from "../Popup";
 
 interface MultichainPopupProps {
@@ -32,7 +32,7 @@ export const Connector = observer(({ hot, onClose, title, walletType, widget }: 
   };
 
   return (
-    <Popup header={<p>{title || "Select network"}</p>} onClose={onClose} widget={widget}>
+    <Popup header={<p>{title || "Connect wallet"}</p>} onClose={onClose} widget={widget}>
       {onechain.map((t) => (
         <PopupOption key={t.id} onClick={() => selectConnector(t)}>
           <ImageView src={t.icon} alt={t.name} size={44} />

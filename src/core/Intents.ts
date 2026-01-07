@@ -6,11 +6,11 @@ import { rpc } from "../near/rpc";
 
 import type { Intent, Commitment, TokenDiffIntent, MtWithdrawIntent, FtWithdrawIntent, NftWithdrawIntent, TransferIntent } from "./types";
 import { OmniToken } from "./chains";
+import { formatter } from "./utils";
 import { tokens } from "./tokens";
 import { api } from "./api";
 
 import { openConnector, openConnectPrimaryWallet, openPayment, openToast } from "../ui/router";
-import { formatter } from "./utils";
 import { BridgeReview } from "../exchange";
 
 export const TGAS = 1000000000000n;

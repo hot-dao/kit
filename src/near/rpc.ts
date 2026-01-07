@@ -3,36 +3,26 @@ import { getErrorTypeFromErrorMessage, parseRpcError } from "@near-js/utils";
 import { TypedError, FinalExecutionOutcome } from "@near-js/types";
 import { base64 } from "@scure/base";
 
-import { api } from "../core/api";
+import { api, NetworkError, TimeoutNetworkError } from "../core/api";
 import { Network } from "../core";
 
 let _nextId = 123;
 
 export const TGAS = 1_000_000_000_000n;
 
-class NetworkError extends Error {
-  constructor(status: number, title: string, message: string) {
-    super(`${status} ${title}: ${message}`);
-  }
-}
-
-class TimeoutNetworkError extends NetworkError {
-  constructor(title: string) {
-    super(0, title, "Timeout error");
-  }
-}
-
 const wait = (timeout: number) => {
   return new Promise<void>((resolve) => setTimeout(resolve, timeout));
 };
+
+const rpcUrls = [api.getRpcUrl(Network.Near), "https://relmn.aurora.dev", "https://archival-rpc.mainnet.near.org", "https://rpc-near.hapi.mobi", "https://nearrpc.aurora.dev"];
 
 export class NearRpc extends JsonRpcProvider {
   public providers: string[];
   public currentProviderIndex = 0;
   public startTimeout;
 
-  constructor(providers = [api.getRpcUrl(Network.Near)], private timeout = 30_000, private triesCountForEveryProvider = 3, private incrementTimout = true) {
-    super({ url: api.getRpcUrl(Network.Near) });
+  constructor(providers = rpcUrls, private timeout = 30_000, private triesCountForEveryProvider = 3, private incrementTimout = true) {
+    super({ url: "" });
     this.currentProviderIndex = 0;
     this.providers = providers;
     this.startTimeout = timeout;
@@ -92,7 +82,7 @@ export class NearRpc extends JsonRpcProvider {
 
     const req = await fetch(url, {
       body: JSON.stringify({ method, params, id: _nextId++, jsonrpc: "2.0" }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Api-Key": api.apiKey },
       signal: controller.signal,
       method: "POST",
     }).catch(() => {
@@ -131,6 +121,7 @@ export class NearRpc extends JsonRpcProvider {
       if (isTimeout) {
         throw new TypedError(errorMessage, "TimeoutError");
       }
+
       const type = getErrorTypeFromErrorMessage(response.error.data, response.error.name);
       throw new TypedError(errorMessage, type);
     }

@@ -1,10 +1,16 @@
 import { Commitment } from "./types";
 
-export class ApiError extends Error {
-  name = "ApiError";
-  constructor(readonly status: number, message: string) {
-    super(message);
-    this.status = status;
+export class NetworkError extends Error {
+  name = "NetworkError";
+  constructor(readonly status: number, readonly url: string, readonly message: string) {
+    super(`${status} ${url}: ${message}`);
+  }
+}
+
+export class TimeoutNetworkError extends NetworkError {
+  name = "TimeoutNetworkError";
+  constructor(url: string) {
+    super(0, url, "Timeout error");
   }
 }
 
@@ -44,7 +50,7 @@ export class Api {
     };
 
     const response = await fetch(`${this.baseUrl}${url}`, options);
-    if (!response.ok) throw new ApiError(response.status, await response.text());
+    if (!response.ok) throw new NetworkError(response.status, url, await response.text());
     return await response.json();
   }
 
@@ -115,8 +121,8 @@ export class Api {
   }
 
   async publishTelemetry(events: { event: string; value_str?: string; value_float?: number; ts: number }[], accountId: string) {
-    await this.request(`/api/v1/wibe3/telemetry/event`, {
-      body: JSON.stringify({ events, account_id: accountId }),
+    await this.request(`/api/v1/wibe3/telemetry`, {
+      body: JSON.stringify({ events, account_id: accountId || "" }),
       method: "POST",
     });
   }

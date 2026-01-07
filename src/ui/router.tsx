@@ -9,20 +9,20 @@ import { Intents } from "../core/Intents";
 import { Token } from "../core/token";
 
 import { present } from "./Popup";
-import { SelectTokenPopup } from "./payment/SelectToken";
-import { SelectRecipient } from "./payment/SelectRecipient";
-import { SelectSender } from "./payment/SelectSender";
-import { BridgeProps } from "./payment/Bridge";
-import { Payment } from "./payment/Payment";
-import { Profile } from "./payment/Profile";
-import { Bridge } from "./payment/Bridge";
+import { SelectTokenPopup } from "./bridge/SelectToken";
+import { SelectRecipient } from "./bridge/SelectRecipient";
+import { SelectSender } from "./bridge/SelectSender";
+import { BridgeProps } from "./bridge/Bridge";
+import { Payment } from "./profile/Payment";
+import { Profile } from "./profile/Profile";
+import { Bridge } from "./bridge/Bridge";
 
 import ConnectPrimaryWallet from "./connect/PrimaryWallet";
 import { LogoutPopup } from "./connect/LogoutPopup";
 import { WalletPicker } from "./connect/WalletPicker";
 import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
-import Toast from "./Toast";
+import Toast from "./uikit/Toast";
 
 export const openPayment = (
   connector: HotConnector,

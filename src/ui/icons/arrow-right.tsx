@@ -1,8 +1,7 @@
-export const ArrowRightIcon = (props: React.SVGProps<SVGSVGElement>) => {
+export const ArrowRightIcon = ({ color = "#fff", ...props }: { color?: string } & React.SVGProps<SVGSVGElement>) => {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 16 16" fill="none" {...props}>
-      <path d="M10.6667 8C10.1282 8 6.66669 8.56 6.66669 12.6667" stroke="#eaeaea" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M10.6667 8.00001C10.1282 8.00001 6.66669 7.44001 6.66669 3.33334" stroke="#eaeaea" strokeWidth="1.2" strokeLinecap="round" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M14 12.5878L10.7071 15.8807C10.0771 16.5107 9 16.0645 9 15.1736L9 10.002C9 9.1111 10.0771 8.66493 10.7071 9.2949L14 12.5878Z" fill={color} />
     </svg>
   );
 };

@@ -6,46 +6,23 @@ import PlusIcon from "../icons/plus";
 import { LogoutIcon } from "../icons/logout";
 import ExchangeIcon from "../icons/exchange";
 
-import { openBridge, openConnector } from "../router";
-import { HotConnector } from "../../HotConnector";
 import { formatter } from "../../core/utils";
 import { OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
-import Popup from "../Popup";
 
-import { ImageView, TokenCard, TokenIcon } from "./TokenCard";
+import { openBridge, openConnector } from "../router";
+import { HotConnector } from "../../HotConnector";
+
+import { TokenCard, TokenIcon } from "../bridge/TokenCard";
+import { ImageView } from "../uikit/image";
+import { Loader } from "../uikit/loader";
 import { PopupOption } from "../styles";
-
-export const Loader = styled.div`
-  border: 4px solid #2a2a2a;
-  border-top: 4px solid #fff;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  animation: spin 0.9s linear infinite;
-  margin: 0 auto;
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
+import Popup from "../Popup";
 
 export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
   let totalBalance = 0;
-  const tokensList = hot.wallets
-    .flatMap((wallet) => {
-      return tokens.list.map((token) => ({ token, wallet, balance: hot.balance(wallet, token) }));
-    })
-    .sort((a, b) => {
-      const balanceA = a.token.float(a.balance) * a.token.usd;
-      const balanceB = b.token.float(b.balance) * b.token.usd;
-      return balanceB - balanceA;
-    })
+
+  const tokensList = hot.walletsTokens
     .map(({ token, wallet, balance }) => {
       if (token.float(balance) < 0.000001) return null;
       totalBalance += token.float(balance) * token.usd;
@@ -100,7 +77,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         <PSmall>YOUR BALANCE</PSmall>
         <BalanceCard>${formatter.amount(totalBalance)}</BalanceCard>
 
-        <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 8 }}>
+        <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 24 }}>
           <ActionButton onClick={() => (onClose(), openBridge(hot, { title: "Exchange" }))}>
             <ExchangeIcon />
             Exchange

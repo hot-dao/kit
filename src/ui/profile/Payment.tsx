@@ -1,12 +1,14 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
+import styled from "styled-components";
 
 import { WalletIcon } from "../icons/wallet";
-import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
+import { PopupOption, PopupOptionInfo } from "../styles";
 import { Commitment, Intents } from "../../core";
 import { Recipient } from "../../core/recipient";
 import { Token } from "../../core/token";
 
+import { TokenCard } from "../bridge/TokenCard";
 import { BridgeReview } from "../../exchange";
 import { openConnector } from "../router";
 
@@ -14,9 +16,10 @@ import { OmniWallet } from "../../OmniWallet";
 import { HotConnector } from "../../HotConnector";
 import Popup from "../Popup";
 
-import { TokenCard } from "./TokenCard";
-import { HorizontalStepper } from "./Stepper";
-import { Loader } from "./Profile";
+import { Loader } from "../uikit/loader";
+import { HorizontalStepper } from "../uikit/Stepper";
+import { serializeError } from "../utils";
+import { ActionButton, Button } from "../uikit/button";
 
 interface PaymentProps {
   intents: Intents;
@@ -38,17 +41,6 @@ const animations = {
 };
 
 const PAY_SLIPPAGE = 0.002;
-
-const serializeError = (error: any) => {
-  try {
-    if (error instanceof Error) return error.message;
-    if (typeof error === "object" && Object.keys(error).length > 0) return JSON.stringify(error);
-    if (typeof error === "string" || typeof error === "number") return error.toString();
-    return "";
-  } catch (error) {
-    return "Unknown error";
-  }
-};
 
 export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
   useState(() => {
@@ -140,9 +132,10 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction successful</p>
         </div>
-        <PopupButton style={{ marginTop: "auto" }} onClick={() => close()}>
+
+        <ActionButton style={{ marginTop: "auto" }} onClick={() => close()}>
           Continue
-        </PopupButton>
+        </ActionButton>
       </Popup>
     );
   }
@@ -168,7 +161,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction failed</p>
           <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{serializeError(flow.error)}</p>
         </div>
-        <PopupButton onClick={() => onReject(serializeError(flow.error))}>Close</PopupButton>
+        <ActionButton onClick={() => onReject(serializeError(flow.error))}>Close</ActionButton>
       </Popup>
     );
   }
@@ -176,9 +169,17 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   if (flow?.step === "transfer") {
     return (
       <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
-        <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
+        <HorizontalStepper style={{ marginBottom: 24 }} steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
 
         {prepaidAmount > 0n && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
+        {prepaidAmount > 0n && flow.token != null && (
+          <PlusButton>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="11" y="4" width="2" height="16" rx="1" fill="var(--icon-primary)" />
+              <rect x="4" y="11" width="16" height="2" rx="1" fill="var(--icon-primary)" />
+            </svg>
+          </PlusButton>
+        )}
 
         {flow.token != null && (
           <TokenCard //
@@ -189,9 +190,9 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           />
         )}
 
-        <PopupButton style={{ marginTop: 24 }} onClick={confirmPaymentStep}>
+        <ActionButton style={{ marginTop: 24 }} onClick={confirmPaymentStep}>
           {flow?.loading ? "Confirming..." : "Confirm transaction"}
-        </PopupButton>
+        </ActionButton>
       </Popup>
     );
   }
@@ -201,9 +202,17 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
 
     return (
       <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
-        <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={1} />
+        <HorizontalStepper style={{ marginBottom: 12 }} steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={1} />
 
         {prepaidAmount > 0n && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
+        {prepaidAmount > 0n && flow.token != null && (
+          <PlusButton>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="11" y="4" width="2" height="16" rx="1" fill="var(--icon-primary)" />
+              <rect x="4" y="11" width="16" height="2" rx="1" fill="var(--icon-primary)" />
+            </svg>
+          </PlusButton>
+        )}
 
         {flow.token != null && (
           <TokenCard //
@@ -216,13 +225,13 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         )}
 
         {flow.error ? (
-          <PopupButton style={{ marginTop: 24 }} onClick={() => setFlow(null)}>
+          <ActionButton style={{ marginTop: 24 }} onClick={() => setFlow(null)}>
             Select another token
-          </PopupButton>
+          </ActionButton>
         ) : (
-          <PopupButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={signStep}>
+          <ActionButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={signStep}>
             {flow?.loading ? "Signing..." : flow?.review ? "Sign review" : "Quoting..."}
-          </PopupButton>
+          </ActionButton>
         )}
       </Popup>
     );
@@ -232,7 +241,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   const otherTokens = connector.walletsTokens.filter((t) => t.token.symbol !== "USDT" && t.token.symbol !== "USDC");
 
   const renderToken = (token: Token, wallet: OmniWallet, balance: bigint) => {
-    if (token.id === payableToken.id) return null;
+    if (token.id === payableToken.id && connector.priorityWallet?.type === wallet.type) return null;
     const availableBalance = token.float(balance) - token.reserve;
 
     // Allow only tokens in the allowedTokens list
@@ -249,12 +258,12 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
 
   return (
     <Popup onClose={() => onReject("closed")} header={<p>{title}</p>}>
-      <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={0} />
+      <HorizontalStepper style={{ marginBottom: 12 }} steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={0} />
 
       {recommendedTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
       {otherTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
 
-      <PopupOption onClick={() => openConnector(connector)}>
+      <PopupOption style={{ marginTop: 8 }} onClick={() => openConnector(connector)}>
         <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <WalletIcon />
         </div>
@@ -275,3 +284,26 @@ const ErrorIcon = () => {
     </svg>
   );
 };
+
+const PlusButton = styled.button`
+  position: absolute;
+  left: 50%;
+  top: 209px;
+  transform: translate(-50%, 0);
+
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 2;
+  cursor: pointer;
+  outline: none;
+
+  border-radius: 24px;
+  border: 4px solid #191919;
+  background: #292929;
+`;

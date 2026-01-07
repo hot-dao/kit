@@ -162,6 +162,40 @@ export default class NearWallet extends OmniWallet {
     return await this.sendTransaction({ receiverId: args.token.address, actions });
   }
 
+  async isIntentAccountRegistered() {
+    const keys = await rpc.viewMethod({
+      contractId: "intents.near",
+      methodName: "public_keys_of",
+      args: { account_id: this.address },
+    });
+    return keys.includes(this.publicKey);
+  }
+
+  async registerIntentAccountIfNeeded() {
+    let isRegistered = await this.isIntentAccountRegistered();
+    if (isRegistered) return;
+
+    await this.sendTransaction({
+      receiverId: "intents.near",
+      actions: [
+        {
+          type: "FunctionCall",
+          params: {
+            methodName: "add_public_key",
+            args: { public_key: this.publicKey },
+            gas: String(80n * TGAS),
+            deposit: String(1n),
+          },
+        },
+      ],
+    }).catch(() => null);
+
+    isRegistered = await this.isIntentAccountRegistered();
+    if (isRegistered) return;
+
+    throw new Error("Failed to register intent account");
+  }
+
   async signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number }): Promise<Commitment> {
     if (!this.wallet) throw "not impl";
 
@@ -176,28 +210,7 @@ export default class NearWallet extends OmniWallet {
     if (!result) throw new Error("Failed to sign message");
     const { signature, publicKey } = result;
 
-    const keys = await rpc.viewMethod({
-      contractId: "intents.near",
-      methodName: "public_keys_of",
-      args: { account_id: this.address },
-    });
-
-    if (!keys.includes(publicKey)) {
-      await this.sendTransaction({
-        receiverId: "intents.near",
-        actions: [
-          {
-            type: "FunctionCall",
-            params: {
-              methodName: "add_public_key",
-              args: { public_key: publicKey },
-              gas: String(80n * TGAS),
-              deposit: String(1n),
-            },
-          },
-        ],
-      });
-    }
+    await this.registerIntentAccountIfNeeded();
 
     return {
       standard: "nep413",

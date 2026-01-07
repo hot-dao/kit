@@ -2,16 +2,18 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
-import { formatter } from "../../core/utils";
-import { Token } from "../../core/token";
 import { HotConnector } from "../../HotConnector";
 import { OmniWallet } from "../../OmniWallet";
+
 import { Network, OmniToken } from "../../core/chains";
+import { formatter } from "../../core/utils";
+import { Token } from "../../core/token";
 import { tokens } from "../../core/tokens";
 import { PopupOption } from "../styles";
 import Popup from "../Popup";
 
-import { TokenCard, ImageView } from "./TokenCard";
+import { ImageView } from "../uikit/image";
+import { TokenCard } from "./TokenCard";
 
 interface SelectTokenPopupProps {
   hot: HotConnector;

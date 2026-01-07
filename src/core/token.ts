@@ -77,6 +77,10 @@ export class Token {
     return chains.get(this.chain)?.type || WalletType.unknown;
   }
 
+  get originalType() {
+    return chains.get(this.originalChain)?.type || WalletType.unknown;
+  }
+
   get reserve() {
     if (this.chain === Network.Gonka) return 0.01;
     if (this.chain === Network.Juno) return 0.01;

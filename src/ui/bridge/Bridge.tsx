@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import styled, { keyframes } from "styled-components";
+import styled from "styled-components";
 import { observer } from "mobx-react-lite";
 import uuid4 from "uuid4";
 
-import { SwitchIcon } from "../icons/switch";
+import RefreshIcon from "../icons/refresh";
 import { ArrowRightIcon } from "../icons/arrow-right";
+
+import { HotConnector } from "../../HotConnector";
+import { BridgeReview } from "../../exchange";
+import { OmniWallet } from "../../OmniWallet";
 
 import { formatter } from "../../core/utils";
 import { tokens } from "../../core/tokens";
 import { Recipient } from "../../core/recipient";
-import { OmniWallet } from "../../OmniWallet";
-import { BridgeReview } from "../../exchange";
-import { HotConnector } from "../../HotConnector";
-import { WalletType } from "../../core/chains";
+import { chains, WalletType } from "../../core/chains";
 import { Token } from "../../core/token";
 
 import Popup from "../Popup";
 import { PopupButton } from "../styles";
-import { openSelectRecipient, openSelectTokenPopup, openSelectSender } from "../router";
+import DepositQR from "../profile/DepositQR";
+import { openSelectRecipient, openSelectSender, openSelectTokenPopup, openWalletPicker } from "../router";
 import { TokenIcon } from "./TokenCard";
-import DepositQR from "./DepositQR";
+
+import { PLarge, PMedium, PSmall, PTiny } from "../uikit/text";
+import { Skeleton } from "../uikit/loader";
+import { ImageView } from "../uikit/image";
+import ExchangeIcon from "../icons/exchange";
+import { ActionButton, Button } from "../uikit/button";
 
 const animations = {
   success: "https://hex.exchange/success.json",
@@ -270,7 +277,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange failed</p>
           <p style={{ fontSize: 14 }}>{processing.message}</p>
         </div>
-        <PopupButton onClick={() => (cancelReview(), onClose())}>Continue</PopupButton>
+        <ActionButton onClick={() => (cancelReview(), onClose())}>Continue</ActionButton>
       </Popup>
     );
   }
@@ -280,94 +287,125 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     if (recipient == null) return <PopupButton disabled>Set recipient</PopupButton>;
     if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <PopupButton disabled>Insufficient balance</PopupButton>;
     return (
-      <PopupButton disabled={isReviewing || isError != null} onClick={handleConfirm}>
+      <ActionButton style={{ width: "100%", marginTop: 40 }} disabled={isReviewing || isError != null} onClick={handleConfirm}>
         {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}
-      </PopupButton>
+      </ActionButton>
     );
   };
 
   return (
-    <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 32, width: "100%", height: "100%" }}>
-        <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+    <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen} style={{ background: "#191919" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", height: "100%" }}>
+        <Card style={{ borderRadius: "20px 20px 2px 2px" }}>
+          <CardHeader>
+            <ChainButton onClick={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })}>
+              <PSmall>From</PSmall>
+              <ImageView src={chains.get(from.chain)?.logo || ""} alt={from.symbol} size={16} />
+              <PSmall>{chains.get(from.chain)?.name}</PSmall>
+              <ArrowRightIcon style={{ marginLeft: -8, transform: "rotate(-270deg)" }} color="#ababab" />
+            </ChainButton>
+
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <p style={{ fontWeight: "bold" }}>{from.chain === -4 ? "Withdraw HEX from:" : "Send from:"}</p>
-              <BadgeButton onClick={() => openSelectSender({ hot, type: from.type, onSelect: (wallet) => setSender(wallet) })}>
-                <p>{formatter.truncateAddress(sender === "qr" ? "QR code" : sender?.address ?? "Select sender")}</p>
+              <PSmall>Sender:</PSmall>
+              <BadgeButton
+                onClick={() => {
+                  if (from.type === WalletType.OMNI) openSelectSender({ hot, type: from.type, onSelect: (sender) => setSender(sender) });
+                  else openWalletPicker(hot.getWalletConnector(from.type)!, (wallet) => setSender(wallet));
+                }}
+              >
+                <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
               </BadgeButton>
             </div>
-          </div>
+          </CardHeader>
 
-          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <TokenPreview //
-              token={from}
-              style={{ pointerEvents: setup?.readonlyFrom ? "none" : "all" }}
-              onSelect={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })}
-            />
-
-            {isReviewing && type === "exactOut" ? (
-              <SkeletonShine />
-            ) : (
-              <input //
-                name="from"
-                type="text"
-                className="input"
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                readOnly={setup?.readonlyAmount}
-                value={isFiat ? `$${showAmountFrom}` : showAmountFrom}
-                onChange={(e) => (setType("exactIn"), setValue(e.target.value))}
-                placeholder="0"
-                autoFocus
+          <CardBody>
+            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+              <TokenPreview //
+                onSelect={() => openSelectTokenPopup({ onSelect: (token, wallet) => (setFrom(token), setSender(wallet)), initialChain: from.chain, hot })}
+                style={{ pointerEvents: setup?.readonlyFrom ? "none" : "all" }}
+                token={from}
               />
-            )}
-          </div>
 
-          {isFiat && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              {sender !== "qr" && (
-                <AvailableBalance>
-                  <p>Balance: ${from.readable(availableBalance, from.usd)}</p>
-                  <RefreshButton onClick={() => sender && hot.fetchToken(from, sender)} />
-                </AvailableBalance>
+              {isReviewing && type === "exactOut" ? (
+                <Skeleton />
+              ) : (
+                <input //
+                  name="from"
+                  type="text"
+                  className="input"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  readOnly={setup?.readonlyAmount}
+                  value={isFiat ? `$${showAmountFrom}` : showAmountFrom}
+                  onChange={(e) => (setType("exactIn"), setValue(e.target.value))}
+                  placeholder="0"
+                  autoFocus
+                />
               )}
+            </div>
 
-              {sender === "qr" && <div />}
-
-              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                {from.usd !== 0 && <p style={{ marginRight: 8 }}>{`${from.readable(amountFrom / from.usd)} ${from.symbol}`}</p>}
-                {from.usd !== 0 && (
-                  <BadgeButton style={{ border: `1px solid #fff` }} onClick={() => setIsFiat(!isFiat)}>
-                    USD
-                  </BadgeButton>
+            {isFiat && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                {sender !== "qr" && (
+                  <AvailableBalance>
+                    <PSmall>Balance: ${from.readable(availableBalance, from.usd)}</PSmall>
+                    <Button onClick={() => sender && hot.fetchToken(from, sender)}>
+                      <RefreshIcon color="#fff" />
+                    </Button>
+                  </AvailableBalance>
                 )}
-                {sender !== "qr" && <BadgeButton onClick={handleMax}>MAX</BadgeButton>}
-              </div>
-            </div>
-          )}
 
-          {!isFiat && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              {sender !== "qr" && (
-                <AvailableBalance>
-                  <p>Balance: {`${from.readable(availableBalance)} ${from.symbol}`}</p>
-                  <RefreshButton onClick={() => sender && hot.fetchToken(from, sender)} />
-                </AvailableBalance>
-              )}
-              {sender === "qr" && <div />}
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                {from.usd !== 0 && <p style={{ marginRight: 8 }}>${from.readable(amountFrom, from.usd)}</p>}
-                {from.usd !== 0 && <BadgeButton onClick={() => setIsFiat(!isFiat)}>USD</BadgeButton>}
-                {sender !== "qr" && <BadgeButton onClick={handleMax}>MAX</BadgeButton>}
+                {sender === "qr" && <div />}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  {from.usd !== 0 && <PSmall style={{ marginRight: 8 }}>{`${from.readable(amountFrom / from.usd)} ${from.symbol}`}</PSmall>}
+
+                  {from.usd !== 0 && (
+                    <BadgeButton style={{ border: `1px solid #fff` }} onClick={() => setIsFiat(!isFiat)}>
+                      <PTiny>USD</PTiny>
+                    </BadgeButton>
+                  )}
+
+                  {sender !== "qr" && (
+                    <BadgeButton onClick={handleMax}>
+                      <PTiny>MAX</PTiny>
+                    </BadgeButton>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {!isFiat && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                {sender !== "qr" && (
+                  <AvailableBalance>
+                    <PSmall>Balance: {`${from.readable(availableBalance)} ${from.symbol}`}</PSmall>
+                    <Button style={{ marginTop: 2 }} onClick={() => sender && hot.fetchToken(from, sender)}>
+                      <RefreshIcon color="#fff" />
+                    </Button>
+                  </AvailableBalance>
+                )}
+                {sender === "qr" && <div />}
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {from.usd !== 0 && <PSmall style={{ marginRight: 8 }}>${from.readable(amountFrom, from.usd)}</PSmall>}
+                  {from.usd !== 0 && (
+                    <BadgeButton onClick={() => setIsFiat(!isFiat)}>
+                      <PTiny>USD</PTiny>
+                    </BadgeButton>
+                  )}
+                  {sender !== "qr" && (
+                    <BadgeButton onClick={handleMax}>
+                      <PTiny>MAX</PTiny>
+                    </BadgeButton>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardBody>
         </Card>
 
-        <div style={{ position: "relative" }}>
-          <div style={{ width: "100%", height: 1, backgroundColor: "rgba(255, 255, 255, 0.07)" }} />
+        <div style={{ position: "relative", height: 1, width: "100%" }}>
           <SwitchButton
             onClick={() => {
               setFrom(to);
@@ -378,57 +416,72 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
               setValue("");
             }}
           >
-            <SwitchIcon />
+            <ExchangeIcon color="#fff" width={22} height={22} style={{ flexShrink: 0, transform: "rotate(270deg)" }} />
           </SwitchButton>
         </div>
 
-        <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+        <Card style={{ borderRadius: "2px 2px 20px 20px" }}>
+          <CardHeader>
+            <ChainButton onClick={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
+              <PSmall>To</PSmall>
+              <ImageView src={chains.get(to.chain)?.logo || ""} alt={to.symbol} size={16} />
+              <PSmall>{chains.get(to.chain)?.name}</PSmall>
+              <ArrowRightIcon style={{ marginLeft: -8, transform: "rotate(-270deg)" }} color="#ababab" />
+            </ChainButton>
+
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <p style={{ fontWeight: "bold" }}>{to.chain !== -4 ? "To:" : "Deposit HEX to:"}</p>
-              <BadgeButton onClick={() => openSelectRecipient({ hot, recipient, type: to.type, onSelect: (recipient) => setRecipient(recipient) })}>
-                <p>{formatter.truncateAddress(recipient?.address ?? "Connect wallet")}</p>
+              <PSmall>Recipient:</PSmall>
+              <BadgeButton
+                onClick={() => {
+                  if (to.type === WalletType.OMNI) openSelectRecipient({ hot, type: to.type, onSelect: (recipient) => setRecipient(recipient) });
+                  else openWalletPicker(hot.getWalletConnector(to.type)!, (wallet) => setRecipient(Recipient.fromWallet(wallet)));
+                }}
+              >
+                <PSmall>{recipient == null ? "Select" : formatter.truncateAddress(recipient.address, 8)}</PSmall>
               </BadgeButton>
             </div>
-          </div>
+          </CardHeader>
 
-          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <TokenPreview //
-              token={to}
-              style={{ pointerEvents: setup?.readonlyTo ? "none" : "all" }}
-              onSelect={() =>
-                openSelectTokenPopup({
-                  hot,
-                  onSelect: (token, wallet) => {
-                    setRecipient(wallet ? Recipient.fromWallet(wallet) : undefined);
-                    setTo(token);
-                  },
-                })
-              }
-            />
-
-            {isReviewing && type === "exactIn" ? (
-              <SkeletonShine />
-            ) : (
-              <input //
-                name="to"
-                type="text"
-                className="input"
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                readOnly={setup?.readonlyAmount}
-                value={isFiat ? `$${+(+showAmountTo * to.usd).toFixed(FIXED)}` : showAmountTo}
-                onChange={(e) => (setType("exactOut"), setValue(e.target.value))}
-                placeholder="0"
+          <CardBody style={{ borderRadius: "0 0 20px 20px" }}>
+            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+              <TokenPreview //
+                token={to}
+                style={{ pointerEvents: setup?.readonlyTo ? "none" : "all" }}
+                onSelect={() =>
+                  openSelectTokenPopup({
+                    hot,
+                    initialChain: to.chain,
+                    onSelect: (token, wallet) => {
+                      setRecipient(wallet ? Recipient.fromWallet(wallet) : undefined);
+                      setTo(token);
+                    },
+                  })
+                }
               />
-            )}
-          </div>
 
-          <div style={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: -8 }}>
-            {isFiat && <p>Receive: ${`${to.readable(amountTo ?? 0)} ${to.symbol}`}</p>}
-            {!isFiat && <p>Receive: ${to.readable(amountTo ?? 0, to.usd)}</p>}
-          </div>
+              {isReviewing && type === "exactIn" ? (
+                <Skeleton />
+              ) : (
+                <input //
+                  name="to"
+                  type="text"
+                  className="input"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  readOnly={setup?.readonlyAmount}
+                  value={isFiat ? `$${+(+showAmountTo * to.usd).toFixed(FIXED)}` : showAmountTo}
+                  onChange={(e) => (setType("exactOut"), setValue(e.target.value))}
+                  placeholder="0"
+                />
+              )}
+            </div>
+
+            <div style={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
+              {isFiat && <PSmall>To receive: ${`${to.readable(amountTo ?? 0)} ${to.symbol}`}</PSmall>}
+              {!isFiat && <PSmall>To receive: ${to.readable(amountTo ?? 0, to.usd)}</PSmall>}
+            </div>
+          </CardBody>
         </Card>
 
         <div style={{ marginTop: "auto" }}>{button()}</div>
@@ -440,50 +493,60 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties; token: Token; onSelect: (token: Token) => void }) => {
   return (
     <SelectTokenButton style={style} onClick={() => onSelect(token)}>
-      <TokenIcon withoutChain token={token} />
-      <p style={{ fontSize: 24, fontWeight: "bold" }}>{token.symbol}</p>
+      <TokenIcon withoutChain token={token} size={32} />
+      <PLarge>{token.symbol}</PLarge>
       <ArrowRightIcon style={{ flexShrink: 0, position: "absolute", right: 4 }} />
     </SelectTokenButton>
   );
 };
 
 const BadgeButton = styled.button`
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  background: #282c30;
+  display: flex;
+  border-radius: 8px;
+  border: 1px solid #323232;
   padding: 4px 8px;
-  border-radius: 16px;
+  background: transparent;
+  transition: 0.2s border-color;
   cursor: pointer;
   outline: none;
-  border: none;
-  border: 1px solid transparent;
-  transition: 0.2s border-color;
+  gap: 4px;
 
   &:hover {
     border-color: #4e4e4e;
   }
+`;
 
-  * {
-    font-size: 14px;
-    font-weight: bold;
+const ChainButton = styled.button`
+  display: flex;
+  align-items: center;
+  padding: 0;
+  gap: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+  transition: 0.2s opacity;
+
+  &:hover {
+    opacity: 0.8;
   }
 `;
 
 const SelectTokenButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
   cursor: pointer;
   outline: none;
   border: none;
   position: relative;
   background: transparent;
-  border-radius: 32px;
-  padding: 8px;
-  padding-right: 32px;
-  margin: -8px;
+  border-radius: 24px;
+  padding: 4px;
+  padding-right: 28px;
+  margin: -4px;
   max-width: 160px;
   transition: 0.2s background-color;
 
@@ -501,10 +564,10 @@ const SelectTokenButton = styled.button`
 const AvailableBalance = styled.div`
   display: flex;
   align-items: center;
-  gap: 4;
   overflow: hidden;
   max-width: 200px;
   white-space: nowrap;
+  gap: 4px;
 
   p {
     overflow: hidden;
@@ -514,15 +577,17 @@ const AvailableBalance = styled.div`
 `;
 
 const Card = styled.div`
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
   text-align: left;
   align-items: flex-start;
   justify-content: center;
-  border-radius: 12px;
+  flex-direction: column;
+
+  display: flex;
+  width: 100%;
+
+  border-radius: 20px 20px 2px 2px;
+  border: 1px solid #323232;
+  background: #1f1f1f;
 
   input {
     outline: none;
@@ -544,77 +609,47 @@ const Card = styled.div`
   }
 `;
 
+const CardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  width: 100%;
+  gap: 8px;
+`;
+
+const CardBody = styled.div`
+  padding: 16px;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid #323232;
+  background: #272727;
+  display: flex;
+  gap: 8px;
+`;
+
 const SwitchButton = styled.button`
   position: absolute;
   left: 50%;
   top: -18px;
   transform: translate(-50%, 0);
   background: #232323;
+
   border-radius: 50%;
   width: 36px;
   height: 36px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   z-index: 2;
   cursor: pointer;
-  border: 2px solid #181818;
-  box-shadow: 0 2px 8px 0 #18181870;
   outline: none;
-  border: none;
-  cursor: pointer;
+
+  border-radius: 24px;
+  border: 4px solid #191919;
+  background: #323232;
 `;
-
-const shine = keyframes`
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
-`;
-
-const SkeletonShine = styled.div`
-  display: inline-block;
-  width: 100px;
-  height: 40px;
-  border-radius: 8px;
-  background: #2e2e2e;
-  position: relative;
-  overflow: hidden;
-
-  &:after {
-    content: "";
-    display: block;
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background: linear-gradient(90deg, rgba(34, 34, 34, 0) 0%, rgba(255, 255, 255, 0.06) 40%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.06) 60%, rgba(34, 34, 34, 0) 100%);
-    background-size: 200px 100%;
-    animation: ${shine} 1.4s infinite linear;
-  }
-`;
-
-const RefreshButton = ({ onClick }: { onClick: () => void }) => {
-  return (
-    <svg
-      onClick={onClick}
-      style={{ width: 18, height: 18, verticalAlign: "middle", marginLeft: 8, cursor: "pointer", opacity: 0.7, transition: "opacity 0.2s" }}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#fff"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
-      onMouseOut={(e) => (e.currentTarget.style.opacity = "0.7")}
-    >
-      <path d="M23 4v6h-6" />
-      <path d="M1 20v-6h6" />
-      <path d="M3.51 9a9 9 0 0114.13-3.36L23 10" />
-      <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14" />
-    </svg>
-  );
-};

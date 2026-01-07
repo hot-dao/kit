@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { Loader } from "./payment/Profile";
+import { Loader } from "./loader";
 
 const Toast = ({ message }: { message: string }) => {
   return (

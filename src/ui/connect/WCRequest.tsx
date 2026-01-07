@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 
-import { ImageView } from "../payment/TokenCard";
+import { ImageView } from "../uikit/image";
 import { PopupButton } from "../styles";
 import Popup from "../Popup";
 

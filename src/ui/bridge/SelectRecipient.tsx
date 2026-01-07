@@ -3,16 +3,17 @@ import styled from "styled-components";
 import { useState } from "react";
 
 import { ArrowRightIcon } from "../icons/arrow-right";
+
+import { ImageView } from "../uikit/image";
 import { PopupOption, PopupOptionInfo } from "../styles";
 import { ConnectorType, OmniConnector } from "../../OmniConnector";
 import { HotConnector } from "../../HotConnector";
-import { Recipient } from "../../core/recipient";
-import { WalletType } from "../../core/chains";
 import { openWalletPicker } from "../router";
-import { formatter } from "../../core/utils";
 import Popup from "../Popup";
 
-import { ImageView } from "./TokenCard";
+import { Recipient } from "../../core/recipient";
+import { WalletType } from "../../core/chains";
+import { formatter } from "../../core/utils";
 
 interface SelectRecipientProps {
   recipient?: Recipient;
