@@ -361,10 +361,12 @@ export class HotConnector {
     await openBridge(this);
   }
 
-  async connect(type?: WalletType) {
-    if (this.wallets.length > 0) return openProfile(this);
-    if (!type) return openConnector(this);
+  async openProfile() {
+    openProfile(this);
+  }
 
+  async connect(type?: WalletType) {
+    if (!type) return openConnector(this);
     const connector = this.connectors.find((t) => t.type === ConnectorType.WALLET && t.walletTypes.includes(type));
     if (!connector) throw new Error("Connector not found");
     return openWalletPicker(connector);
