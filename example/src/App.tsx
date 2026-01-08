@@ -4,7 +4,6 @@ import { defaultConnectors } from "@hot-labs/kit/defaults";
 import cosmos from "@hot-labs/kit/cosmos";
 
 import { observer } from "mobx-react-lite";
-import { api } from "@hot-labs/kit/core/api";
 
 const wibe3 = new HotConnector({
   apiKey: "",
@@ -24,7 +23,7 @@ export const MultichainExample = observer(() => {
   const [signedIntent, setSignedIntent] = useState<string>("");
 
   const handlePay = async () => {
-    const result = await wibe3
+    await wibe3
       .intentsBuilder()
       .transfer({
         amount: 0.1,
@@ -36,13 +35,7 @@ export const MultichainExample = observer(() => {
           memo: "custom_memo",
         }),
       })
-      .depositAndExecute({ email: "test@test.com" });
-
-    api.paymentStatus("custom_memo").then((res) => {
-      console.log(res);
-    });
-
-    console.log(result);
+      .depositAndExecute({ payload: { email: "test@test.com" } });
   };
 
   return (
