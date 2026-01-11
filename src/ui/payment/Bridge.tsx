@@ -44,6 +44,11 @@ export interface BridgeProps {
 }
 
 const FIXED = 6;
+const animations = {
+  success: "https://hex.exchange/success.json",
+  failed: "https://hex.exchange/error.json",
+  loading: "https://hex.exchange/loading.json",
+};
 
 export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSelectPair }: BridgeProps) => {
   const [isFiat, setIsFiat] = useState(false);
@@ -67,6 +72,12 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   useEffect(() => {
     onSelectPair?.(from, to);
   }, [from, to]);
+
+  useState(() => {
+    fetch(animations.loading);
+    fetch(animations.success);
+    fetch(animations.failed);
+  });
 
   const [sender, setSender] = useState<OmniWallet | "qr" | undefined>(() => {
     if (setup?.sender) return setup.sender;
@@ -220,7 +231,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
-          <dotlottie-wc key="loading" src="/loading.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          <dotlottie-wc key="loading" src={animations.loading} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ marginTop: -32, fontSize: 16 }}>{processing.message}</p>
         </div>
       </Popup>
@@ -232,7 +243,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
-          <dotlottie-wc key="success" src="/success.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange successful</p>
         </div>
         <PopupButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
@@ -247,7 +258,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
-          <dotlottie-wc key="error" src="/error.json" speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
+          <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange failed</p>
           <p style={{ fontSize: 14 }}>{processing.message}</p>
         </div>
