@@ -145,7 +145,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       publicKeyHex: publicKey,
       disconnect: () => this.disconnectWalletConnect(),
       sendTransaction: async (signDoc: any) => {
-        const { signature } = await this.requestWalletConnect<{ signed: TxRaw; signature: { signature: string } }>({
+        const { signed, signature } = await this.requestWalletConnect<{ signed: TxRaw; signature: { signature: string } }>({
           chain: `cosmos:${signDoc.chainId}`,
           deeplink: id ? wallets[id].deeplink : undefined,
           icon: id ? wallets[id].icon : undefined,
@@ -165,8 +165,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         });
 
         const protobufTx = TxRaw.encode({
-          bodyBytes: signDoc.bodyBytes,
-          authInfoBytes: signDoc.authInfoBytes,
+          bodyBytes: Object.keys(signed.bodyBytes).length > 0 ? signed.bodyBytes : signDoc.bodyBytes,
+          authInfoBytes: Object.keys(signed.authInfoBytes).length > 0 ? signed.authInfoBytes : signDoc.authInfoBytes,
           signatures: [Buffer.from(signature.signature, "base64")],
         }).finish();
 
