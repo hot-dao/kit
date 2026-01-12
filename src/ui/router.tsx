@@ -29,6 +29,7 @@ export const openPayment = (
   {
     intents,
     title,
+    excludedTokens,
     allowedTokens,
     prepaidAmount,
     payableToken,
@@ -38,6 +39,7 @@ export const openPayment = (
     intents: Intents;
     title?: string;
     allowedTokens?: string[];
+    excludedTokens?: string[];
     prepaidAmount: bigint;
     payableToken: Token;
     needAmount: bigint;
@@ -54,6 +56,7 @@ export const openPayment = (
         prepaidAmount={prepaidAmount}
         allowedTokens={allowedTokens}
         payableToken={payableToken}
+        excludedTokens={excludedTokens}
         close={() => (close(), resolve())}
         onReject={() => (close(), reject(new Error("User rejected")))}
         onConfirm={onConfirm}

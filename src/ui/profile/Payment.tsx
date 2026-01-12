@@ -26,6 +26,7 @@ interface PaymentProps {
   onReject: (message: string) => void;
   onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void>;
   close: () => void;
+  excludedTokens?: string[];
   allowedTokens?: string[];
   prepaidAmount: bigint;
   payableToken: Token;
@@ -43,7 +44,7 @@ const animations = {
 
 const PAY_SLIPPAGE = 0.002;
 
-export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
+export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, excludedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -266,6 +267,9 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
 
     // Allow only tokens in the allowedTokens list
     if (allowedTokens != null && !allowedTokens?.includes(token.omniAddress)) return null;
+
+    // Exclude tokens in the excludedTokens list
+    if (excludedTokens != null && excludedTokens?.includes(token.omniAddress)) return null;
 
     // same token as need and enough balance is direct deposit
     if (token.originalChain === payableToken.originalChain && token.originalAddress === payableToken.originalAddress && availableBalance >= payableToken.float(needAmount)) {

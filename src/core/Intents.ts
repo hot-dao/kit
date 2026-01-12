@@ -397,7 +397,17 @@ export class Intents {
     return this.signer;
   }
 
-  async openSignFlow({ title, allowedTokens, onConfirm }: { title?: string; allowedTokens?: string[]; onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void> }) {
+  async openSignFlow({
+    title,
+    allowedTokens,
+    excludedTokens,
+    onConfirm,
+  }: {
+    title?: string;
+    allowedTokens?: string[];
+    excludedTokens?: string[];
+    onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+  }) {
     if (!this.wibe3) throw "Attach wibe3";
     if (!this.signer) throw "Attach signer";
 
@@ -413,18 +423,34 @@ export class Intents {
       allowedTokens,
       prepaidAmount,
       payableToken,
+      excludedTokens,
       intents: this,
       title,
     });
   }
 
-  async depositAndExecute({ title = "Payment", message, allowedTokens, serverSideProcessing, payload }: { title?: string; message?: string; allowedTokens?: string[]; serverSideProcessing?: boolean; payload?: Record<string, any> } = {}) {
+  async depositAndExecute({
+    title = "Payment",
+    message,
+    allowedTokens,
+    excludedTokens,
+    serverSideProcessing,
+    payload,
+  }: {
+    title?: string;
+    message?: string;
+    allowedTokens?: string[];
+    excludedTokens?: string[];
+    serverSideProcessing?: boolean;
+    payload?: Record<string, any>;
+  } = {}) {
     await this.setupSigner();
     if (this.need.size === 0) return this.execute();
 
     await this.openSignFlow({
       title,
       allowedTokens,
+      excludedTokens,
       onConfirm: async ({ depositQoute, processing }: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => {
         if (!serverSideProcessing) return;
 
