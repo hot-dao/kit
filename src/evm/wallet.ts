@@ -93,13 +93,16 @@ class EvmWallet extends OmniWallet {
     const fee = ReviewFee.fromFeeData(await rpc.getFeeData(), token.chain);
 
     if (token.address === "native") {
-      const gasLimit = await rpc.estimateGas({ to: receiver, value: 100n, ...fee.evmGas });
+      const gasLimit = await rpc.estimateGas({ from: this.address, to: receiver, value: 100n, ...fee.evmGas });
       const extaLimit = BigInt(Math.floor(Number(gasLimit) * 1.3));
       return fee.changeGasLimit(extaLimit);
     }
 
     const erc20 = new ethers.Contract(token.address, erc20abi, rpc);
-    const gasLimit = await erc20.transfer.estimateGas(receiver, amount, fee.evmGas);
+    const transferTx = await erc20.transfer.populateTransaction(receiver, amount, fee.evmGas);
+    transferTx.from = this.address;
+
+    const gasLimit = await rpc.estimateGas(transferTx);
     const extaLimit = BigInt(Math.floor(Number(gasLimit) * 1.3));
     return fee.changeGasLimit(extaLimit);
   }
@@ -126,6 +129,8 @@ class EvmWallet extends OmniWallet {
 
     const erc20 = new ethers.Contract(args.token.address, erc20abi, this.rpc(args.token.chain));
     const tx = await erc20.transfer.populateTransaction(args.receiver, args.amount, { ...args.gasFee?.evmGas });
+    tx.from = this.address;
+
     return await this.sendTransaction(args.token.chain, tx);
   }
 
