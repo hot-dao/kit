@@ -266,10 +266,10 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
     const availableBalance = token.float(balance) - token.reserve;
 
     // Allow only tokens in the allowedTokens list
-    if (allowedTokens != null && !allowedTokens?.includes(token.omniAddress)) return null;
+    if (allowedTokens != null && !allowedTokens?.includes(token.id)) return null;
 
     // Exclude tokens in the excludedTokens list
-    if (excludedTokens != null && excludedTokens?.includes(token.omniAddress)) return null;
+    if (excludedTokens != null && excludedTokens?.includes(token.id)) return null;
 
     // same token as need and enough balance is direct deposit
     if (token.originalChain === payableToken.originalChain && token.originalAddress === payableToken.originalAddress && availableBalance >= payableToken.float(needAmount)) {

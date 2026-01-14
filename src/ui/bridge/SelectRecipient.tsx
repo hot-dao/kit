@@ -53,27 +53,28 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
         </PopupOption>
       ))}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "12px 0" }}>
-        <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
-        <PSmall>OR</PSmall>
-        <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
-      </div>
-
       {type !== WalletType.OMNI && (
-        <div style={{ width: "100%" }}>
-          <PSmall style={{ textAlign: "left" }}>Enter recipient address, avoid CEX</PSmall>
-          <CustomRecipient>
-            <input //
-              type="text"
-              placeholder="Enter wallet address"
-              onChange={(e) => setCustomAddress(e.target.value)}
-              value={customAddress}
-            />
-            <button onClick={selectCustom} disabled={customAddress.length === 0}>
-              Select
-            </button>
-          </CustomRecipient>
-        </div>
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "12px 0" }}>
+            <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
+            <PSmall>OR</PSmall>
+            <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
+          </div>
+          <div style={{ width: "100%" }}>
+            <PSmall style={{ textAlign: "left" }}>Enter recipient address, avoid CEX</PSmall>
+            <CustomRecipient>
+              <input //
+                type="text"
+                placeholder="Enter wallet address"
+                onChange={(e) => setCustomAddress(e.target.value)}
+                value={customAddress}
+              />
+              <button onClick={selectCustom} disabled={customAddress.length === 0}>
+                Select
+              </button>
+            </CustomRecipient>
+          </div>
+        </>
       )}
     </Popup>
   );
