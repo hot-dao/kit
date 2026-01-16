@@ -7,26 +7,26 @@ import RefreshIcon from "../icons/refresh";
 import { ArrowRightIcon } from "../icons/arrow-right";
 
 import { HotConnector } from "../../HotConnector";
-import { BridgeReview } from "../../exchange";
-import { OmniWallet } from "../../OmniWallet";
+import { BridgeReview } from "../../core/exchange";
+import { OmniWallet } from "../../core/OmniWallet";
 
+import { chains, WalletType } from "../../core/chains";
+import { Recipient } from "../../core/recipient";
 import { formatter } from "../../core/utils";
 import { tokens } from "../../core/tokens";
-import { Recipient } from "../../core/recipient";
-import { chains, WalletType } from "../../core/chains";
 import { Token } from "../../core/token";
 
-import Popup from "../Popup";
-import { PopupButton } from "../styles";
-import DepositQR from "../profile/DepositQR";
-import { openSelectRecipient, openSelectSender, openSelectTokenPopup, openWalletPicker } from "../router";
-import { TokenIcon } from "./TokenCard";
-
-import { PLarge, PMedium, PSmall, PTiny } from "../uikit/text";
+import { ActionButton, Button } from "../uikit/button";
+import { PLarge, PSmall, PTiny } from "../uikit/text";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
 import ExchangeIcon from "../icons/exchange";
-import { ActionButton, Button } from "../uikit/button";
+
+import Popup from "../Popup";
+import { PopupButton } from "../styles";
+import { openSelectRecipient, openSelectSender, openSelectTokenPopup, openWalletPicker } from "../router";
+import DepositQR from "../profile/DepositQR";
+import { TokenIcon } from "./TokenCard";
 
 const animations = {
   success: "https://hex.exchange/success.json",
@@ -161,7 +161,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
       try {
         if (currentReviewId !== reviewId.current) return;
         const amount = type === "exactIn" ? from.int(valueInTokens) : to.int(valueInTokens);
-        const review = await hot.exchange.reviewSwap({ sender, refund, amount, recipient, slippage: 0.005, type, from, to });
+        const recipientWallet = hot.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
+        const review = await hot.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund, amount, type, from, to });
         if (currentReviewId !== reviewId.current) return;
         setIsReviewing(false);
         setIsError(null);
@@ -185,10 +186,11 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   const process = async (review: BridgeReview) => {
     try {
       const log = (message: string) => setProcessing({ status: "processing", message, review });
-      hot.hotBridge.logger = { log, warn: console.warn };
+      hot.exchange.bridge.logger = { log, warn: console.warn };
       log("Signing transaction");
 
-      const result = await hot.exchange.makeSwap(review, { log });
+      review.logger = { log };
+      const result = await hot.exchange.makeSwap(review);
       let resultReview = result.review;
 
       if (result.processing) {

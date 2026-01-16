@@ -3,14 +3,14 @@ import { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 import uuid4 from "uuid4";
 
-import { ConnectorType, OmniConnector } from "../OmniConnector";
-import { OmniWallet } from "../OmniWallet";
+import { ConnectorType, OmniConnector } from "../core/OmniConnector";
+import { OmniWallet } from "../core/OmniWallet";
 import { WalletType } from "../core/chains";
 
 import EvmWallet from "../evm/wallet";
+import TonWallet from "../ton/wallet";
 import NearWallet from "../near/wallet";
 import SolanaWallet from "../solana/wallet";
-import TonWallet from "../ton/wallet";
 import StellarWallet from "../stellar/wallet";
 import { HotConnector } from "../HotConnector";
 
@@ -52,10 +52,10 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
       const signTransaction = async (transaction: Transaction) => request("stellar:signTransaction", { transaction: transaction.toXDR() });
       this.wallets.push(
         new StellarWallet({
-          rpc: this.wibe3.hotBridge.stellar,
+          rpc: this.wibe3.exchange.bridge.stellar,
           address: account.address,
-          signMessage,
           signTransaction,
+          signMessage,
         })
       );
     }

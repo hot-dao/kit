@@ -3,9 +3,10 @@ import { Transaction, PublicKey, VersionedTransaction, Connection } from "@solan
 import { base58 } from "@scure/base";
 import { runInAction } from "mobx";
 
-import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
-import { HotConnector } from "../HotConnector";
-import { OmniWallet } from "../OmniWallet";
+import type { HotConnector } from "../HotConnector";
+
+import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
+import { OmniWallet } from "../core/OmniWallet";
 import { WalletType } from "../core/chains";
 import HOT from "../hot-wallet/iframe";
 
@@ -16,8 +17,8 @@ import SolanaWallet from "./wallet";
 const wallets = getWallets();
 
 class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
-  type = ConnectorType.WALLET;
   walletTypes = [WalletType.SOLANA, WalletType.OMNI];
+  type = ConnectorType.WALLET;
 
   icon = "https://storage.herewallet.app/upload/8700f33153ad813e133e5bf9b791b5ecbeea66edca6b8d17aeccb8048eb29ef7.png";
   name = "Solana Wallet";
@@ -70,8 +71,16 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
     });
 
     this.initWalletConnect()
-      .then(async (wc) => {
-        this.options.unshift({ type: "external", download: "https://www.walletconnect.com/get", wallet: {} as Wallet, name: "WalletConnect", id: "walletconnect", icon: WC_ICON });
+      .then(async () => {
+        this.options.unshift({
+          type: "external",
+          download: "https://www.walletconnect.com/get",
+          wallet: {} as Wallet,
+          name: "WalletConnect",
+          id: "walletconnect",
+          icon: WC_ICON,
+        });
+
         const selected = await this.getConnectedWallet();
         if (selected.type !== "walletconnect") return;
         this.setupWalletConnect();

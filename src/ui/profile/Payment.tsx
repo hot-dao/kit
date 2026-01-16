@@ -5,22 +5,20 @@ import styled from "styled-components";
 import { WalletIcon } from "../icons/wallet";
 import { PopupOption, PopupOptionInfo } from "../styles";
 import { Commitment, Intents } from "../../core";
-import { Recipient } from "../../core/recipient";
 import { Token } from "../../core/token";
 
-import { TokenCard } from "../bridge/TokenCard";
-import { BridgeReview } from "../../exchange";
+import { BridgeReview } from "../../core/exchange";
+import { OmniWallet } from "../../core/OmniWallet";
+import { formatter } from "../../core/utils";
+
 import { openConnector } from "../router";
-
-import { OmniWallet } from "../../OmniWallet";
+import { TokenCard } from "../bridge/TokenCard";
 import { HotConnector } from "../../HotConnector";
-import Popup from "../Popup";
-
-import { Loader } from "../uikit/loader";
 import { HorizontalStepper } from "../uikit/Stepper";
 import { ActionButton } from "../uikit/button";
 import { H6, PSmall } from "../uikit/text";
-import { serializeError } from "../utils";
+import { Loader } from "../uikit/loader";
+import Popup from "../Popup";
 
 interface PaymentProps {
   onReject: (message: string) => void;
@@ -78,7 +76,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
       const insurance = (needAmount * BigInt(Math.floor(PAY_SLIPPAGE * 1000))) / BigInt(1000);
       const extra = connector.exchange.isDirectDeposit(from, payableToken) ? insurance : 0n;
       const review = await connector.exchange.reviewSwap({
-        recipient: Recipient.fromWallet(intents.signer)!,
+        recipient: intents.signer!,
         amount: needAmount + extra,
         slippage: PAY_SLIPPAGE,
         sender: wallet,
@@ -118,7 +116,8 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         return;
       }
 
-      const result = await connector.exchange.makeSwap(flow.review, { log: () => {} });
+      flow.review.logger = console;
+      const result = await connector.exchange.makeSwap(flow.review);
       await onConfirm({ depositQoute: result.review, processing: result.processing });
       setFlow({ loading: false, step: "success" });
       setTimeout(() => close(), 2000);
@@ -164,9 +163,9 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Transaction failed</p>
-          <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{serializeError(flow.error)}</p>
+          <p style={{ fontSize: 14, width: "80%", textAlign: "center", overflowY: "auto", lineBreak: "anywhere" }}>{formatter.serializeError(flow.error)}</p>
         </div>
-        <ActionButton onClick={() => onReject(serializeError(flow.error))}>Close</ActionButton>
+        <ActionButton onClick={() => onReject(formatter.serializeError(flow.error))}>Close</ActionButton>
       </Popup>
     );
   }

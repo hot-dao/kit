@@ -4,9 +4,9 @@ import { QRIcon } from "../icons/qr";
 import { ArrowRightIcon } from "../icons/arrow-right";
 import { PopupOption, PopupOptionInfo } from "../styles";
 
-import { ConnectorType, OmniConnector } from "../../OmniConnector";
+import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 import { HotConnector } from "../../HotConnector";
-import { OmniWallet } from "../../OmniWallet";
+import { OmniWallet } from "../../core/OmniWallet";
 import { ImageView } from "../uikit/image";
 
 import { WalletType } from "../../core/chains";

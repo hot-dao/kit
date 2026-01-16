@@ -2,9 +2,9 @@ import { base64, base58, hex } from "@scure/base";
 import { BrowserProvider, ethers, JsonRpcProvider, TransactionRequest } from "ethers";
 import { JsonRpcSigner, FetchRequest } from "ethers";
 
-import { OmniConnector } from "../OmniConnector";
-import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/chains";
+import { OmniConnector } from "../core/OmniConnector";
+import { OmniWallet } from "../core/OmniWallet";
+import { Network, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 import { Commitment } from "../core";
@@ -25,8 +25,8 @@ class EvmWallet extends OmniWallet {
     super();
   }
 
-  async disconnect() {
-    await this.provider.request?.({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+  get omniAddress() {
+    return this.address.toLowerCase();
   }
 
   get icon() {
@@ -35,6 +35,7 @@ class EvmWallet extends OmniWallet {
 
   private rpcs: Record<number, JsonRpcProvider> = {};
   rpc(chain: number) {
+    console.log("getting rpc for chain", { chain });
     if (chain < 1 || chain == null) throw "Invalid chain";
     if (this.rpcs[chain]) return this.rpcs[chain];
 
@@ -46,38 +47,32 @@ class EvmWallet extends OmniWallet {
     return rpc;
   }
 
-  get omniAddress() {
-    return this.address.toLowerCase();
+  async disconnect() {
+    await this.provider.request?.({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
   }
 
   async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
-    const native = await this.fetchBalance(chain, "native");
+    if (chain === Network.Omni) return await super.fetchBalances(chain, whitelist);
     try {
-      const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist, chain_id: chain }), method: "POST" });
-      if (!res.ok) throw new Error("Failed to fetch balances");
-      const { balances } = await res.json();
-      return { ...balances, native };
+      return await super.fetchBalances(chain, whitelist);
     } catch {
-      const balances = await Promise.all(
-        whitelist.map(async (token) => {
-          const balance = await this.fetchBalance(chain, token);
-          return [token, balance];
-        })
-      );
-      return { ...Object.fromEntries(balances), native };
+      const tasks = whitelist.map(async (token) => [token, await this.fetchBalance(chain, token)]);
+      return Object.fromEntries(await Promise.all(tasks));
     }
   }
 
   async fetchBalance(chain: number, address: string) {
+    if (chain === Network.Omni) return super.fetchBalance(chain, address);
+
     const rpc = this.rpc(chain);
     if (address === "native") {
       const balance = await rpc.getBalance(this.address);
-      return BigInt(balance);
+      return this.setBalance(`${chain}:${address}`, BigInt(balance));
     }
 
     const erc20 = new ethers.Contract(address, erc20abi, rpc);
     const balance = await erc20.balanceOf(this.address);
-    return BigInt(balance);
+    return this.setBalance(`${chain}:${address}`, BigInt(balance));
   }
 
   async signMessage(msg: string) {
@@ -107,20 +102,23 @@ class EvmWallet extends OmniWallet {
     return fee.changeGasLimit(extaLimit);
   }
 
-  async sendTransaction(chain: number, request: TransactionRequest): Promise<string> {
+  async sendTransaction(request: TransactionRequest): Promise<string> {
+    if (!request.chainId) throw "Chain ID is required";
+
     if (!this.provider.request) throw "not impl";
     const provider = new BrowserProvider(this.provider as any);
     const signer = new JsonRpcSigner(provider, this.address);
 
-    await this.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${chain.toString(16)}` }] });
+    await this.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${request.chainId.toString(16)}` }] });
     const tx = await signer.sendTransaction(request);
     return tx.hash;
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {
     if (args.token.address === "native") {
-      return await this.sendTransaction(args.token.chain, {
+      return await this.sendTransaction({
         ...args.gasFee?.evmGas,
+        chainId: args.token.chain,
         from: this.address,
         value: args.amount,
         to: args.receiver,
@@ -129,9 +127,10 @@ class EvmWallet extends OmniWallet {
 
     const erc20 = new ethers.Contract(args.token.address, erc20abi, this.rpc(args.token.chain));
     const tx = await erc20.transfer.populateTransaction(args.receiver, args.amount, { ...args.gasFee?.evmGas });
+    tx.chainId = BigInt(args.token.chain);
     tx.from = this.address;
 
-    return await this.sendTransaction(args.token.chain, tx);
+    return await this.sendTransaction(tx);
   }
 
   async signIntents(intents: Record<string, any>[], options?: { deadline?: number; nonce?: Uint8Array }): Promise<Commitment> {

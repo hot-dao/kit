@@ -1,13 +1,10 @@
 import { makeObservable, observable, runInAction } from "mobx";
 import UniversalProvider, { NamespaceConfig } from "@walletconnect/universal-provider";
 
-import { EventEmitter } from "./core/events";
-import { LocalStorage } from "./storage";
-import { HotConnector } from "./HotConnector";
-
+import type { HotConnector } from "../HotConnector";
+import { EventEmitter } from "./events";
 import { OmniWallet } from "./OmniWallet";
-import { WalletType } from "./core/chains";
-import { openWCRequest } from "./ui/router";
+import { WalletType } from "./chains";
 
 export enum ConnectorType {
   WALLET = "wallet",
@@ -82,6 +79,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   }
 
   async requestWalletConnect<T>(args: { chain?: string; request: any; deeplink?: string; name?: string; icon?: string }): Promise<T> {
+    const { openWCRequest } = await import("../ui/router");
     return openWCRequest<T>({
       deeplink: args.deeplink,
       name: args.name || "WalletConnect",

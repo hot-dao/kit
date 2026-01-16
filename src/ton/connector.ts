@@ -1,10 +1,11 @@
 import { TonConnectUI, TonConnect, Feature } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
-import { WalletType } from "../core/chains";
-import { HotConnector } from "../HotConnector";
-import { ConnectorType, OmniConnector } from "../OmniConnector";
+import type { HotConnector } from "../HotConnector";
 import HOT from "../hot-wallet/iframe";
+
+import { WalletType } from "../core/chains";
+import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import TonWallet from "./wallet";
 
 export interface TonConnectorOptions {

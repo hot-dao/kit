@@ -1,16 +1,23 @@
 import { NearWalletBase, SignMessageParams, SignedMessage, SignAndSendTransactionParams, SignAndSendTransactionsParams } from "@hot-labs/near-connect";
 import { base64, base58 } from "@scure/base";
+import crypto from "crypto";
 
-import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/chains";
+import { OmniWallet } from "../core/OmniWallet";
+import { Network, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 import { Commitment } from "../core";
+
 import { rpc, TGAS } from "./rpc";
+import { createNearWallet } from "./standalone";
 
 export default class NearWallet extends OmniWallet {
   readonly icon = "https://storage.herewallet.app/upload/73a44e583769f11112b0eff1f2dd2a560c05eed5f6d92f0c03484fa047c31668.png";
   readonly type = WalletType.NEAR;
+
+  static fromPrivateKey(privateKey: Buffer, address?: string) {
+    return createNearWallet(privateKey, address);
+  }
 
   constructor(readonly address: string, readonly publicKey?: string, readonly wallet?: NearWalletBase) {
     super();
@@ -20,15 +27,14 @@ export default class NearWallet extends OmniWallet {
     return this.address;
   }
 
-  async fetchBalances(_: number, whitelist: string[]): Promise<Record<string, bigint>> {
-    const balances = await Promise.all(
-      whitelist.map(async (token) => {
-        const balance = await this.fetchBalance(1010, token);
-        return [token, balance];
-      })
-    );
-
-    return Object.fromEntries(balances);
+  async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
+    if (chain === Network.Omni) return await super.fetchBalances(chain, whitelist);
+    try {
+      return await super.fetchBalances(chain, whitelist);
+    } catch (error) {
+      const tasks = whitelist.map(async (token) => [token, await this.fetchBalance(chain, token)]);
+      return Object.fromEntries(await Promise.all(tasks));
+    }
   }
 
   async sendTransactions(params: SignAndSendTransactionsParams): Promise<string[]> {
@@ -111,7 +117,7 @@ export default class NearWallet extends OmniWallet {
   }
 
   async fetchBalance(chain: number, address: string) {
-    if (chain !== 1010) throw "Invalid chain";
+    if (chain !== 1010) return super.fetchBalance(chain, address);
 
     if (address === "native") {
       const protocolConfig = await rpc.experimental_protocolConfig({ finality: "near-final" });
@@ -121,7 +127,7 @@ export default class NearWallet extends OmniWallet {
       const locked = BigInt(state.locked);
       const total = BigInt(state.amount) + locked;
       const available = total - (locked > usedOnStorage ? locked : usedOnStorage);
-      return available < 0n ? 0n : available;
+      return this.setBalance(`${chain}:${address}`, available < 0n ? 0n : available);
     }
 
     const balance = await rpc.viewMethod({
@@ -130,7 +136,7 @@ export default class NearWallet extends OmniWallet {
       methodName: "ft_balance_of",
     });
 
-    return BigInt(balance);
+    return this.setBalance(`${chain}:${address}`, BigInt(balance));
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }) {
@@ -207,7 +213,7 @@ export default class NearWallet extends OmniWallet {
   async signIntents(intents: Record<string, any>[], options?: { nonce?: Uint8Array; deadline?: number; signerId?: string }): Promise<Commitment> {
     if (!this.wallet) throw "not impl";
 
-    const nonce = new Uint8Array(options?.nonce || window.crypto.getRandomValues(new Uint8Array(32)));
+    const nonce = new Uint8Array(options?.nonce || crypto.randomBytes(32));
     const message = JSON.stringify({
       deadline: options?.deadline ? new Date(options.deadline).toISOString() : "2100-01-01T00:00:00.000Z",
       signer_id: options?.signerId || this.omniAddress,

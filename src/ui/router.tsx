@@ -1,8 +1,8 @@
 import { HotConnector } from "../HotConnector";
-import { OmniConnector } from "../OmniConnector";
-import { OmniWallet } from "../OmniWallet";
+import { OmniConnector } from "../core/OmniConnector";
+import { OmniWallet } from "../core/OmniWallet";
 
-import { BridgeReview } from "../exchange";
+import { BridgeReview } from "../core/exchange";
 import { WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 import { Intents } from "../core/Intents";

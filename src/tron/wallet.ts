@@ -1,12 +1,11 @@
 import { base58, base64, hex } from "@scure/base";
 
+import type { OmniConnector } from "../core/OmniConnector";
+import { OmniWallet } from "../core/OmniWallet";
 import { Network, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 import { Commitment } from "../core";
-
-import type { OmniConnector } from "../OmniConnector";
-import { OmniWallet } from "../OmniWallet";
 
 interface TronWebLike {
   ready?: boolean;
@@ -58,33 +57,24 @@ class TronWallet extends OmniWallet {
   }
 
   async fetchBalance(chain: number, address: string): Promise<bigint> {
-    if (chain !== Network.Tron) throw "Invalid chain";
+    if (chain !== Network.Tron) return super.fetchBalance(chain, address);
     if (!this.tronWeb.trx) throw new Error("TronLink not available");
 
     if (address === "native") {
       const balance = await this.tronWeb.trx.getBalance?.(this.address);
-      return BigInt(balance || 0);
+      return this.setBalance(`${chain}:${address}`, BigInt(balance || 0));
     }
 
-    return await this.trc20Balance(address);
+    return this.setBalance(`${chain}:${address}`, await this.trc20Balance(address));
   }
 
   async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
-    const native = await this.fetchBalance(chain, "native");
-
+    if (chain === Network.Omni) return await super.fetchBalances(chain, whitelist);
     try {
-      const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist, chain_id: chain }), method: "POST" });
-      if (!res.ok) throw new Error("Failed to fetch balances");
-      const { balances } = await res.json();
-      return { ...balances, native };
+      return await super.fetchBalances(chain, whitelist);
     } catch {
-      const balances = await Promise.all(
-        whitelist.map(async (token) => {
-          const balance = await this.fetchBalance(chain, token);
-          return [token, balance] as const;
-        })
-      );
-      return { ...Object.fromEntries(balances), native };
+      const tasks = whitelist.map(async (token) => [token, await this.fetchBalance(chain, token)]);
+      return Object.fromEntries(await Promise.all(tasks));
     }
   }
 

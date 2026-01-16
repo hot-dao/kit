@@ -1,17 +1,19 @@
-import { GetExecutionStatusResponse, OneClickService, ApiError, OpenAPI, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
+import { GetExecutionStatusResponse, OneClickService, ApiError, QuoteRequest, QuoteResponse, OpenAPI } from "@defuse-protocol/one-click-sdk-typescript";
 import { utils } from "@hot-labs/omni-sdk";
 import { hex } from "@scure/base";
 
-import { Network, OmniToken, WalletType } from "./core/chains";
-import { ReviewFee } from "./core/bridge";
-import { Recipient } from "./core/recipient";
-import { tokens } from "./core/tokens";
-import { Token } from "./core/token";
-
-import StellarWallet from "./stellar/wallet";
-import { HotConnector } from "./HotConnector";
+import { Network, OmniToken, WalletType } from "./chains";
+import { createHotBridge, ReviewFee } from "./bridge";
 import { OmniWallet } from "./OmniWallet";
-import { formatter } from "./core";
+import { Recipient } from "./recipient";
+import { ILogger } from "./telemetry";
+import { formatter } from "./utils";
+import { Intents } from "./Intents";
+import { tokens } from "./tokens";
+import { Token } from "./token";
+
+import StellarWallet from "../stellar/wallet";
+import NearWallet from "../near/wallet";
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {
@@ -34,15 +36,17 @@ export type BridgeReview = {
   status: "pending" | "success" | "failed";
   statusMessage: string | null;
   sender: OmniWallet | "qr";
-  recipient: Recipient;
+  recipient: OmniWallet | Recipient;
+  logger?: ILogger;
   from: Token;
   to: Token;
 };
 
-interface BridgeRequest {
+export interface BridgeRequest {
   refund: OmniWallet;
   sender: OmniWallet | "qr";
   type?: "exactIn" | "exactOut";
+  logger?: ILogger;
   recipient: Recipient;
   slippage: number;
   amount: bigint;
@@ -53,13 +57,10 @@ interface BridgeRequest {
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class Exchange {
-  constructor(readonly wibe3: HotConnector) {
-    // OpenAPI.BASE = api.getOneClickApiUrl();
-    // OpenAPI.HEADERS = { "api-key": api.apiKey };
-  }
+  readonly bridge = createHotBridge();
 
   async getToken(chain: number, address: string): Promise<string | null> {
-    if (chain === Network.Hot) return address;
+    if (chain === Network.Omni) return address;
     const tokensList = await tokens.getTokens();
     const token = tokensList.find((t) => {
       if (t.chain !== chain) return false;
@@ -72,15 +73,15 @@ export class Exchange {
     return token?.omniAddress || null;
   }
 
-  async deposit(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient; onMessage: (message: string) => void }) {
-    let { sender, token, amount, recipient, onMessage } = args;
-    onMessage("Sending deposit transaction");
+  async deposit(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient; logger?: ILogger }) {
+    let { sender, token, amount, recipient, logger } = args;
+    logger?.log("Sending deposit transaction");
 
-    const balance = await this.wibe3.fetchToken(token, sender);
+    const balance = await sender.fetchBalance(token.chain, token.address);
     amount = formatter.bigIntMin(amount, balance);
 
-    if (token.type === WalletType.COSMOS && this.wibe3.isCosmosWallet(sender)) {
-      const cosmosBridge = await this.wibe3.hotBridge.cosmos();
+    if (token.type === WalletType.COSMOS && sender.type === WalletType.COSMOS) {
+      const cosmosBridge = await this.bridge.cosmos();
       const hash = await cosmosBridge.deposit({
         sendTransaction: async (tx) => sender.sendTransaction(tx),
         senderPublicKey: hex.decode(sender.publicKey!),
@@ -91,17 +92,17 @@ export class Exchange {
         amount: amount,
       });
 
-      onMessage("Waiting for deposit");
-      const deposit = await this.wibe3.hotBridge.waitPendingDeposit(token.chain, hash, recipient.omniAddress);
-      onMessage("Finishing deposit");
-      await this.wibe3.hotBridge.finishDeposit(deposit);
-      onMessage("Deposit finished");
+      logger?.log("Waiting for deposit");
+      const deposit = await this.bridge.waitPendingDeposit(token.chain, hash, recipient.omniAddress);
+      logger?.log("Finishing deposit");
+      await this.bridge.finishDeposit(deposit);
+      logger?.log("Deposit finished");
       return;
     }
 
-    if (token.type === WalletType.EVM && this.wibe3.isEvmWallet(sender)) {
-      const hash = await this.wibe3.hotBridge.evm.deposit({
-        sendTransaction: async (tx) => sender.sendTransaction(token.chain, tx),
+    if (token.type === WalletType.EVM && sender.type === WalletType.EVM) {
+      const hash = await this.bridge.evm.deposit({
+        sendTransaction: async (tx) => sender.sendTransaction(tx),
         intentAccount: recipient.omniAddress,
         sender: sender.address,
         token: token.address,
@@ -110,16 +111,16 @@ export class Exchange {
       });
 
       if (!hash) throw new Error("Failed to deposit");
-      onMessage("Waiting for deposit");
-      const deposit = await this.wibe3.hotBridge.waitPendingDeposit(token.chain, hash, recipient.omniAddress);
-      onMessage("Finishing deposit");
-      await this.wibe3.hotBridge.finishDeposit(deposit);
-      onMessage("Deposit finished");
+      logger?.log("Waiting for deposit");
+      const deposit = await this.bridge.waitPendingDeposit(token.chain, hash, recipient.omniAddress);
+      logger?.log("Finishing deposit");
+      await this.bridge.finishDeposit(deposit);
+      logger?.log("Deposit finished");
       return;
     }
 
-    if (token.type === WalletType.NEAR && this.wibe3.isNearWallet(sender)) {
-      return await this.wibe3.hotBridge.near.deposit({
+    if (token.type === WalletType.NEAR && sender.type === WalletType.NEAR) {
+      return await this.bridge.near.deposit({
         sendTransaction: async (tx: any) => sender.sendTransaction(tx),
         intentAccount: recipient.omniAddress,
         sender: sender.address,
@@ -131,17 +132,16 @@ export class Exchange {
     throw new Error("Unsupported token");
   }
 
-  async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient }, pending: { log: (message: string) => void }) {
-    const { sender, token, amount, recipient } = args;
+  async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: OmniWallet | Recipient; logger?: ILogger }) {
+    const { sender, token, amount, recipient, logger } = args;
 
-    const receipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-    if (this.wibe3.isNearWallet(receipientWallet) && token.type === WalletType.NEAR) {
-      pending.log("Registering NEAR token");
-      await receipientWallet.registerToken(token.originalAddress);
+    if (recipient.type === WalletType.NEAR && token.type === WalletType.NEAR && recipient instanceof NearWallet) {
+      logger?.log("Registering NEAR token");
+      await recipient.registerToken(token.originalAddress);
     }
 
-    pending.log("Withdrawing token");
-    await this.wibe3.hotBridge.withdrawToken({
+    logger?.log("Withdrawing token");
+    await this.bridge.withdrawToken({
       signIntents: async (intents) => sender.signIntents(intents),
       intentAccount: sender.omniAddress,
       receiver: recipient.address,
@@ -155,8 +155,8 @@ export class Exchange {
 
   async withdrawFee(request: BridgeRequest) {
     if (request.sender === "qr") throw new Error("Sender is QR");
-    if (request.to.chain === Network.Near || request.to.chain === Network.Hot) return 0n;
-    const gaslessFee = await this.wibe3.hotBridge.getGaslessWithdrawFee({
+    if (request.to.chain === Network.Near || request.to.chain === Network.Omni) return 0n;
+    const gaslessFee = await this.bridge.getGaslessWithdrawFee({
       receiver: request.recipient.address,
       token: request.to.address,
       chain: request.to.chain,
@@ -166,7 +166,7 @@ export class Exchange {
     if (request.to.address === "native") return 0n;
 
     // if withdraw token is not native, we need to swap a bit of it to native to cover the withdraw fee
-    const swap = await this.wibe3.hotBridge.buildSwapExectOutIntent({
+    const swap = await this.bridge.buildSwapExectOutIntent({
       intentFrom: utils.toOmniIntent(request.to.chain, request.to.address),
       intentTo: utils.toOmniIntent(request.to.chain, "native"),
       amountOut: gaslessFee.gasPrice,
@@ -178,16 +178,16 @@ export class Exchange {
 
   isDirectDeposit(from: Token, to: Token) {
     const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(from.chain) && to.chain === Network.Hot && from.omniAddress === to.omniAddress;
+    return directChains.includes(from.chain) && to.chain === Network.Omni && from.omniAddress === to.omniAddress;
   }
 
   isDirectWithdraw(from: Token, to: Token) {
     const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(to.chain) && from.chain === Network.Hot && from.omniAddress === to.omniAddress;
+    return directChains.includes(to.chain) && from.chain === Network.Omni && from.omniAddress === to.omniAddress;
   }
 
   async reviewSwap(request: BridgeRequest): Promise<BridgeReview> {
-    const { sender, refund, from, to, amount, recipient, slippage, type } = request;
+    const { sender, refund, from, to, amount, recipient, slippage, type, logger } = request;
     const intentFrom = await this.getToken(from.chain, from.address);
     const intentTo = await this.getToken(to.chain, to.address);
 
@@ -199,7 +199,7 @@ export class Exchange {
     const noFee = from.symbol === to.symbol || (from.symbol.toLowerCase().includes("usd") && to.symbol.toLowerCase().includes("usd"));
 
     if (sender !== "qr" && this.isDirectDeposit(from, to)) {
-      const fee = await this.wibe3.hotBridge.getDepositFee({
+      const fee = await this.bridge.getDepositFee({
         intentAccount: sender.omniAddress,
         sender: sender.address,
         token: from.address,
@@ -218,6 +218,7 @@ export class Exchange {
         statusMessage: null,
         status: "pending",
         qoute: "deposit",
+        logger,
         fee,
       };
     }
@@ -237,6 +238,7 @@ export class Exchange {
         statusMessage: null,
         status: "pending",
         qoute: "withdraw",
+        logger,
       };
     }
 
@@ -249,8 +251,7 @@ export class Exchange {
 
     if (recipient.type === WalletType.STELLAR) {
       const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, request.to.address);
-      const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-      if (!isTokenActivated && !recipientWallet) throw "Token not activated for recipient";
+      if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
     }
 
     let qoute: QuoteResponse | null = null;
@@ -260,11 +261,11 @@ export class Exchange {
         destinationAsset: intentTo,
         quoteWaitingTimeMs: 3000,
         slippageTolerance: Math.round(slippage * 10_000),
-        swapType: type === "exactIn" ? QuoteRequest.swapType.EXACT_INPUT : QuoteRequest.swapType.EXACT_OUTPUT,
-        depositType: from.chain === Network.Hot ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
+        swapType: type === "exactOut" ? QuoteRequest.swapType.EXACT_OUTPUT : QuoteRequest.swapType.EXACT_INPUT,
+        depositType: from.chain === Network.Omni ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
         depositMode: from.chain === Network.Stellar ? QuoteRequest.depositMode.MEMO : QuoteRequest.depositMode.SIMPLE,
-        recipientType: to.chain === Network.Hot ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
-        recipient: to.chain === Network.Hot ? recipient.omniAddress : recipient.address,
+        recipientType: to.chain === Network.Omni ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
+        recipient: to.chain === Network.Omni ? recipient.omniAddress : recipient.address,
         appFees: noFee ? [] : [{ recipient: "intents.tg", fee: 25 }],
         amount: request.amount.toString(),
         referral: "intents.tg",
@@ -288,7 +289,7 @@ export class Exchange {
     }
 
     let fee: ReviewFee | null = null;
-    if (request.from.chain !== Network.Hot && sender !== "qr") {
+    if (request.from.chain !== Network.Omni && sender !== "qr") {
       const amount = BigInt(qoute.quote.amountIn);
       const depositAddress = qoute.quote.depositAddress!;
       fee = await sender.transferFee(request.from, depositAddress, amount).catch(() => null);
@@ -306,47 +307,41 @@ export class Exchange {
       status: "pending",
       sender: sender,
       fee: fee,
+      logger,
     };
   }
 
-  async makeSwap(review: BridgeReview, pending: { log: (message: string) => void }): Promise<{ review: BridgeReview; processing?: () => Promise<BridgeReview> }> {
-    const { sender, recipient } = review;
+  async makeSwap(review: BridgeReview): Promise<{ review: BridgeReview; processing?: () => Promise<BridgeReview> }> {
+    const { sender, recipient, logger } = review;
 
     if (review.qoute === "withdraw") {
       if (sender === "qr") throw new Error("Sender is QR");
-      await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient }, pending);
-      const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-      if (recipientWallet) this.wibe3.fetchToken(review.to, recipientWallet);
-      this.wibe3.fetchToken(review.from, sender);
+      await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient, logger });
+      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
+      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
       return { review };
     }
 
     if (review.qoute === "deposit") {
       if (sender === "qr") throw new Error("Sender is QR");
-      await this.deposit({ sender, token: review.from, amount: review.amountIn, recipient, onMessage: pending.log });
-      this.wibe3.fetchToken(review.from, sender);
-
-      const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-      if (recipientWallet) this.wibe3.fetchToken(review.to, recipientWallet);
+      await this.deposit({ sender, token: review.from, amount: review.amountIn, recipient, logger });
+      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
+      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
       return { review };
     }
 
     if (sender !== "qr") {
       if (recipient.type === WalletType.STELLAR) {
         const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
-        const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-        if (!isTokenActivated && !recipientWallet) throw "Token not activated for recipient";
-        if (!isTokenActivated && recipientWallet instanceof StellarWallet) {
-          await recipientWallet.changeTrustline(review.to.address);
-        }
+        if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
+        if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
       }
 
       const depositAddress = review.qoute.depositAddress!;
       let hash = "";
 
-      if (review.from.chain === Network.Hot) {
-        hash = await this.wibe3
-          .intentsBuilder(sender)
+      if (review.from.chain === Network.Omni) {
+        hash = await Intents.builder(sender)
           .transfer({ amount: review.amountIn, token: review.from.address as OmniToken, recipient: depositAddress })
           .execute();
       } else {
@@ -359,21 +354,20 @@ export class Exchange {
         });
       }
 
-      this.wibe3.fetchToken(review.from, sender);
+      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
       OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
     }
 
     return {
       review,
       processing: async () => {
-        const recipientWallet = this.wibe3.wallets.find((w) => w.address === recipient.address);
-        if (!recipientWallet) return await this.processing(review);
+        if (!(recipient instanceof OmniWallet)) return await this.processing(review);
 
-        const beforeBalance = await this.wibe3.fetchToken(review.to, recipientWallet).catch(() => null);
+        const beforeBalance = await recipient.fetchBalance(review.to.chain, review.to.address).catch(() => null);
         if (!beforeBalance) return await this.processing(review);
 
         return await Promise.race([
-          this.waitBalance(review.to, recipientWallet, beforeBalance, review),
+          this.waitBalance(review.to, recipient, beforeBalance, review),
           this.processing(review), //
         ]);
       },
@@ -381,7 +375,7 @@ export class Exchange {
   }
 
   async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint, review: BridgeReview): Promise<BridgeReview> {
-    const afterBalance = await this.wibe3.fetchToken(to, wallet).catch(() => beforeBalance);
+    const afterBalance = await wallet.fetchBalance(to.chain, to.address).catch(() => beforeBalance);
     if (afterBalance > beforeBalance) {
       return {
         ...review,

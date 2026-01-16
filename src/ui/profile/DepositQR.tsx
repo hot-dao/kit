@@ -3,7 +3,7 @@ import QRCodeStyling from "qr-code-styling";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
-import { BridgeReview } from "../../exchange";
+import { BridgeReview } from "../../core/exchange";
 import { PopupButton } from "../styles";
 
 const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeReview; onConfirm: () => void; onCancel: () => void }) => {

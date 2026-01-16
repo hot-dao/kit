@@ -2,8 +2,8 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 
 import { ImageView } from "../uikit/image";
-import { OmniWallet } from "../../OmniWallet";
-import { OmniConnector, OmniConnectorOption } from "../../OmniConnector";
+import { OmniWallet } from "../../core/OmniWallet";
+import { OmniConnector, OmniConnectorOption } from "../../core/OmniConnector";
 import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
 import { WCPopup } from "./WCPopup";
 import Popup from "../Popup";

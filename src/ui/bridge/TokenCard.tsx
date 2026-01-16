@@ -6,7 +6,7 @@ import { formatter } from "../../core/utils";
 import { Token } from "../../core/token";
 
 import { HotConnector } from "../../HotConnector";
-import { OmniWallet } from "../../OmniWallet";
+import { OmniWallet } from "../../core/OmniWallet";
 import { ImageView } from "../uikit/image";
 
 export const TokenIcon = observer(({ token, wallet, withoutChain, size = 40 }: { token: Token; wallet?: OmniWallet; withoutChain?: boolean; size?: number }) => {

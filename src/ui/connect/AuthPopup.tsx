@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { OmniWallet } from "../../OmniWallet";
+import { OmniWallet } from "../../core/OmniWallet";
 import Popup, { present } from "../Popup";
 import { PopupButton } from "../styles";
 

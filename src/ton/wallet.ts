@@ -4,8 +4,8 @@ import { JettonVerificationType } from "@ton-api/client";
 import { toUserFriendlyAddress } from "@tonconnect/ui";
 import { base58, base64, hex } from "@scure/base";
 
-import { OmniWallet } from "../OmniWallet";
-import { WalletType } from "../core/chains";
+import { OmniWallet } from "../core/OmniWallet";
+import { Network, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Token } from "../core/token";
 
@@ -40,31 +40,37 @@ class TonWallet extends OmniWallet {
     return this.wallet.account.publicKey.toLowerCase();
   }
 
-  async fetchBalances(): Promise<Record<string, bigint>> {
-    const native = await this.fetchBalance(1111, "native");
-    const { balances } = await tonApi.accounts.getAccountJettonsBalances(Address.parse(this.address), { supported_extensions: ["custom_payload"] });
-    const list: Record<string, bigint> = {};
+  async fetchBalances(chain: number): Promise<Record<string, bigint>> {
+    if (chain === Network.Omni) return await super.fetchBalances(chain);
+    try {
+      return await super.fetchBalances(chain);
+    } catch {
+      const native = await this.fetchBalance(chain, "native");
+      const { balances } = await tonApi.accounts.getAccountJettonsBalances(Address.parse(this.address), { supported_extensions: ["custom_payload"] });
+      const list: Record<string, bigint> = {};
 
-    balances.map((data) => {
-      const jetton = data.jetton.address.toString();
-      const isScam = data.walletAddress.isScam || data.jetton.verification === JettonVerificationType.Blacklist;
-      if (isScam) return;
-      list[jetton] = BigInt(data.balance);
-    });
+      balances.map((data) => {
+        const jetton = data.jetton.address.toString();
+        if (data.walletAddress.isScam || data.jetton.verification === JettonVerificationType.Blacklist) return;
+        list[jetton] = BigInt(data.balance);
+      });
 
-    return { ...list, native };
+      Object.entries(list).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, balance));
+      return { ...list, native };
+    }
   }
 
-  async fetchBalance(_: number, address: string) {
+  async fetchBalance(chain: number, address: string) {
+    if (chain !== Network.Ton) return super.fetchBalance(chain, address);
     const owner = Address.parse(this.address);
 
     if (address === "native") {
       const balance = await tonApi.accounts.getAccount(owner);
-      return BigInt(balance.balance);
+      return this.setBalance(`${Network.Ton}:${address}`, BigInt(balance.balance));
     }
 
     const jetton = await tonApi.accounts.getAccountJettonBalance(owner, Address.parse(address), { supported_extensions: ["custom_payload"] });
-    return BigInt(jetton.balance);
+    return this.setBalance(`${Network.Ton}:${address}`, BigInt(jetton.balance));
   }
 
   async waitNextSeqno(seqno: number): Promise<number> {

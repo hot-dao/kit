@@ -73,7 +73,7 @@ export class Token {
   }
 
   get isMainOmni() {
-    if (this.chain !== Network.Hot) return false;
+    if (this.chain !== Network.Omni) return false;
     return Object.values(OmniToken).some((token) => this.address === token);
   }
 
@@ -90,7 +90,7 @@ export class Token {
     if (this.chain === Network.Juno) return 0.01;
 
     if (this.address !== "native") return 0;
-    if (this.chain === Network.Hot) return 0;
+    if (this.chain === Network.Omni) return 0;
     if (this.chain === Network.Ton) return 0.01;
     if (this.chain === Network.Stellar) return 0;
     if (this.chain === Network.Solana) return 0.001;
@@ -102,7 +102,7 @@ export class Token {
   }
 
   get icon() {
-    if (this.chain === Network.Hot) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
+    if (this.chain === Network.Omni) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
     return `https://storage.herewallet.app/ft/${this.id.toLowerCase()}.png`;
   }
 

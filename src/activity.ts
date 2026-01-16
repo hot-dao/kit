@@ -3,8 +3,8 @@ import { computed, makeObservable, observable, runInAction } from "mobx";
 import { hex } from "@scure/base";
 
 import { chains, Network, WalletType } from "./core";
+import { OmniWallet } from "./core/OmniWallet";
 import { HotConnector } from "./HotConnector";
-import { OmniWallet } from "./OmniWallet";
 
 export class Activity {
   withdrawals: Record<number, (WithdrawArgsWithPending & { loading?: boolean })[]> = {};
@@ -25,7 +25,7 @@ export class Activity {
 
       if (withdrawal.chain === Network.Stellar) {
         if (!this.kit.stellar) throw new Error("Stellar wallet not connected");
-        await this.kit.hotBridge.stellar.withdraw({
+        await this.kit.exchange.bridge.stellar.withdraw({
           sendTransaction: (tx: any) => this.kit.stellar!.sendTransaction(tx),
           sender: this.kit.stellar.address,
           ...withdrawal,
@@ -34,7 +34,7 @@ export class Activity {
 
       if (withdrawal.chain === Network.Solana) {
         if (!this.kit.solana) throw new Error("Solana wallet not connected");
-        const solana = await this.kit.hotBridge.solana();
+        const solana = await this.kit.exchange.bridge.solana();
         await solana.withdraw({
           sendTransaction: (tx: any) => this.kit.solana!.sendTransaction(tx),
           sender: this.kit.solana.address,
@@ -44,7 +44,7 @@ export class Activity {
 
       if (withdrawal.chain === Network.Ton || withdrawal.chain === Network.OmniTon) {
         if (!this.kit.ton) throw new Error("Ton wallet not connected");
-        await this.kit.hotBridge.ton.withdraw({
+        await this.kit.exchange.bridge.ton.withdraw({
           sendTransaction: (tx: any) => this.kit.ton!.sendTransaction(tx),
           refundAddress: this.kit.ton.address,
           ...withdrawal,
@@ -53,15 +53,15 @@ export class Activity {
 
       if (chains.get(withdrawal.chain).type === WalletType.EVM) {
         if (!this.kit.evm) throw new Error("EVM wallet not connected");
-        await this.kit.hotBridge.evm.withdraw({
-          sendTransaction: (tx: any) => this.kit.evm!.sendTransaction(withdrawal.chain, tx),
+        await this.kit.exchange.bridge.evm.withdraw({
+          sendTransaction: (tx: any) => this.kit.evm!.sendTransaction(tx),
           ...withdrawal,
         });
       }
 
       if (withdrawal.chain === Network.Gonka) {
         if (!this.kit.cosmos) throw new Error("Gonka wallet not connected");
-        const cosmos = await this.kit.hotBridge.cosmos();
+        const cosmos = await this.kit.exchange.bridge.cosmos();
         await cosmos.withdraw({
           sendTransaction: (tx: any) => this.kit.cosmos!.sendTransaction(tx),
           senderPublicKey: hex.decode(this.kit.cosmos.publicKey!),
@@ -70,7 +70,7 @@ export class Activity {
         });
       }
 
-      await this.kit.hotBridge.clearPendingWithdrawals([withdrawal]).catch(() => {});
+      await this.kit.exchange.bridge.clearPendingWithdrawals([withdrawal]).catch(() => {});
     } finally {
       runInAction(() => (withdrawal.loading = false));
       const wallet = this.kit.wallets.find((w) => w.type === chains.get(withdrawal.chain).type);
@@ -85,7 +85,7 @@ export class Activity {
   }
 
   async fetchPendingWithdrawalsByChain(chain: number, wallet: OmniWallet) {
-    const pendings = await this.kit.hotBridge.getPendingWithdrawalsWithStatus(chain, wallet.address);
+    const pendings = await this.kit.exchange.bridge.getPendingWithdrawalsWithStatus(chain, wallet.address);
     runInAction(() => (this.withdrawals[chain] = pendings.filter((t) => !t.completed)));
   }
 }

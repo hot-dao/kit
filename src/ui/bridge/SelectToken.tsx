@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
 import { HotConnector } from "../../HotConnector";
-import { OmniWallet } from "../../OmniWallet";
+import { OmniWallet } from "../../core/OmniWallet";
 
 import { Network, OmniToken } from "../../core/chains";
 import { formatter } from "../../core/utils";
@@ -44,7 +44,7 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
     });
 
     const sorted = Object.values(chains).sort((a, b) => {
-      if (a.chain === Network.Hot) return -1;
+      if (a.chain === Network.Omni) return -1;
       return b.balance - a.balance;
     });
 
@@ -95,7 +95,7 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
       <SearchInput type="text" placeholder="Search token" onChange={(e) => setSearch(e.target.value)} />
       {hot.walletsTokens
         .filter(({ token, balance }) => {
-          if (token.chain !== Network.Hot) return false;
+          if (token.chain !== Network.Omni) return false;
           if (token.float(balance) < 0.0001) return false;
           if (!token.symbol.toLowerCase().includes(search.toLowerCase())) return false;
           used.add(token.address);

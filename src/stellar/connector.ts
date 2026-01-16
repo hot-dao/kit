@@ -1,10 +1,10 @@
 import { Transaction } from "@stellar/stellar-base";
 
 import HOT from "../hot-wallet/iframe";
-import { WalletType } from "../core/chains";
-import { HotConnector } from "../HotConnector";
-import { ConnectorType, OmniConnector } from "../OmniConnector";
+import type { HotConnector } from "../HotConnector";
 
+import { WalletType } from "../core/chains";
+import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import { FreighterModule } from "./freigher";
 import { HotWalletModule } from "./hotWallet";
 import StellarWallet from "./wallet";
@@ -56,7 +56,8 @@ class StellarConnector extends OmniConnector<StellarWallet> {
   async selectWallet(address: string, wallet: HotWalletModule | FreighterModule) {
     const signMessage = async (message: string) => wallet.signMessage(message);
     const signTransaction = async (transaction: Transaction) => wallet.signTransaction(transaction.toXDR());
-    return this.setWallet(new StellarWallet({ address, rpc: this.wibe3.hotBridge.stellar, signMessage, signTransaction }));
+    const instance = new StellarWallet({ address, rpc: this.wibe3.exchange.bridge.stellar, signMessage, signTransaction });
+    return this.setWallet(instance);
   }
 
   async connect(id: string) {

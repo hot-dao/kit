@@ -1,7 +1,8 @@
 import "dotenv/config";
 
 import { base58 } from "@scure/base";
-import { Intents, Recipient, WalletType, tokens, Ed25519Wallet, OmniToken } from "@hot-labs/kit/core";
+import { Recipient, WalletType, tokens, OmniToken, Network } from "../src/core";
+import { NearWallet } from "../src/near";
 
 if (!process.env.ED25519_PRIVATE_KEY_BASE58) {
   throw new Error("ED25519_PRIVATE_KEY_BASE58 is not set in .env file");
@@ -15,22 +16,23 @@ const PRIVATE_KEY = base58.decode(process.env.ED25519_PRIVATE_KEY_BASE58);
 const SIGNER_ID = process.env.ED25519_NEAR_SIGNER_ID;
 
 const main = async () => {
-  const wallet = new Ed25519Wallet(Buffer.from(PRIVATE_KEY), SIGNER_ID);
+  const wallet = await NearWallet.fromPrivateKey(Buffer.from(PRIVATE_KEY), SIGNER_ID);
 
   const token = tokens.get(OmniToken.NEAR);
-  const assets = await wallet.getAssets();
+  const assets = await wallet.fetchBalance(Network.Omni, OmniToken.NEAR);
   console.log("NEAR balance:", token.float(assets[token.omniAddress]));
 
-  const recipient = await Recipient.fromAddress(WalletType.NEAR, SIGNER_ID);
-  const hash = await Intents.builder(wallet)
+  const recipient = await Recipient.fromAddress(WalletType.NEAR, "azbang69.near");
+  const hash = await wallet
+    .intents()
     .transfer({
       recipient: recipient.omniAddress,
       token: OmniToken.NEAR,
-      amount: 0.1,
+      amount: 1n,
     })
     .execute();
 
-  console.log("0.1 NEAR Transfer Hash:", hash);
+  console.log("1 yoctoNEAR Transfer Hash:", hash);
 };
 
 main();

@@ -2,14 +2,15 @@ import { computed, makeObservable, observable, runInAction } from "mobx";
 
 import packageJson from "../package.json";
 
+import { Exchange } from "./core/exchange";
+import { Telemetry } from "./core/telemetry";
+import { OmniWallet } from "./core/OmniWallet";
 import { ChainConfig, chains, Network, WalletType } from "./core/chains";
-import { createHotBridge, HotBridge } from "./core/bridge";
 import { EventEmitter } from "./core/events";
 import { Recipient } from "./core/recipient";
 import { OmniToken } from "./core/chains";
 import { Intents } from "./core/Intents";
 import { tokens } from "./core/tokens";
-import { Telemetry } from "./core/telemetry";
 import { Token } from "./core/token";
 import { api } from "./core/api";
 import { rpc } from "./near/rpc";
@@ -23,11 +24,9 @@ import type StellarWallet from "./stellar/wallet";
 import type TonWallet from "./ton/wallet";
 
 import { openBridge, openConnector, openProfile, openWalletPicker } from "./ui/router";
-import { ConnectorType, OmniConnector } from "./OmniConnector";
-import { OmniWallet } from "./OmniWallet";
-import { Exchange } from "./exchange";
-import { Activity } from "./activity";
+import { ConnectorType, OmniConnector } from "./core/OmniConnector";
 import { DataStorage, LocalStorage } from "./storage";
+import { Activity } from "./activity";
 
 interface HotConnectorOptions {
   apiKey: string;
@@ -48,13 +47,10 @@ interface HotConnectorOptions {
 export class HotConnector {
   public storage: DataStorage;
   public connectors: OmniConnector[] = [];
-  public balances: Record<string, Record<string, bigint>> = {};
   public telemetry: Telemetry;
-
-  public activity: Activity;
-  public hotBridge: HotBridge;
   public exchange: Exchange;
 
+  public activity: Activity;
   public version = packageJson.version;
 
   private events = new EventEmitter<{
@@ -71,8 +67,6 @@ export class HotConnector {
 
   constructor(options?: HotConnectorOptions) {
     makeObservable(this, {
-      balances: observable,
-
       priorityWallet: computed,
       walletsTokens: computed,
       wallets: computed,
@@ -93,9 +87,8 @@ export class HotConnector {
 
     this.storage = options?.storage ?? new LocalStorage();
     this.telemetry = new Telemetry(this);
-    this.hotBridge = createHotBridge();
-    this.exchange = new Exchange(this);
     this.activity = new Activity(this);
+    this.exchange = new Exchange();
 
     const connectors: OmniConnector[] = [];
     const configConnectors = options?.connectors || defaultConnectors;
@@ -116,21 +109,17 @@ export class HotConnector {
     });
 
     this.onConnect((payload) => {
+      console.log("onConnect", payload.wallet.type);
+      payload.wallet.fetchBalances(Network.Omni);
       this.fetchTokens(payload.wallet);
-      this.fetchOmniTokens(payload.wallet);
-    });
-
-    this.onDisconnect(({ wallet }) => {
-      if (!wallet) return;
-      runInAction(() => (this.balances[`${wallet.type}:${wallet.address}`] = {}));
     });
 
     tokens.startTokenPolling();
   }
 
   setOmniChainBranding(branding: { name: string; icon: string }) {
-    chains.get(Network.Hot).name = branding.name;
-    chains.get(Network.Hot).logo = branding.icon;
+    chains.get(Network.Omni).name = branding.name;
+    chains.get(Network.Omni).logo = branding.icon;
   }
 
   getWalletConnector(type: WalletType): OmniConnector | null {
@@ -228,7 +217,7 @@ export class HotConnector {
       .reduce((acc: number, token: Token) => {
         return this.wallets.reduce((acc: number, wallet) => {
           if (token.chain === chain) return acc;
-          const balance = this.balances[`${wallet.type}:${wallet.address}`][token.id] ?? 0n;
+          const balance = wallet.getBalance(token.id);
           return acc + token.float(balance) * token.usd;
         }, acc);
       }, 0);
@@ -236,7 +225,7 @@ export class HotConnector {
 
   balance(wallet?: OmniWallet, token?: Token) {
     if (!wallet || !token) return 0n;
-    return this.balances[`${wallet.type}:${wallet.address}`]?.[token.id] ?? 0n;
+    return wallet.getBalance(token.id);
   }
 
   omniBalance(token: OmniToken) {
@@ -254,37 +243,10 @@ export class HotConnector {
   }
 
   async fetchToken(token: Token, wallet: OmniWallet) {
-    const key = `${wallet.type}:${wallet.address}`;
-
-    if (token.type === WalletType.OMNI) {
-      if (!wallet.omniAddress) return 0n;
-      const balances = await Intents.getIntentsBalances([token.address], wallet.omniAddress);
-      runInAction(() => (this.balances[key][token.id] = balances[token.address]));
-      return balances[token.address] ?? 0n;
-    }
-
-    if (token.type === wallet.type) {
-      const balance = await wallet.fetchBalance(token.chain, token.address);
-      runInAction(() => (this.balances[key][token.id] = balance));
-      return balance;
-    }
-
-    return 0n;
-  }
-
-  async fetchOmniTokens(wallet: OmniWallet) {
-    const key = `${wallet.type}:${wallet.address}`;
-    const assets = await wallet.getAssets();
-    runInAction(() => {
-      Object.keys(assets).forEach((id) => {
-        this.balances[key][`-4:${id}`] = assets[id];
-      });
-    });
+    return await wallet.fetchBalance(token.chain, token.address);
   }
 
   async fetchTokens(wallet: OmniWallet) {
-    const key = `${wallet.type}:${wallet.address}`;
-    if (!this.balances[key]) runInAction(() => (this.balances[key] = {}));
     const tokensList = (await tokens.getTokens()).filter((t) => t.type === wallet.type && t.type !== WalletType.OMNI);
 
     // Group tokens by their chain
@@ -294,14 +256,8 @@ export class HotConnector {
       return acc;
     }, {} as Record<number, string[]>);
 
-    Object.entries(groups).forEach(async ([chain, tokens]) => {
-      const balances = await wallet.fetchBalances(+chain, tokens);
-      runInAction(() => {
-        for (const [token, balance] of Object.entries(balances)) {
-          this.balances[key][`${chain}:${token}`] = balance;
-        }
-      });
-    });
+    const tasks = Object.entries(groups).map(([chain, tokens]) => wallet.fetchBalances(+chain, tokens));
+    await Promise.allSettled(tasks);
   }
 
   intentsBuilder(wallet?: OmniWallet) {

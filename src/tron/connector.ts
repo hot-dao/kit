@@ -1,6 +1,6 @@
+import type { HotConnector } from "../HotConnector";
+import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
-import { ConnectorType, OmniConnector } from "../OmniConnector";
-import { HotConnector } from "../HotConnector";
 import TronWallet from "./wallet";
 
 declare global {

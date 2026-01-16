@@ -4,7 +4,7 @@ import QRCodeStyling from "qr-code-styling";
 import styled from "styled-components";
 
 import Popup from "../Popup";
-import { WC_ICON } from "../../OmniConnector";
+import { WC_ICON } from "../../core/OmniConnector";
 
 interface WCPopupProps {
   title: string;

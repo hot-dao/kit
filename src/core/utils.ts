@@ -1,3 +1,5 @@
+import { NetworkError, TimeoutNetworkError } from "./api";
+
 type Value = number | bigint | string;
 export const formatter = {
   toReadableNumber(decimals: number | bigint, number: bigint | string = "0"): string {
@@ -107,6 +109,7 @@ export const formatter = {
     if (n < 1_000_000_000_000) return [formatter.round(n / 1_000_000, 2), "M"];
     return [formatter.round(n / 1_000_000_000, 2), "B"];
   },
+
   formatNumber(num: string) {
     let useDelimeter = false;
     let right = "";
@@ -175,5 +178,18 @@ export const formatter = {
       acc[chunkIndex].push(item);
       return acc;
     }, []);
+  },
+
+  serializeError(error: any): string {
+    try {
+      if (error instanceof Error) return error.message;
+      if (error instanceof NetworkError) return error.toString();
+      if (error instanceof TimeoutNetworkError) return error.toString();
+      if (typeof error === "object" && Object.keys(error).length > 0) return JSON.stringify(error);
+      if (typeof error === "string" || typeof error === "number") return error.toString();
+      return "";
+    } catch (error) {
+      return "Unknown error";
+    }
   },
 };

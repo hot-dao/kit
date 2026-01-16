@@ -2,13 +2,13 @@ import { base64, base58, hex, base32 } from "@scure/base";
 import { Address, Asset, BASE_FEE, Claimant, Contract, Memo, nativeToScVal, Networks, Operation, TimeoutInfinite, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-base";
 import { rpc } from "@stellar/stellar-sdk";
 
+import { Commitment } from "../core/types";
 import { WalletType } from "../core/chains";
-import { OmniWallet } from "../OmniWallet";
+import { OmniWallet } from "../core/OmniWallet";
 import { ReviewFee } from "../core/bridge";
 import { formatter } from "../core/utils";
 import { Network } from "../core/chains";
 import { Token } from "../core/token";
-import { Commitment } from "../core";
 
 interface ProtocolWallet {
   address: string;
@@ -52,30 +52,36 @@ class StellarWallet extends OmniWallet {
     return hex.encode(payload.slice(1, -2));
   }
 
-  async fetchBalances(): Promise<Record<string, bigint>> {
-    const data = await fetch(`https://horizon.stellar.org/accounts/${this.address}`).then((res) => res.json());
-    const balances = data.balances?.map((ft: { asset_type: string; sponsor?: string | null; asset_code: string; asset_issuer: string; balance: string }) => {
-      const asset = ft.asset_type === "native" ? Asset.native() : new Asset(ft.asset_code, ft.asset_issuer);
-      const contractId = ft.asset_type === "native" ? "native" : asset.contractId(Networks.PUBLIC);
+  async fetchBalances(chain: number): Promise<Record<string, bigint>> {
+    if (chain === Network.Omni) return await super.fetchBalances(chain);
+    try {
+      return await super.fetchBalances(chain);
+    } catch {
+      const data = await fetch(`https://horizon.stellar.org/accounts/${this.address}`).then((res) => res.json());
+      const balances = data.balances?.map((ft: { asset_type: string; sponsor?: string | null; asset_code: string; asset_issuer: string; balance: string }) => {
+        const asset = ft.asset_type === "native" ? Asset.native() : new Asset(ft.asset_code, ft.asset_issuer);
+        const contractId = ft.asset_type === "native" ? "native" : asset.contractId(Networks.PUBLIC);
 
-      if (contractId === "native") {
-        const activatingReserve = ft.sponsor != null ? 0 : 1;
-        const trustlines = data.balances.filter((t: any) => t.asset_type !== "native" && t.sponsor == null);
-        const balance = BigInt(formatter.parseAmount(ft.balance, 7));
-        const reserved = BigInt(formatter.parseAmount(activatingReserve + 0.5 * (trustlines.length + (data.num_sponsoring || 0)), 7));
-        return [contractId, formatter.bigIntMax(0n, balance - BigInt(reserved))];
-      }
+        if (contractId === "native") {
+          const activatingReserve = ft.sponsor != null ? 0 : 1;
+          const trustlines = data.balances.filter((t: any) => t.asset_type !== "native" && t.sponsor == null);
+          const balance = BigInt(formatter.parseAmount(ft.balance, 7));
+          const reserved = BigInt(formatter.parseAmount(activatingReserve + 0.5 * (trustlines.length + (data.num_sponsoring || 0)), 7));
+          return [contractId, formatter.bigIntMax(0n, balance - BigInt(reserved))];
+        }
 
-      return [contractId, BigInt(formatter.parseAmount(ft.balance, 7))];
-    });
+        return [contractId, BigInt(formatter.parseAmount(ft.balance, 7))];
+      });
 
-    return Object.fromEntries(balances);
+      Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));
+      return Object.fromEntries(balances);
+    }
   }
 
   async fetchBalance(chain: number, token: string): Promise<bigint> {
-    if (chain !== Network.Stellar) throw "Invalid chain";
-    const balances = await this.fetchBalances();
-    return balances[token] || 0n;
+    if (chain !== Network.Stellar) return super.fetchBalance(chain, token);
+    const balances = await this.fetchBalances(chain);
+    return this.setBalance(`${chain}:${token}`, balances[token] || 0n);
   }
 
   async transferFee(token: Token): Promise<ReviewFee> {

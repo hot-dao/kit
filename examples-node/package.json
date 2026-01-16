@@ -7,7 +7,8 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "transfer": "npx tsx transfer.ts"
+    "transfer": "npx tsx transfer.ts",
+    "withdraw": "npx tsx withdraw.ts"
   },
   "dependencies": {
     "@hot-labs/kit": "1.3.3",

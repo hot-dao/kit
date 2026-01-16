@@ -4,23 +4,23 @@ import { useState } from "react";
 
 import { ArrowRightIcon } from "../icons/arrow-right";
 
+import { Recipient } from "../../core/recipient";
+import { WalletType } from "../../core/chains";
+import { formatter } from "../../core/utils";
+
+import { PSmall } from "../uikit/text";
 import { ImageView } from "../uikit/image";
+import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 import { PopupOption, PopupOptionInfo } from "../styles";
-import { ConnectorType, OmniConnector } from "../../OmniConnector";
 import { HotConnector } from "../../HotConnector";
 import { openWalletPicker } from "../router";
 import Popup from "../Popup";
 
-import { Recipient } from "../../core/recipient";
-import { WalletType } from "../../core/chains";
-import { formatter } from "../../core/utils";
-import { PSmall } from "../uikit/text";
-
 interface SelectRecipientProps {
-  recipient?: Recipient;
   type: WalletType;
-  onSelect: (recipient?: Recipient) => void;
   hot: HotConnector;
+  recipient?: Recipient;
+  onSelect: (recipient?: Recipient) => void;
   onClose: () => void;
 }
 

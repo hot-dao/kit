@@ -1,11 +1,11 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
 import type { HotConnector } from "../HotConnector";
-import type { OmniWallet } from "../OmniWallet";
+import type { OmniWallet } from "./OmniWallet";
 import { rpc } from "../near/rpc";
 
 import type { Intent, Commitment, TokenDiffIntent, MtWithdrawIntent, FtWithdrawIntent, NftWithdrawIntent, TransferIntent } from "./types";
-import type { BridgeReview } from "../exchange";
+import type { BridgeReview } from "./exchange";
 
 import { OmniToken } from "./chains";
 import { formatter } from "./utils";
@@ -376,6 +376,7 @@ export class Intents {
   }
 
   async simulate() {
+    if (this.unsignedCommitment != null) await this.sign();
     if (this.commitments.length === 0) throw new Error("No commitments attached");
     return await Intents.simulateIntents(this.commitments);
   }
@@ -479,7 +480,7 @@ export class Intents {
 
     const payableToken = tokens.get(Array.from(this.need.keys())[0]);
     const payableAmount = this.need.get(payableToken.omniAddress as OmniToken) || 0n;
-    await this.signer?.waitUntilBalance({ [payableToken.omniAddress]: payableAmount });
+    await this.signer?.waitUntilOmniBalance({ [payableToken.omniAddress]: payableAmount });
 
     await this.execute().finally(() => close());
   }
@@ -516,6 +517,16 @@ export class Intents {
 
     const hash = await fetchResult();
     return hash;
+  }
+
+  static async getPublicKeys(accountId: string): Promise<string[]> {
+    const keys = await rpc.viewMethod({
+      args: { account_id: accountId },
+      methodName: "public_keys_of",
+      contractId: "intents.near",
+    });
+
+    return keys.map((key: string) => key.split(":")[1]);
   }
 
   static async hasPublicKey(accountId: string, publicKey: string): Promise<boolean> {

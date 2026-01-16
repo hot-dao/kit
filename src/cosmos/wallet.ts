@@ -1,5 +1,5 @@
 import { StargateClient } from "@cosmjs/stargate";
-import { OmniWallet } from "../OmniWallet";
+import { OmniWallet } from "../core/OmniWallet";
 import { chains, WalletType } from "../core/chains";
 import { ReviewFee } from "../core/bridge";
 import { Commitment } from "../core";
@@ -48,21 +48,18 @@ export default class CosmosWallet extends OmniWallet {
     throw new Error("Method not implemented.");
   }
 
-  async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
-    const balances = await Promise.all(
-      whitelist.map(async (token) => {
-        const balance = await this.fetchBalance(chain, token);
-        return [token, balance];
-      })
-    );
-    return Object.fromEntries(balances);
+  async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
+    const tasks = whitelist.map(async (token) => [token, await this.fetchBalance(chain, token)]);
+    return Object.fromEntries(await Promise.all(tasks));
   }
 
   async fetchBalance(chain: number, token: string): Promise<bigint> {
     const config = chains.get(chain);
-    if (!config) throw new Error("Config not found");
+    if (!config || config.type !== WalletType.COSMOS) return super.fetchBalance(chain, token);
+
     const client = await StargateClient.connect(config.rpc);
     const balance = await client.getBalance(this.address, token);
-    return BigInt(balance.amount || 0);
+
+    return this.setBalance(`${chain}:${token}`, BigInt(balance.amount || 0));
   }
 }

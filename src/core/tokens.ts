@@ -13,7 +13,7 @@ class TokensStorage {
     makeObservable(this, { list: observable });
   }
 
-  get(id: OmniToken | string, chain = Network.Hot): Token {
+  get(id: OmniToken | string, chain = Network.Omni): Token {
     return this.list.find((t) => t.chain === chain && t.address === id)!;
   }
 

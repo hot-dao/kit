@@ -7,14 +7,14 @@ import {
   getMinimumBalanceForRentExemptAccount,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
-  getAccount,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
   createTransferCheckedInstruction,
+  getAccount,
 } from "@solana/spl-token";
 
 import { Network, WalletType } from "../core/chains";
-import { OmniWallet } from "../OmniWallet";
+import { OmniWallet } from "../core/OmniWallet";
 
 import { Token } from "../core/token";
 import { formatter } from "../core/utils";
@@ -50,17 +50,18 @@ class SolanaWallet extends OmniWallet {
     return hex.encode(base58.decode(this.address)).toLowerCase();
   }
 
-  async fetchBalance(_: number, address: string) {
+  async fetchBalance(chain: number, address: string) {
+    if (chain !== Network.Solana) return super.fetchBalance(chain, address);
     const connection = this.getConnection();
 
     if (address === "native") {
       const balance = await connection.getBalance(new PublicKey(this.address));
-      return BigInt(balance);
+      return this.setBalance(`${chain}:${address}`, BigInt(balance));
     }
 
     const ATA = getAssociatedTokenAddressSync(new PublicKey(address), new PublicKey(this.address));
     const meta = await connection.getTokenAccountBalance(ATA);
-    return BigInt(meta.value.amount);
+    return this.setBalance(`${chain}:${address}`, BigInt(meta.value.amount));
   }
 
   async buildTranferInstructions(token: Token, amount: bigint, receiver: string, fee: ReviewFee) {
@@ -174,15 +175,13 @@ class SolanaWallet extends OmniWallet {
     return await this.wallet.sendTransaction(transaction, connection, { preflightCommitment: "confirmed" });
   }
 
-  async fetchBalances(chain: number, whitelist: string[]): Promise<Record<string, bigint>> {
-    const native = await this.fetchBalance(chain, "native");
-    const connection = this.getConnection();
-
+  async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
+    if (chain === Network.Omni) return await super.fetchBalances(chain, whitelist);
     try {
-      const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist }), method: "POST" });
-      const { balances } = await res.json();
-      return { ...balances, native };
+      return await super.fetchBalances(chain, whitelist);
     } catch {
+      const connection = this.getConnection();
+      const native = await this.fetchBalance(chain, "native");
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(this.address), { programId: TOKEN_PROGRAM_ID });
       const balances = Object.fromEntries(
         tokenAccounts.value.map((account) => {
@@ -191,6 +190,7 @@ class SolanaWallet extends OmniWallet {
         })
       );
 
+      Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));
       return { ...balances, native };
     }
   }

@@ -1,6 +1,7 @@
 import { NearConnector as NearConnectorBase } from "@hot-labs/near-connect";
 
-import { HotConnector } from "../HotConnector";
+import type { HotConnector } from "../HotConnector";
+
 import NearConnector from "./connector";
 import NearWallet from "./wallet";
 

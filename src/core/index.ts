@@ -4,7 +4,7 @@ export { OmniToken, WalletType, Network } from "./chains";
 
 export { chains } from "./chains";
 export { createHotBridge, HotBridge, ReviewFee } from "./bridge";
-export { Secp256k1Wallet, Ed25519Wallet } from "./signer";
+export { Exchange } from "./exchange";
 export { EventEmitter } from "./events";
 export { Recipient } from "./recipient";
 export { formatter } from "./utils";

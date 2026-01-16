@@ -6,9 +6,9 @@ import { runInAction } from "mobx";
 
 import { api } from "../core/api";
 import { chains, WalletType } from "../core/chains";
-import { ConnectorType, OmniConnector, OmniConnectorOption, WC_ICON } from "../OmniConnector";
+import { ConnectorType, OmniConnector, OmniConnectorOption, WC_ICON } from "../core/OmniConnector";
 import { HotConnector } from "../HotConnector";
-import { OmniWallet } from "../OmniWallet";
+import { OmniWallet } from "../core/OmniWallet";
 
 import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
@@ -80,7 +80,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     });
 
     this.initWalletConnect()
-      .then(async (wc) => {
+      .then(async () => {
         this.options.unshift({
           download: "https://www.walletconnect.com/get",
           name: "WalletConnect",

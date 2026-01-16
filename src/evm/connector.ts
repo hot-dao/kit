@@ -1,10 +1,10 @@
 import { runInAction } from "mobx";
 
 import HOT from "../hot-wallet/iframe";
-import { Network, WalletType } from "../core/chains";
-import { ConnectorType, OmniConnector, WC_ICON } from "../OmniConnector";
-import { HotConnector } from "../HotConnector";
+import type { HotConnector } from "../HotConnector";
 
+import { Network, WalletType } from "../core/chains";
+import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
 import EvmWallet, { EvmProvider } from "./wallet";
 
 class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
@@ -44,13 +44,19 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
     window.dispatchEvent(new Event("eip6963:requestProvider"));
 
     this.initWalletConnect()
-      .then((wc) => {
-        this.options.unshift({ id: "walletconnect", name: "WalletConnect", icon: WC_ICON, provider: {} as any, type: "external" });
+      .then(() => {
+        this.options.unshift({
+          id: "walletconnect",
+          name: "WalletConnect",
+          provider: {} as any,
+          type: "external",
+          icon: WC_ICON,
+        });
       })
       .catch(() => {});
 
     this.wc
-      ?.then(async (wc) => {
+      ?.then(async () => {
         const selected = await this.getConnectedWallet();
         if (selected.id !== "walletconnect") return;
         this.setupWalletConnect();

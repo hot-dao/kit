@@ -1,8 +1,8 @@
 import { observer } from "mobx-react-lite";
 
-import { OmniWallet } from "../../OmniWallet";
+import { OmniWallet } from "../../core/OmniWallet";
 import { HotConnector } from "../../HotConnector";
-import { ConnectorType, OmniConnector } from "../../OmniConnector";
+import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 
 import { formatter } from "../../core/utils";
 import { WalletType } from "../../core";

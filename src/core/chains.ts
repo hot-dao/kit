@@ -34,7 +34,7 @@ export enum WalletType {
 
 export enum Network {
   Omni_v1 = 0,
-  Hot = -4,
+  Omni = -4,
 
   Zcash = -5,
   Btc = -6,
@@ -332,13 +332,13 @@ const chainsRepository: Record<number, ChainConfig> = {
     rpc: rpc(Network.Xlayer),
     type: WalletType.EVM,
   },
-  [Network.Hot]: {
-    id: Network.Hot,
+  [Network.Omni]: {
+    id: Network.Omni,
     key: "hot",
     name: "Omni",
     logo: "https://tgapp.herewallet.app/images/hot/hot-icon.png",
-    currency: { id: "native", symbol: "OMNI", decimals: 6, logo: logo(Network.Hot) },
-    rpc: rpc(Network.Hot),
+    currency: { id: "native", symbol: "OMNI", decimals: 6, logo: logo(Network.Omni) },
+    rpc: rpc(Network.Omni),
     type: WalletType.OMNI,
   },
   [Network.Cardano]: {

@@ -10,9 +10,8 @@ import { formatter } from "../../core/utils";
 import { OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
 
-import { openBridge, openConnector } from "../router";
 import { HotConnector } from "../../HotConnector";
-
+import { openBridge, openConnector } from "../router";
 import { TokenCard, TokenIcon } from "../bridge/TokenCard";
 import { ImageView } from "../uikit/image";
 import { Loader } from "../uikit/loader";

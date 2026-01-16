@@ -2,6 +2,10 @@ import { api } from "./api";
 import { HotConnector } from "../HotConnector";
 import { formatter } from "./utils";
 
+export interface ILogger {
+  log: (message: string) => void;
+}
+
 export class Telemetry {
   events: { event: string; value_str?: string; value_float?: number; ts: number }[] = [];
   constructor(readonly wibe3: HotConnector) {
