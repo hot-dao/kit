@@ -4,6 +4,7 @@ import { hex, base32, base58 } from "@scure/base";
 import { type OmniWallet } from "./OmniWallet";
 import { tonApi } from "../ton/utils";
 import { WalletType } from "./chains";
+import { isValidAddress } from "./address";
 
 export class Recipient {
   constructor(readonly type: WalletType, readonly address: string, readonly omniAddress: string) {}
@@ -13,7 +14,13 @@ export class Recipient {
     return new Recipient(wallet.type, wallet.address, wallet.omniAddress);
   }
 
+  static isValidAddress(type: WalletType, address: string) {
+    return isValidAddress(type, address);
+  }
+
   static async fromAddress(type: WalletType, address: string) {
+    if (!isValidAddress(type, address)) throw new Error("Invalid address");
+
     if (type === WalletType.TON) {
       const data = await tonApi.accounts.getAccountPublicKey(Address.parse(address));
       return new Recipient(WalletType.TON, address, data.publicKey.toLowerCase());

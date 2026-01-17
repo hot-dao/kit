@@ -261,7 +261,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange successful</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} successful</p>
         </div>
         <PopupButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
           Continue
@@ -276,7 +276,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
         <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>Exchange failed</p>
+          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} failed</p>
           <p style={{ fontSize: 14 }}>{processing.message}</p>
         </div>
         <ActionButton onClick={() => (cancelReview(), onClose())}>Continue</ActionButton>

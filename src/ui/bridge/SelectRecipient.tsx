@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ArrowRightIcon } from "../icons/arrow-right";
 
 import { Recipient } from "../../core/recipient";
-import { WalletType } from "../../core/chains";
+import { chains, WalletType } from "../../core/chains";
 import { formatter } from "../../core/utils";
 
 import { PSmall } from "../uikit/text";
@@ -27,6 +27,8 @@ interface SelectRecipientProps {
 export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClose }: SelectRecipientProps) => {
   const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const [customAddress, setCustomAddress] = useState<string>(recipient?.address || "");
+
+  const isError = !Recipient.isValidAddress(type, customAddress) && customAddress.length > 0;
 
   const selectCustom = async () => {
     const recipient = await Recipient.fromAddress(type, customAddress);
@@ -55,14 +57,17 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
 
       {type !== WalletType.OMNI && (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "12px 0" }}>
-            <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
-            <PSmall>OR</PSmall>
-            <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
-          </div>
+          {connectors.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "12px 0" }}>
+              <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
+              <PSmall>OR</PSmall>
+              <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.1)" }}></div>
+            </div>
+          )}
+
           <div style={{ width: "100%" }}>
             <PSmall style={{ textAlign: "left" }}>Enter recipient address, avoid CEX</PSmall>
-            <CustomRecipient>
+            <CustomRecipient $error={isError}>
               <input //
                 type="text"
                 placeholder="Enter wallet address"
@@ -73,6 +78,8 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
                 Select
               </button>
             </CustomRecipient>
+
+            {isError && <PSmall style={{ marginTop: 4, textAlign: "left", color: "#F34747" }}>Invalid {chains.get(type)?.name} address</PSmall>}
           </div>
         </>
       )}
@@ -80,10 +87,10 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
   );
 });
 
-const CustomRecipient = styled.div`
+const CustomRecipient = styled.div<{ $error: boolean }>`
   display: flex;
   align-items: center;
-  border: 1px solid #2d2d2d;
+  border: 1px solid ${({ $error }) => ($error ? "#F34747" : "#2d2d2d")};
   border-radius: 12px;
   overflow: hidden;
   margin-top: 8px;
