@@ -104,7 +104,7 @@ export default class NearWallet extends OmniWallet {
           params: {
             methodName: "storage_deposit",
             args: { account_id: this.address, registration_only: true },
-            deposit: String(1n),
+            deposit: `12500000000000000000000`,
             gas: String(30n * TGAS),
           },
         },
