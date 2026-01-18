@@ -66,7 +66,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   } | null>(needAmount === 0n ? { step: "transfer" } : null);
 
   const paymentTitle = title || `Pay ${payableToken.readable(needAmount)} ${payableToken.symbol}`;
-  const showPrepaidToken = payableToken.float(prepaidAmount) * payableToken.usd >= 0.01;
+  const showPrepaidToken = payableToken.float(prepaidAmount) >= 0.001;
 
   const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
@@ -74,7 +74,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
     try {
       setFlow({ token: from, wallet, review: undefined, step: "sign" });
       const insurance = (needAmount * BigInt(Math.floor(PAY_SLIPPAGE * 1000))) / BigInt(1000);
-      const extra = connector.exchange.isDirectDeposit(from, payableToken) ? insurance : 0n;
+      const extra = connector.exchange.isDirectDeposit(from, payableToken) ? 0n : insurance;
       const review = await connector.exchange.reviewSwap({
         recipient: intents.signer!,
         amount: needAmount + extra,
@@ -271,7 +271,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
     if (excludedTokens != null && excludedTokens?.includes(token.id)) return null;
 
     // same token as need and enough balance is direct deposit
-    if (token.originalChain === payableToken.originalChain && token.originalAddress === payableToken.originalAddress && availableBalance >= payableToken.float(needAmount)) {
+    if (token.originalId === payableToken.originalId && availableBalance >= payableToken.float(needAmount)) {
       return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
     }
 

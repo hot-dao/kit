@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import styled from "styled-components";
 import { observer } from "mobx-react-lite";
+import styled from "styled-components";
 import uuid4 from "uuid4";
 
-import RefreshIcon from "../icons/refresh";
 import { ArrowRightIcon } from "../icons/arrow-right";
+import ExchangeIcon from "../icons/exchange";
+import RefreshIcon from "../icons/refresh";
 
 import { HotConnector } from "../../HotConnector";
+import { chains, WalletType } from "../../core/chains";
 import { BridgeReview } from "../../core/exchange";
 import { OmniWallet } from "../../core/OmniWallet";
-
-import { chains, WalletType } from "../../core/chains";
 import { Recipient } from "../../core/recipient";
 import { formatter } from "../../core/utils";
 import { tokens } from "../../core/tokens";
@@ -20,10 +20,8 @@ import { ActionButton, Button } from "../uikit/button";
 import { PLarge, PSmall, PTiny } from "../uikit/text";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
-import ExchangeIcon from "../icons/exchange";
 
 import Popup from "../Popup";
-import { PopupButton } from "../styles";
 import { openSelectRecipient, openSelectSender, openSelectTokenPopup, openWalletPicker } from "../router";
 import DepositQR from "../profile/DepositQR";
 import { TokenIcon } from "./TokenCard";
@@ -263,9 +261,9 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} successful</p>
         </div>
-        <PopupButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
+        <ActionButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
           Continue
-        </PopupButton>
+        </ActionButton>
       </Popup>
     );
   }
@@ -285,9 +283,9 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   }
 
   const button = () => {
-    if (sender == null) return <PopupButton disabled>Set sender</PopupButton>;
-    if (recipient == null) return <PopupButton disabled>Set recipient</PopupButton>;
-    if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <PopupButton disabled>Insufficient balance</PopupButton>;
+    if (sender == null) return <ActionButton disabled>Set sender</ActionButton>;
+    if (recipient == null) return <ActionButton disabled>Set recipient</ActionButton>;
+    if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
     return (
       <ActionButton style={{ width: "100%", marginTop: 40 }} disabled={isReviewing || isError != null} onClick={handleConfirm}>
         {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}

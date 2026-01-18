@@ -1,6 +1,6 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 
-export const ActionButton = styled.button`
+export const ActionButton = styled.button<{ $stroke?: boolean }>`
   display: flex;
   padding: 0 24px;
   border-radius: 12px;
@@ -11,6 +11,7 @@ export const ActionButton = styled.button`
   transition: background 0.2s ease-in-out;
   height: 48px;
   min-height: 48px;
+  max-height: 48px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -36,6 +37,25 @@ export const ActionButton = styled.button`
     color: #828282;
     cursor: not-allowed;
   }
+
+  ${(p) =>
+    p.$stroke &&
+    css`
+      background: transparent;
+      border: 1px solid #d2d2d2;
+      color: #fff;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid #fff;
+      }
+
+      &:disabled {
+        background: transparent;
+        border: 1px solid #3e3e3e;
+        color: #828282;
+      }
+    `}
 `;
 
 export const Button = styled.button`

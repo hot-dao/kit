@@ -77,7 +77,7 @@ export enum Network {
   Manta = 169,
   Kava = 2222,
   ZkSync = 324,
-  Monad = 10_143,
+  Monad = 143,
   Metis = 1088,
   Gnosis = 100,
   Fantom = 250,

@@ -79,7 +79,7 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
               </button>
             </CustomRecipient>
 
-            {isError && <PSmall style={{ marginTop: 4, textAlign: "left", color: "#F34747" }}>Invalid {chains.get(type)?.name} address</PSmall>}
+            {isError && <PSmall style={{ marginTop: 4, textAlign: "left", color: "#F34747" }}>Invalid {type === WalletType.EVM ? "EVM" : chains.get(type)?.name} address</PSmall>}
           </div>
         </>
       )}

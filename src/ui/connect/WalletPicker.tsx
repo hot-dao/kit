@@ -2,9 +2,13 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 
 import { ImageView } from "../uikit/image";
+import { ActionButton } from "../uikit/button";
+import { H4, PMedium } from "../uikit/text";
+
 import { OmniWallet } from "../../core/OmniWallet";
 import { OmniConnector, OmniConnectorOption } from "../../core/OmniConnector";
-import { PopupButton, PopupOption, PopupOptionInfo } from "../styles";
+import { PopupOption, PopupOptionInfo } from "../styles";
+
 import { WCPopup } from "./WCPopup";
 import Popup from "../Popup";
 
@@ -21,6 +25,31 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
+  const connectWallet = async (connector: OmniConnector, wallet: OmniConnectorOption) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setWallet(wallet);
+
+      const instance = await connector.connect(wallet.id);
+      if (typeof instance === "object" && "qrcode" in instance) {
+        setQrcode({ uri: instance.qrcode, deeplink: instance.deeplink, icon: connector.icon });
+        const wallet = await instance.task;
+        onSelect?.(wallet);
+        onClose();
+        return;
+      }
+
+      onSelect?.(instance);
+      onClose();
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (qrcode) {
     return (
       <WCPopup //
@@ -36,14 +65,21 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
   if (wallet != null) {
     return (
       <Popup onClose={onClose}>
-        <div style={{ width: "100%", height: 300, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 0 }}>
-          <ImageView style={{ marginTop: "auto" }} src={wallet.icon} alt={wallet.name} size={100} />
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 0 }}>
+          <ImageView style={{ marginTop: 32 }} src={wallet.icon} alt={wallet.name} size={100} />
 
-          <h3 style={{ fontSize: 32, margin: "12px 0 0", fontWeight: "bold", textAlign: "center" }}>{wallet.name}</h3>
-          <p style={{ textAlign: "center" }}>{error}</p>
-          <PopupButton disabled={loading} style={{ marginTop: "auto" }} onClick={() => window.open(wallet.download, "_blank")}>
+          <H4 style={{ marginTop: 12, textAlign: "center" }}>{wallet.name}</H4>
+          <PMedium style={{ textAlign: "center" }}>{error}</PMedium>
+
+          <ActionButton disabled={loading} style={{ marginTop: 32 }} onClick={() => window.open(wallet.download, "_blank")}>
             {loading ? "Connecting..." : "Get wallet"}
-          </PopupButton>
+          </ActionButton>
+
+          {!!error && !loading && (
+            <ActionButton $stroke style={{ marginTop: 8 }} onClick={() => connectWallet(connector!, wallet)}>
+              Try again
+            </ActionButton>
+          )}
         </div>
       </Popup>
     );
@@ -51,35 +87,9 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
 
   if (connector != null) {
     return (
-      <Popup header={<p>Select wallet</p>} onClose={onClose}>
+      <Popup header={<p>Select {connector.name}</p>} onClose={onClose}>
         {connector.options.map((wallet) => (
-          <PopupOption
-            key={wallet.id}
-            onClick={async () => {
-              try {
-                setLoading(true);
-                setError(null);
-                setWallet(wallet);
-
-                const instance = await connector.connect(wallet.id);
-                if (typeof instance === "object" && "qrcode" in instance) {
-                  setQrcode({ uri: instance.qrcode, deeplink: instance.deeplink, icon: connector.icon });
-                  const wallet = await instance.task;
-                  onSelect?.(wallet);
-                  onClose();
-                  return;
-                }
-
-                onSelect?.(instance);
-                onClose();
-              } catch (e) {
-                console.error(e);
-                setError(e instanceof Error ? e.message : "Unknown error");
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
+          <PopupOption key={wallet.id} onClick={() => connectWallet(connector, wallet)}>
             <ImageView src={wallet.icon} alt={wallet.name} size={44} />
             <PopupOptionInfo className="connect-item-info">
               <p style={{ fontSize: 20, fontWeight: "bold" }}>{wallet.name}</p>

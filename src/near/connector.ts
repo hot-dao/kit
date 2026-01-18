@@ -54,11 +54,15 @@ class Connector extends OmniConnector<NearWallet> {
   }
 
   async connect(id: string) {
-    const wallet = await this.connector.connect(id);
-    if (!wallet) throw new Error("Wallet not found");
-    const [account] = await wallet.getAccounts();
+    const instance = await this.connector.connect(id);
+    if (!instance) throw new Error("Wallet not found");
+
+    const [account] = await instance.getAccounts();
     if (!account) throw new Error("No account found");
-    return this.setWallet(new NearWallet(account.accountId, account.publicKey, wallet));
+
+    const wallet = this.wallets.find((t) => t.address === account.accountId);
+    if (!wallet) throw new Error("Wallet not found");
+    return wallet;
   }
 
   async disconnect() {

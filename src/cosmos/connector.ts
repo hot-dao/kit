@@ -4,12 +4,12 @@ import { StargateClient } from "@cosmjs/stargate";
 import { base64, hex } from "@scure/base";
 import { runInAction } from "mobx";
 
-import { api } from "../core/api";
-import { chains, WalletType } from "../core/chains";
 import { ConnectorType, OmniConnector, OmniConnectorOption, WC_ICON } from "../core/OmniConnector";
-import { HotConnector } from "../HotConnector";
+import { chains, WalletType } from "../core/chains";
 import { OmniWallet } from "../core/OmniWallet";
+import { api } from "../core/api";
 
+import type { HotConnector } from "../HotConnector";
 import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
 
@@ -118,13 +118,28 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       publicKey = Buffer.from(account.pubKey, "base64").toString("hex");
       address = account.bech32Address || "";
     } else {
-      const data = await wc.request({ method: "cosmos_getAccounts", params: { chainId: "gonka-mainnet" } });
-      if (!Array.isArray(data) || data.length === 0) throw new Error("Account not found");
-      publicKey = hex.encode(base64.decode(data[0].pubkey));
-      address = data[0].address;
+      const savedAccount = await this.getStorage().catch(() => null);
+      if (savedAccount?.address && savedAccount?.publicKey) {
+        publicKey = savedAccount.publicKey;
+        address = savedAccount.address;
+      } else {
+        const data = await this.requestWalletConnect({
+          deeplink: id ? wallets[id].deeplink : undefined,
+          icon: id ? wallets[id].icon : undefined,
+          name: id ? wallets[id].name : undefined,
+          request: {
+            method: "cosmos_getAccounts",
+            params: { chainId: "gonka-mainnet" },
+          },
+        });
+
+        if (!Array.isArray(data) || data.length === 0) throw new Error("Account not found");
+        publicKey = hex.encode(base64.decode(data[0].pubkey));
+        address = data[0].address;
+      }
     }
 
-    this.setStorage({ type: "walletconnect", id });
+    this.setStorage({ type: "walletconnect", id, address, publicKey });
     const wallet = new CosmosWallet({
       address: address,
       publicKeyHex: publicKey,
@@ -150,8 +165,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         });
 
         const protobufTx = TxRaw.encode({
-          bodyBytes: signDoc.bodyBytes,
-          authInfoBytes: signDoc.authInfoBytes,
+          bodyBytes: Object.keys(signed.bodyBytes).length > 0 ? signed.bodyBytes : signDoc.bodyBytes,
+          authInfoBytes: Object.keys(signed.authInfoBytes).length > 0 ? signed.authInfoBytes : signDoc.authInfoBytes,
           signatures: [Buffer.from(signature.signature, "base64")],
         }).finish();
 
@@ -181,6 +196,24 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         },
       })
     );
+  }
+
+  async connectGonkaWallet(): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
+    const result = await this.connectWalletConnect({
+      onConnect: () => this.setupWalletConnect("gonkaWallet"),
+      deeplink: wallets["gonkaWallet"].deeplink,
+      namespaces: {
+        cosmos: {
+          methods: ["cosmos_getAccounts", "cosmos_signDirect"],
+          events: ["chainChanged", "accountsChanged"],
+          chains: this.chains.map((chain) => `cosmos:${chain}`),
+          rpcMap: {},
+        },
+      },
+    });
+
+    window.parent.postMessage({ type: "wc_connect", payload: { wc: result.qrcode } }, "*");
+    return result;
   }
 
   async connectKeplr(type: "keplr" | "leap" | "gonkaWallet", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
@@ -233,7 +266,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     }
 
     if (id === "gonkaWallet") {
-      return await this.connectKeplr("gonkaWallet");
+      return await this.connectGonkaWallet();
     }
 
     if (id === "keplr") {

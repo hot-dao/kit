@@ -19,7 +19,7 @@ const hotWallet = {
   app_name: "hot",
   image: "https://raw.githubusercontent.com/hot-dao/media/main/logo.png",
   about_url: "https://hot-labs.org/",
-  universal_url: "https://t.me/herewalletbot?attach=wallet",
+  universal_url: "https://app.hot-labs.org/link",
   bridge: [
     { type: "sse", url: "https://sse-bridge.hot-labs.org" },
     { type: "js", key: "hotWallet" },

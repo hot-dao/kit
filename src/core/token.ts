@@ -114,8 +114,9 @@ export class Token {
     return BigInt(formatter.parseAmount(t.toString(), this.decimals));
   }
 
-  readable(t: number | bigint | string, rate = 1) {
+  readable(t: number | bigint | string, rate = 1, min = 0) {
     const n = typeof t === "number" ? t : formatter.formatAmount(t ?? 0, this.decimals);
+    if (n * rate < min) return "0";
     return formatter.amount(n * rate);
   }
 }

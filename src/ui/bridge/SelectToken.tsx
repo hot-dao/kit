@@ -73,7 +73,7 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
         <SearchInput type="text" placeholder="Search token" onChange={(e) => setSearch(e.target.value)} />
 
         {tokens.list
-          .filter((token) => token.chain === chain)
+          .filter((token) => token.chain === chain && token.symbol.toLowerCase().includes(search.toLowerCase()))
           .sort((a, b) => {
             const wallet = hot.wallets.find((w) => w.type === a.type)!;
             const aBalance = a.float(hot.balance(wallet, a)) * a.usd;
@@ -111,7 +111,7 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
         ))}
 
       {Object.values(OmniToken)
-        .filter((token) => !used.has(token))
+        .filter((token) => !used.has(token) && hot.omni(token).symbol.toLowerCase().includes(search.toLowerCase()))
         .map((token) => (
           <TokenCard key={token} token={hot.omni(token)} onSelect={onSelect} hot={hot} wallet={hot.priorityWallet} />
         ))}
