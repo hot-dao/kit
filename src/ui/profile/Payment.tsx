@@ -5,20 +5,21 @@ import styled from "styled-components";
 import { HelpIcon } from "../icons/help";
 import { WalletIcon } from "../icons/wallet";
 import { PopupOption, PopupOptionInfo } from "../styles";
-import { Commitment, Intents } from "../../core";
-import { Token } from "../../core/token";
 
+import { Commitment, Intents } from "../../core";
 import { BridgeReview } from "../../core/exchange";
 import { OmniWallet } from "../../core/OmniWallet";
 import { formatter } from "../../core/utils";
+import { Token } from "../../core/token";
 
-import { openConnector } from "../router";
-import { TokenCard } from "../bridge/TokenCard";
-import { HotConnector } from "../../HotConnector";
 import { HorizontalStepper } from "../uikit/Stepper";
 import { ActionButton } from "../uikit/button";
 import { H6, PSmall } from "../uikit/text";
 import { Loader } from "../uikit/loader";
+
+import { openConnector } from "../router";
+import { HotConnector } from "../../HotConnector";
+import { TokenCard } from "../bridge/TokenCard";
 import Popup from "../Popup";
 
 interface PaymentProps {
@@ -73,35 +74,31 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
 
-    try {
-      setFlow({ token: from, wallet, review: undefined, step: "sign" });
-      const isStableFrom = from.symbol === "USDT" || from.symbol === "USDC";
-      const isStableTo = payableToken.symbol === "USDT" || payableToken.symbol === "USDC";
-      const isDirectDeposit = connector.exchange.isDirectDeposit(from, payableToken);
-      const isStable = isStableFrom && isStableTo;
+    setFlow({ token: from, wallet, review: undefined, step: "sign" });
+    const isStableFrom = from.symbol === "USDT" || from.symbol === "USDC";
+    const isStableTo = payableToken.symbol === "USDT" || payableToken.symbol === "USDC";
+    const isDirectDeposit = connector.exchange.isDirectDeposit(from, payableToken);
+    const isStable = isStableFrom && isStableTo;
 
-      if (isStable) {
-        const slippages = [0.0005, 0.001, 0.0015];
-        for (const slippage of slippages) {
-          const extra = (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000);
-          const review = await connector.exchange.reviewSwap({
-            amount: needAmount + (isDirectDeposit ? 0n : extra),
-            recipient: intents.signer!,
-            slippage: slippage,
-            sender: wallet,
-            refund: wallet,
-            type: "exactIn",
-            to: payableToken,
-            from,
-          });
+    let tasks: Promise<BridgeReview>[] = [];
+    if (isStable) {
+      const slippages = [0.0005, 0.001, 0.0015];
+      tasks = slippages.map((slippage) =>
+        connector.exchange.reviewSwap({
+          amount: needAmount + (isDirectDeposit ? 0n : (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000)),
+          recipient: intents.signer!,
+          slippage: slippage,
+          sender: wallet,
+          refund: wallet,
+          type: "exactIn",
+          to: payableToken,
+          from,
+        })
+      );
+    }
 
-          if (review.minAmountOut < needAmount) continue;
-          return setFlow({ token: from, wallet, review, step: "sign" });
-        }
-      }
-
-      // fallback to normal slippage
-      const review = await connector.exchange.reviewSwap({
+    tasks.push(
+      connector.exchange.reviewSwap({
         slippage: isStable ? STABLE_SLIPPAGE : PAY_SLIPPAGE,
         recipient: intents.signer!,
         amount: needAmount,
@@ -110,11 +107,21 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         type: "exactOut",
         to: payableToken,
         from,
+      })
+    );
+
+    for (const task of tasks) {
+      const review = await task.catch((e) => {
+        console.error(e);
+        return null;
       });
-      setFlow({ token: from, wallet, review, step: "sign" });
-    } catch {
-      setFlow({ token: from, wallet, error: true, step: "sign" });
+
+      if (!review) continue;
+      if (review.minAmountOut < needAmount) continue;
+      return setFlow({ token: from, wallet, review, step: "sign" });
     }
+
+    setFlow({ token: from, wallet, error: true, step: "sign" });
   };
 
   const signStep = async () => {
@@ -296,9 +303,14 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         )}
 
         {flow.error ? (
-          <ActionButton style={{ marginTop: 24 }} onClick={() => setFlow(null)}>
-            Select another token
-          </ActionButton>
+          <>
+            <ActionButton $stroke style={{ marginTop: 24 }} onClick={() => selectToken(flow.token!, flow.wallet!)}>
+              Try again
+            </ActionButton>
+            <ActionButton style={{ marginTop: 8 }} onClick={() => setFlow(null)}>
+              Select another token
+            </ActionButton>
+          </>
         ) : (
           <ActionButton style={{ marginTop: 24 }} disabled={!flow?.review} onClick={signStep}>
             {flow?.loading ? "Approving..." : flow?.review ? "Approve transfer" : "Quoting..."}

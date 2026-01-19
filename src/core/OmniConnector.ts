@@ -102,6 +102,9 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   abstract id: string;
 
   protected setWallet(wallet: T) {
+    const existing = this.wallets.find((t) => t.address === wallet.address);
+    if (existing) return existing;
+
     runInAction(() => this.wallets.push(wallet));
     this.events.emit("connect", { wallet, connector: this });
     return wallet;
