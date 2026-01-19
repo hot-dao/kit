@@ -30,6 +30,7 @@ export class ReadableDexError extends Error {
 export type BridgeReview = {
   amountIn: bigint;
   amountOut: bigint;
+  minAmountOut: bigint;
   slippage: number;
   fee: ReviewFee | null;
   qoute: QuoteResponse["quote"] | "withdraw" | "deposit";
@@ -210,6 +211,7 @@ export class Exchange {
       return {
         from: from,
         to: to,
+        minAmountOut: amount,
         sender: sender,
         recipient,
         amountIn: amount,
@@ -233,6 +235,7 @@ export class Exchange {
         sender: sender,
         fee: new ReviewFee({ chain: -4 }),
         amountOut: amount - fee,
+        minAmountOut: amount - fee,
         slippage: slippage,
         recipient: recipient,
         statusMessage: null,
@@ -298,6 +301,7 @@ export class Exchange {
     return {
       from: request.from,
       to: request.to,
+      minAmountOut: BigInt(qoute.quote.minAmountOut),
       amountIn: BigInt(qoute.quote.amountIn),
       amountOut: BigInt(qoute.quote.amountOut),
       slippage: request.slippage,

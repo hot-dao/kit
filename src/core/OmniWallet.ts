@@ -71,12 +71,14 @@ export abstract class OmniWallet {
 
   async fetchBalance(chain: number, address: string): Promise<bigint> {
     if (chain !== -4) return 0n;
+    if (!this.omniAddress) return 0n;
     const balances = await Intents.getIntentsBalances([address], this.omniAddress);
     return this.setBalance(`${chain}:${address}`, balances[address] || 0n);
   }
 
   async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
     if (chain === -4) {
+      if (!this.omniAddress) return {};
       const list = whitelist.length > 0 ? whitelist : await Intents.getIntentsAssets(this.omniAddress);
       const balances = await Intents.getIntentsBalances(list, this.omniAddress);
       Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as unknown as string)));
