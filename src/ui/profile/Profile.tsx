@@ -64,7 +64,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
           ))
         )}
 
-        {hot.wallets.length < 6 && (
+        {hot.wallets.length < hot.connectors.length && (
           <WalletCard style={{ paddingRight: 12 }} onClick={() => openConnector(hot)}>
             <PlusIcon />
             Add wallet

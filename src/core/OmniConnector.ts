@@ -125,7 +125,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     });
   }
 
-  async setStorage(obj: { type?: string; id?: string; address?: string; publicKey?: string }) {
+  async setStorage(obj: { type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }) {
     await this.storage.set(`wibe3:${this.id}`, JSON.stringify(obj));
   }
 
@@ -133,7 +133,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     await this.storage.remove(`wibe3:${this.id}`);
   }
 
-  async getStorage(): Promise<{ type?: string; id?: string; address?: string; publicKey?: string }> {
+  async getStorage(): Promise<{ type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }> {
     const data = await this.storage.get(`wibe3:${this.id}`);
     if (!data) return {};
     return JSON.parse(data);

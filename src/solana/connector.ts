@@ -58,7 +58,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
 
       try {
         const connected = await this.getConnectedWallet();
-        if (connected !== wallet.name) return;
+        if (connected.id !== wallet.name) return;
         const protocolWallet = await SolanaProtocolWallet.connect(wallet, { silent: true });
         this.setWallet(new SolanaWallet(protocolWallet));
       } catch {
