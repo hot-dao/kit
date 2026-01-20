@@ -26,8 +26,8 @@ declare global {
 const TRONLINK = {
   id: "tronlink",
   name: "Tron Link",
-  type: window?.tronLink ? ("extension" as const) : ("external" as const),
-  icon: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/info/logo.png",
+  type: "extension" as const,
+  icon: "https://cdn.brandfetch.io/id0PcTcDBs/w/400/h/400/theme/dark/icon.jpeg",
   download: "https://www.tronlink.org/",
 };
 
@@ -36,11 +36,11 @@ class TronConnector extends OmniConnector<TronWallet> {
   walletTypes = [WalletType.Tron, WalletType.OMNI];
   icon = "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/info/logo.png";
   name = "TRON Wallet";
-  options = [TRONLINK];
   id = "tron";
 
   constructor(wibe3: HotConnector) {
     super(wibe3);
+    this.options = [TRONLINK];
 
     this.syncFromProvider().catch(() => this.removeStorage());
     window.addEventListener("message", () => {

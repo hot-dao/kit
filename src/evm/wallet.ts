@@ -35,7 +35,6 @@ class EvmWallet extends OmniWallet {
 
   private rpcs: Record<number, JsonRpcProvider> = {};
   rpc(chain: number) {
-    console.log("getting rpc for chain", { chain });
     if (chain < 1 || chain == null) throw "Invalid chain";
     if (this.rpcs[chain]) return this.rpcs[chain];
 

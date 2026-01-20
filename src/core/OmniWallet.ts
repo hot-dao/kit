@@ -88,7 +88,6 @@ export abstract class OmniWallet {
     const res = await fetch(`https://api0.herewallet.app/api/v1/user/balances/${chain}/${this.address}`, { body: JSON.stringify({ whitelist }), method: "POST" });
     const { balances } = await res.json();
 
-    console.log("fetchBalances", { chain, whitelist, balances, l: Object.keys(balances).length });
     if (Object.keys(balances).length === 0) throw "No balances found";
 
     Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));

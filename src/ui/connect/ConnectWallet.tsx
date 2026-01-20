@@ -22,8 +22,8 @@ interface MultichainPopupProps {
 }
 
 export const Connector = observer(({ hot, onClose, title, walletType, widget }: MultichainPopupProps) => {
-  const onechain = hot.connectors.filter((t) => t.type === ConnectorType.WALLET && (walletType == null || t.walletTypes.includes(walletType as WalletType)));
-  const social = hot.connectors.filter((t) => t.type === ConnectorType.SOCIAL && (walletType == null || t.walletTypes.includes(walletType as WalletType)));
+  const onechain = hot.connectors.filter((t) => t.type === ConnectorType.WALLET && (walletType == null || t.walletTypes.includes(walletType as WalletType)) && t.options.length > 0);
+  const social = hot.connectors.filter((t) => t.type === ConnectorType.SOCIAL && (walletType == null || t.walletTypes.includes(walletType as WalletType)) && t.options.length > 0);
 
   const selectConnector = async (t: OmniConnector) => {
     if (t.wallets[0]) return t.disconnect();

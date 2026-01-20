@@ -4,7 +4,6 @@ import styled from "styled-components";
 
 import { HelpIcon } from "../icons/help";
 import { WalletIcon } from "../icons/wallet";
-import { PopupOption, PopupOptionInfo } from "../styles";
 
 import { Commitment, Intents } from "../../core";
 import { BridgeReview } from "../../core/exchange";
@@ -17,9 +16,10 @@ import { ActionButton } from "../uikit/button";
 import { H6, PSmall } from "../uikit/text";
 import { Loader } from "../uikit/loader";
 
-import { openConnector } from "../router";
+import { PopupOption, PopupOptionInfo } from "../styles";
 import { HotConnector } from "../../HotConnector";
 import { TokenCard } from "../bridge/TokenCard";
+import { openConnector } from "../router";
 import Popup from "../Popup";
 
 interface PaymentProps {
@@ -81,11 +81,12 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
     const isStable = isStableFrom && isStableTo;
 
     let tasks: Promise<BridgeReview>[] = [];
-    if (isStable) {
+    if (isStable && !isDirectDeposit) {
       const slippages = [0.0005, 0.001, 0.0015];
-      tasks = slippages.map((slippage) =>
-        connector.exchange.reviewSwap({
-          amount: needAmount + (isDirectDeposit ? 0n : (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000)),
+      tasks = slippages.map((slippage) => {
+        const extra = (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000);
+        return connector.exchange.reviewSwap({
+          amount: from.int(payableToken.float(needAmount + extra)),
           recipient: intents.signer!,
           slippage: slippage,
           sender: wallet,
@@ -93,12 +94,12 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
           type: "exactIn",
           to: payableToken,
           from,
-        })
-      );
+        });
+      });
     }
 
-    tasks.push(
-      connector.exchange.reviewSwap({
+    const exectOutReview = await connector.exchange
+      .reviewSwap({
         slippage: isStable ? STABLE_SLIPPAGE : PAY_SLIPPAGE,
         recipient: intents.signer!,
         amount: needAmount,
@@ -108,7 +109,7 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         to: payableToken,
         from,
       })
-    );
+      .catch(() => null);
 
     for (const task of tasks) {
       const review = await task.catch((e) => {
@@ -116,12 +117,22 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         return null;
       });
 
+      // console.log(task);
       if (!review) continue;
+      // console.log(review.to.float(review.minAmountOut), review.to.float(needAmount));
       if (review.minAmountOut < needAmount) continue;
+
+      // If exact out review is available and it's qoute is better than the exact in qoute, skip the exact in qoute
+      // console.log("EXACT IN", review.from.float(review.amountIn), "EXECT_OUT", exectOutReview?.from.float(exectOutReview.amountIn));
+      if (exectOutReview != null && review.amountIn > exectOutReview.amountIn) continue;
+
+      // console.log("RESULT EXACT IN", review);
       return setFlow({ token: from, wallet, review, step: "sign" });
     }
 
-    setFlow({ token: from, wallet, error: true, step: "sign" });
+    if (exectOutReview == null) return setFlow({ token: from, wallet, error: true, step: "sign" });
+    setFlow({ token: from, wallet, review: exectOutReview, step: "sign" });
+    // console.log("RESULT EXECT OUT", exectOutReview);
   };
 
   const signStep = async () => {
