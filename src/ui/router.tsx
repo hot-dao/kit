@@ -120,7 +120,7 @@ export const openSelectSender = (props: { hot: HotConnector; type: WalletType; o
   present((close) => <SelectSender {...props} onClose={close} />);
 };
 
-export const openSelectRecipient = (props: { hot: HotConnector; recipient?: Recipient; type: WalletType; onSelect: (wallet?: Recipient) => void }) => {
+export const openSelectRecipient = (props: { hot: HotConnector; recipient?: Recipient; chain: number; onSelect: (wallet?: Recipient) => void }) => {
   present((close) => <SelectRecipient {...props} onClose={close} />);
 };
 

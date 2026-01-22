@@ -229,17 +229,23 @@ export class HotConnector {
 
   omniBalance(token: OmniToken) {
     const omni = tokens.get(token);
-    const omniToken = this.balance(this.priorityWallet, omni);
+    const omniBalance = this.balance(this.priorityWallet, omni);
+
     const onchainTokens = this.walletsTokens.filter((t) => t.token.type !== WalletType.OMNI && t.token.originalId === omni.originalId);
-    const onchainBalances = onchainTokens.map((t) => Math.max(0, t.token.float(t.balance) - t.token.reserve));
-    let onchainToken = Math.max(0, ...onchainBalances);
-    onchainToken *= 0.99; // Slippage protection
+    const onchainToken = onchainTokens.reduce((max, t) => {
+      const amount = Math.max(0, t.token.float(t.balance) - t.token.reserve);
+      const maxAmount = Math.max(0, max.token.float(max.balance) - max.token.reserve);
+      return amount > maxAmount ? t : max;
+    }, onchainTokens[0]);
+
+    let onchainBalance = Math.max(0, onchainToken.token.float(onchainToken.balance) - onchainToken.token.reserve);
+    if (onchainToken.token.type !== WalletType.COSMOS) onchainBalance *= 0.99; // Slippage protection
 
     return {
       token: omni,
-      omni: omniToken,
-      onchain: omni.int(onchainToken),
-      total: omni.float(omniToken) + onchainToken,
+      omni: omniBalance,
+      onchain: omni.int(onchainBalance),
+      total: omni.float(omniBalance) + onchainBalance,
     };
   }
 

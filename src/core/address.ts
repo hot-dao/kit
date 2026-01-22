@@ -1,27 +1,10 @@
 import { Address } from "@ton/core";
 import { Address as StellarAddress } from "@stellar/stellar-sdk";
-import { base32, base58, hex } from "@scure/base";
+import { base32, base58, bech32, hex } from "@scure/base";
 import { sha256 } from "@noble/hashes/sha2.js";
 import * as ethers from "ethers";
+
 import { chains, Network, WalletType } from "./chains";
-
-export const MinAccountIdLen = 2;
-export const MaxAccountIdLen = 64;
-export const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
-export const NEAR_DOMAINS = [".near", ".sweat", ".usn", ".tg"];
-export const NEAR_ADDRESS_HEX_LENGTH = 64;
-export const EVM_DOMAINS = [".eth", ".cb.id"];
-
-export const validateAddress = (address: string) => {
-  if (isValidNearAddress(address)) return { chainId: Network.Near, isEvm: false };
-  if (isValidSolanaAddress(address)) return { chainId: Network.Solana, isEvm: false };
-  if (isValidTronAddress(address)) return { chainId: Network.Tron, isEvm: false };
-  if (isValidTonAddress(address)) return { chainId: Network.Ton, isEvm: false };
-  if (isValidEvmAddress(address)) return { chainId: 1, isEvm: true };
-  if (isValidBtcAddress(address)) return { chainId: Network.Btc, isEvm: false };
-  if (isValidStellarAddress(address)) return { chainId: Network.Stellar, isEvm: false };
-  return { chainId: -1, isEvm: false };
-};
 
 export const isBase58 = (address: string) => {
   try {
@@ -58,6 +41,12 @@ export const isValidBtcAddress = (address: string) => {
 
   return p2pkhRegex.test(address) || p2shRegex.test(address) || bech32Regex.test(address);
 };
+
+export const MinAccountIdLen = 2;
+export const MaxAccountIdLen = 64;
+export const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+export const NEAR_DOMAINS = [".near", ".sweat", ".usn", ".tg"];
+export const NEAR_ADDRESS_HEX_LENGTH = 64;
 
 export function isValidNearAccountId(accountId: string) {
   return !!accountId && accountId.length >= MinAccountIdLen && accountId.length <= MaxAccountIdLen && accountId.match(ValidAccountRe) != null;
@@ -119,6 +108,7 @@ export const isValidSolanaAddress = (address: string) => {
   return !!isValidNearAccountId(address) && address.endsWith(".sol");
 };
 
+export const EVM_DOMAINS = [".eth", ".cb.id"];
 export const isValidEvmAddress = (address: string) => {
   return EVM_DOMAINS.some((t) => address.endsWith(t)) || ethers.isAddress(address);
 };
@@ -141,7 +131,22 @@ export const isValidTonAddress = (address: string) => {
   }
 };
 
+export const isValidCosmosAddress = (prefix: string, address: string) => {
+  console.log(prefix, address);
+  return address.startsWith(`${prefix}1`) && isBech32Address(address);
+};
+
+export const isBech32Address = (address: string) => {
+  try {
+    bech32.decode(address as `${string}1${string}`);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const isValidAddress = (chain: number, address: string) => {
+  if (chains.get(chain)?.type === WalletType.COSMOS) return isValidCosmosAddress(chains.get(chain)?.prefix || "", address);
   if (chains.get(chain)?.type === WalletType.EVM) return isValidEvmAddress(address);
   if (chains.get(chain)?.type === WalletType.TON) return isValidTonAddress(address);
 

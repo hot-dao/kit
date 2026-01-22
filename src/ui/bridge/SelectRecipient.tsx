@@ -17,18 +17,26 @@ import { openWalletPicker } from "../router";
 import Popup from "../Popup";
 
 interface SelectRecipientProps {
-  type: WalletType;
+  chain: number;
   hot: HotConnector;
   recipient?: Recipient;
   onSelect: (recipient?: Recipient) => void;
   onClose: () => void;
 }
 
-export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClose }: SelectRecipientProps) => {
+export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onClose }: SelectRecipientProps) => {
   const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const [customAddress, setCustomAddress] = useState<string>(recipient?.address || "");
 
-  const isError = !Recipient.isValidAddress(type, customAddress) && customAddress.length > 0;
+  const isError = !Recipient.isValidAddress(chain, customAddress) && customAddress.length > 0;
+  const type = chains.get(chain)?.type;
+
+  if (!type)
+    return (
+      <Popup onClose={onClose} header={<p>Select recipient</p>}>
+        <PSmall>Invalid chain</PSmall>
+      </Popup>
+    );
 
   const selectCustom = async () => {
     const recipient = await Recipient.fromAddress(type, customAddress);
@@ -79,7 +87,7 @@ export const SelectRecipient = observer(({ recipient, hot, type, onSelect, onClo
               </button>
             </CustomRecipient>
 
-            {isError && <PSmall style={{ marginTop: 4, textAlign: "left", color: "#F34747" }}>Invalid {type === WalletType.EVM ? "EVM" : chains.get(type)?.name} address</PSmall>}
+            {isError && <PSmall style={{ marginTop: 4, textAlign: "left", color: "#F34747" }}>Invalid {chains.get(chain || type)?.name} address</PSmall>}
           </div>
         </>
       )}

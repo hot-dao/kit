@@ -1,6 +1,6 @@
 {
   "name": "@hot-labs/kit",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
@@ -45,7 +45,7 @@
   "dependencies": {
     "@defuse-protocol/one-click-sdk-typescript": "^0.1.13",
     "@hot-labs/near-connect": "^0.8.1",
-    "@hot-labs/omni-sdk": "^2.24.6",
+    "@hot-labs/omni-sdk": "^2.24.7",
     "@lottiefiles/dotlottie-wc": "^0.8.11",
     "@near-js/crypto": "^2.3.3",
     "@near-js/providers": "^2.5.1",
