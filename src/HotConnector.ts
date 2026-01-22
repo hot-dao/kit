@@ -251,8 +251,8 @@ export class HotConnector {
     return {
       token: omni,
       omni: omniBalance,
-      onchain: onchainToken ? onchainToken.token.int(onchainToken.balance) : 0n,
-      available: omni.float(omniBalance) + (onchainToken ? onchainToken.token.float(onchainToken.available) : 0),
+      onchain: onchainToken.token.int(onchainToken?.balance ?? 0),
+      available: omni.float(omniBalance) + (onchainToken?.available ?? 0),
     };
   }
 
