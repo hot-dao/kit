@@ -227,25 +227,32 @@ export class HotConnector {
     return wallet.getBalance(token.id);
   }
 
-  omniBalance(token: OmniToken) {
+  availableBalance(token: OmniToken) {
     const omni = tokens.get(token);
     const omniBalance = this.balance(this.priorityWallet, omni);
 
-    const onchainTokens = this.walletsTokens.filter((t) => t.token.type !== WalletType.OMNI && t.token.originalId === omni.originalId);
-    const onchainToken = onchainTokens.reduce((max, t) => {
-      const amount = Math.max(0, t.token.float(t.balance) - t.token.reserve);
-      const maxAmount = Math.max(0, max.token.float(max.balance) - max.token.reserve);
-      return amount > maxAmount ? t : max;
-    }, onchainTokens[0]);
+    const getAvailableBalance = (token: { token: Token; wallet: OmniWallet; balance: bigint }) => {
+      const balance = token.token.float(token.balance);
+      const amount = Math.max(0, token.token.float(token.balance) - token.token.reserve);
+      let available = amount;
 
-    let onchainBalance = Math.max(0, onchainToken.token.float(onchainToken.balance) - onchainToken.token.reserve);
-    if (onchainToken.token.type !== WalletType.COSMOS) onchainBalance *= 0.99; // Slippage protection
+      if (token.token.type !== WalletType.COSMOS) available = amount * 0.99; // Slippage protection
+      return { token: token.token, wallet: token.wallet, balance, available };
+    };
+
+    const onchainTokens = this.walletsTokens.filter((t) => t.token.type !== WalletType.OMNI && t.token.originalId === omni.originalId);
+    if (onchainTokens.length === 0) return { token: omni, omni: omniBalance, onchain: 0n, available: omni.float(omniBalance) };
+
+    const onchainToken = onchainTokens.reduce((max, t) => {
+      const current = getAvailableBalance(t);
+      return current.available > max.available ? current : max;
+    }, getAvailableBalance(onchainTokens[0]));
 
     return {
       token: omni,
       omni: omniBalance,
-      onchain: omni.int(onchainBalance),
-      total: omni.float(omniBalance) + onchainBalance,
+      onchain: onchainToken ? onchainToken.token.int(onchainToken.balance) : 0n,
+      available: omni.float(omniBalance) + (onchainToken ? onchainToken.token.float(onchainToken.available) : 0),
     };
   }
 
