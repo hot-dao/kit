@@ -80,13 +80,14 @@ class TonWallet extends OmniWallet {
     return nextSeqno.seqno;
   }
 
-  async waitTransactionByMessageHash(pending: { prevHash: string; seqno: number; timestamp: number; lt: bigint }, attemps = 0): Promise<string> {
+  async waitTransactionByMessageHash(pending: { prevHash?: string; seqno: number; timestamp: number; lt: bigint }, attemps = 0): Promise<string> {
     if (attemps > 3) return "";
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
     const res = await tonApi.blockchain.getBlockchainAccountTransactions(Address.parse(this.address), { limit: 1, after_lt: BigInt(pending.lt) });
 
-    const tx = res.transactions[0];
+    const tx = res?.transactions?.[0];
+    if (!tx) return await this.waitTransactionByMessageHash(pending, attemps + 0.5);
     if (tx.hash === pending.prevHash) return await this.waitTransactionByMessageHash(pending, attemps + 1);
     if (!tx.success) throw tx.computePhase?.exitCodeDescription || "Transaction failed";
     return tx.hash;
@@ -96,7 +97,7 @@ class TonWallet extends OmniWallet {
     if (!this.wallet.sendTransaction) throw "Not impl";
     const response = await tonApi.blockchain.getBlockchainAccountTransactions(Address.parse(this.address), { limit: 1 });
     const { seqno } = await tonApi.wallet.getAccountSeqno(Address.parse(this.address));
-    const lastTransaction = response.transactions[0];
+    const lastTransaction = response.transactions?.[0];
 
     await this.wallet.sendTransaction({
       validUntil: Date.now() + 200_000,
@@ -110,9 +111,9 @@ class TonWallet extends OmniWallet {
 
     await this.waitNextSeqno(seqno);
     return await this.waitTransactionByMessageHash({
+      prevHash: lastTransaction?.hash || "",
+      lt: lastTransaction?.lt || 0n,
       timestamp: Date.now(),
-      lt: lastTransaction.lt,
-      prevHash: lastTransaction.hash,
       seqno,
     });
   }
