@@ -109,7 +109,10 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         to: payableToken,
         from,
       })
-      .catch(() => null);
+      .catch((e) => {
+        console.error(e);
+        return null;
+      });
 
     for (const task of tasks) {
       const review = await task.catch((e) => {
@@ -117,22 +120,14 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         return null;
       });
 
-      // console.log(task);
       if (!review) continue;
-      // console.log(review.to.float(review.minAmountOut), review.to.float(needAmount));
       if (review.minAmountOut < needAmount) continue;
-
-      // If exact out review is available and it's qoute is better than the exact in qoute, skip the exact in qoute
-      // console.log("EXACT IN", review.from.float(review.amountIn), "EXECT_OUT", exectOutReview?.from.float(exectOutReview.amountIn));
       if (exectOutReview != null && review.amountIn > exectOutReview.amountIn) continue;
-
-      // console.log("RESULT EXACT IN", review);
       return setFlow({ token: from, wallet, review, step: "sign" });
     }
 
     if (exectOutReview == null) return setFlow({ token: from, wallet, error: true, step: "sign" });
     setFlow({ token: from, wallet, review: exectOutReview, step: "sign" });
-    // console.log("RESULT EXECT OUT", exectOutReview);
   };
 
   const signStep = async () => {

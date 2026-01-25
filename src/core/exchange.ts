@@ -189,11 +189,6 @@ export class Exchange {
 
   async reviewSwap(request: BridgeRequest): Promise<BridgeReview> {
     const { sender, refund, from, to, amount, recipient, slippage, type, logger } = request;
-    const intentFrom = await this.getToken(from.chain, from.address);
-    const intentTo = await this.getToken(to.chain, to.address);
-
-    if (!intentFrom) throw new Error("Unsupported token");
-    if (!intentTo) throw new Error("Unsupported token");
 
     const deadlineTime = 5 * 60 * 1000;
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
@@ -259,6 +254,12 @@ export class Exchange {
 
     let qoute: QuoteResponse | null = null;
     try {
+      const intentFrom = await this.getToken(from.chain, from.address);
+      const intentTo = await this.getToken(to.chain, to.address);
+
+      if (!intentFrom) throw new Error("Unsupported token");
+      if (!intentTo) throw new Error("Unsupported token");
+
       qoute = await OneClickService.getQuote({
         originAsset: intentFrom,
         destinationAsset: intentTo,
