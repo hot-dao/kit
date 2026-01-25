@@ -39,7 +39,7 @@ export interface TokenType {
 }
 
 export class Api {
-  public baseUrl = "https://dev.herewallet.app";
+  public baseUrl = "https://api.hot-labs.org";
   public apiKey = "";
 
   async request(url: string, options: RequestInit) {
