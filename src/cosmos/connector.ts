@@ -141,11 +141,12 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     if (!wc) throw new Error("WalletConnect not found");
 
     const chainAccount = await this.getAccountFromWalletConnect(wc, this.chainId, id);
-    await this.setStorage({ type: "walletconnect", id, [this.chainId]: chainAccount });
+    const cosmosAccount = await this.getAccountFromWalletConnect(wc, "cosmoshub-4", id).catch((e) => {
+      this.setStorage({ type: "walletconnect", id, [this.chainId]: chainAccount });
+      throw e;
+    });
 
-    const cosmosAccount = await this.getAccountFromWalletConnect(wc, "cosmoshub-4", id);
-    await this.setStorage({ type: "walletconnect", id, [this.chainId]: chainAccount, "cosmoshub-4": cosmosAccount });
-
+    await this.setStorage({ [this.chainId]: chainAccount, "cosmoshub-4": cosmosAccount, type: "walletconnect", id });
     const wallet = new CosmosWallet({
       chainId: this.chainId,
       account: chainAccount,
@@ -279,8 +280,10 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
     await extension.enable(this.chains);
     const account = await extension.getKey(this.chainId);
+    const cosmosAccount = await extension.getKey("cosmoshub-4");
     const chainAccount = { address: account.bech32Address, publicKey: hex.encode(account.pubKey) };
-    await this.setStorage({ type, [this.chainId]: chainAccount });
+    const cosmosAccountData = { address: cosmosAccount.bech32Address, publicKey: hex.encode(cosmosAccount.pubKey) };
+    await this.setStorage({ type, [this.chainId]: chainAccount, "cosmoshub-4": cosmosAccountData });
     return await this.setKeplrWallet(extension, chainAccount);
   }
 
