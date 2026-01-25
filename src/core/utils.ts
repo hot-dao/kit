@@ -44,7 +44,7 @@ export const formatter = {
     return args.reduce((m, e) => (e < m ? e : m));
   },
 
-  formatNumberWithSubscriptZeros(numberStr: string, presiction = 3, min = 0.000_01): string {
+  formatNumberWithSubscriptZeros(numberStr: string, presiction = 3): string {
     const number = Number.parseFloat(numberStr);
     if (!numberStr.startsWith("0.")) return String(+number.toFixed(presiction));
 
@@ -157,7 +157,7 @@ export const formatter = {
     if (+formatter.num(value) > 1_000_000_000) return `${formatter.round(+formatter.num(value) / 1_000_000, 2)}M`;
     const num = formatter.num(value).toFixed(decimals);
     if (+num === 0) return "0";
-    return formatter.formatNumberWithSubscriptZeros(num, 3, 0.0001);
+    return formatter.formatNumberWithSubscriptZeros(num, 3);
   },
 
   num(value: Value) {

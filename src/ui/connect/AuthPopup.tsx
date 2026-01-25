@@ -19,7 +19,7 @@ const Loader: React.FC = () => {
   );
 };
 
-const AuthIntentPopupComponent: React.FC<AuthIntentPopupProps> = ({ wallet, onApprove, onReject }) => {
+const AuthIntentPopupComponent: React.FC<AuthIntentPopupProps> = ({ onApprove, onReject }) => {
   const [loading, setLoading] = useState(false);
 
   const handleApprove = async () => {

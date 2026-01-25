@@ -1,4 +1,4 @@
-import { computed, makeObservable, observable, runInAction } from "mobx";
+import { computed, makeObservable } from "mobx";
 
 import packageJson from "../package.json";
 

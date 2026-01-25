@@ -1,4 +1,4 @@
-import { GetExecutionStatusResponse, OneClickService, ApiError, QuoteRequest, QuoteResponse, OpenAPI } from "@defuse-protocol/one-click-sdk-typescript";
+import { GetExecutionStatusResponse, OneClickService, ApiError, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { utils } from "@hot-labs/omni-sdk";
 import { hex } from "@scure/base";
 

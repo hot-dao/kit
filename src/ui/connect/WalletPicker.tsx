@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 
 import { ImageView } from "../uikit/image";
@@ -24,6 +24,7 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
   const [wallet, setWallet] = useState<OmniConnectorOption | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const popupRef = useRef<WindowProxy>(null);
 
   const connectWallet = async (connector: OmniConnector, wallet: OmniConnectorOption) => {
     try {
@@ -58,6 +59,7 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
         deeplink={qrcode.deeplink}
         uri={qrcode.uri}
         onClose={onClose}
+        popupRef={popupRef}
       />
     );
   }

@@ -6,7 +6,6 @@ import { runInAction } from "mobx";
 import type { HotConnector } from "../HotConnector";
 
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
-import { OmniWallet } from "../core/OmniWallet";
 import { WalletType } from "../core/chains";
 import HOT from "../hot-wallet/iframe";
 

@@ -1,13 +1,17 @@
 import { observer } from "mobx-react-lite";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { ImageView } from "../uikit/image";
 import { PopupButton } from "../styles";
 import Popup from "../Popup";
 
 export const WCRequest = observer(({ deeplink, name, icon, onClose, task }: { deeplink?: string; name: string; icon: string; onClose: () => void; task: Promise<any> }) => {
+  const popupRef = useRef<WindowProxy>(null);
   useEffect(() => {
-    task.finally(onClose);
+    task.finally(() => {
+      popupRef.current?.close();
+      onClose();
+    });
   }, [task]);
 
   return (
@@ -21,7 +25,7 @@ export const WCRequest = observer(({ deeplink, name, icon, onClose, task }: { de
           to approve some action in your wallet
         </p>
 
-        {!!deeplink && <PopupButton onClick={() => window.open(deeplink, "_blank")}>Open wallet</PopupButton>}
+        {!!deeplink && <PopupButton onClick={() => (popupRef.current = window.open(deeplink, "_blank"))}>Open wallet</PopupButton>}
       </div>
     </Popup>
   );

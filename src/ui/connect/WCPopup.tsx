@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import QRCodeStyling from "qr-code-styling";
 import styled from "styled-components";
@@ -12,11 +12,15 @@ interface WCPopupProps {
   icon?: string;
   deeplink?: string;
   onClose: () => void;
+  popupRef: React.RefObject<WindowProxy | null>;
 }
 
-export const WCPopup = observer(({ title, uri, icon, deeplink, onClose }: WCPopupProps) => {
+export const WCPopup = observer(({ popupRef, title, uri, icon, deeplink, onClose }: WCPopupProps) => {
   const [copyText, setCopyText] = useState("Copy Link");
   const [iconUrl, setIconUrl] = useState<string | null>(WC_ICON);
+  const popupRefInternal = useRef<WindowProxy>(null);
+
+  useImperativeHandle(popupRef, () => popupRefInternal.current!);
 
   const qrCodeRef = useRef<HTMLDivElement>(null);
   const [qrCode] = useState<QRCodeStyling>(
@@ -30,6 +34,11 @@ export const WCPopup = observer(({ title, uri, icon, deeplink, onClose }: WCPopu
       type: "svg",
     })
   );
+
+  const closePopup = () => {
+    popupRefInternal.current?.close();
+    onClose();
+  };
 
   useEffect(() => {
     qrCode.update({ data: uri });
@@ -58,7 +67,7 @@ export const WCPopup = observer(({ title, uri, icon, deeplink, onClose }: WCPopu
   };
 
   return (
-    <Popup header={<p>{title}</p>} onClose={onClose}>
+    <Popup header={<p>{title}</p>} onClose={closePopup}>
       <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
         <div ref={qrCodeRef} style={{ width: 340, height: 340 }}></div>
 
@@ -74,7 +83,7 @@ export const WCPopup = observer(({ title, uri, icon, deeplink, onClose }: WCPopu
           </CopyButton>
 
           {!!deeplink && (
-            <CopyButton onClick={() => window.open(deeplink, "_blank")}>
+            <CopyButton onClick={() => (popupRefInternal.current = window.open(deeplink, "_blank"))}>
               <p>Open in {title}</p>
             </CopyButton>
           )}

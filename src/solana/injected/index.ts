@@ -59,7 +59,7 @@ const hotSolana = {
     return { signature: result.signature };
   },
 
-  async signIn(input: any) {
+  async signIn() {
     throw "Not supported";
   },
 
