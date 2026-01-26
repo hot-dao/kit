@@ -116,7 +116,7 @@ export const ModalBody = styled.div`
   text-align: center;
   gap: 4px;
   overflow: auto;
-  border-radius: 24px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.08);
   width: 100%;
   flex: 1;

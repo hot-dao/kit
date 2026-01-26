@@ -5,7 +5,10 @@ import { useEffect } from "react";
 import PlusIcon from "../icons/plus";
 import { LogoutIcon } from "../icons/logout";
 import ExchangeIcon from "../icons/exchange";
+import { ImageView } from "../uikit/image";
+import { Loader } from "../uikit/loader";
 
+import { ConnectorType } from "../../core/OmniConnector";
 import { formatter } from "../../core/utils";
 import { OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
@@ -13,8 +16,6 @@ import { tokens } from "../../core/tokens";
 import { HotConnector } from "../../HotConnector";
 import { openBridge, openConnector } from "../router";
 import { TokenCard, TokenIcon } from "../bridge/TokenCard";
-import { ImageView } from "../uikit/image";
-import { Loader } from "../uikit/loader";
 import { PopupOption } from "../styles";
 import Popup from "../Popup";
 
@@ -45,6 +46,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
 
   const omniTokens = tokensList.filter((t) => t.chain === -4);
   const nonOmniTokens = tokensList.filter((t) => t.chain !== -4);
+  const socialConnector = hot.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
 
   useEffect(() => {
     if (hot.wallets.length > 0) return;
@@ -58,6 +60,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
           connector.wallets.map((wallet) => (
             <WalletCard onClick={() => connector.disconnect()}>
               <ImageView src={wallet.icon} alt={connector.name} size={20} />
+              {connector.type === ConnectorType.SOCIAL && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={connector.icon} alt={connector.name} size={12} />}
               <div>{formatter.truncateAddress(wallet.address, 8)}</div>
               <LogoutIcon />
             </WalletCard>
@@ -76,11 +79,19 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         <PSmall>YOUR BALANCE</PSmall>
         <BalanceCard>${formatter.amount(totalBalance)}</BalanceCard>
 
-        <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 24 }}>
+        <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
           <ActionButton onClick={() => (onClose(), openBridge(hot, { title: "Exchange" }))}>
             <ExchangeIcon />
             Exchange
           </ActionButton>
+
+          {socialConnector != null && (
+            <ActionButton onClick={() => socialConnector.openWallet()}>
+              <ImageView src={socialConnector.icon} alt={socialConnector.name} size={20} />
+              Open wallet
+            </ActionButton>
+          )}
+
           <ActionButton disabled onClick={() => (onClose(), openBridge(hot, { title: "Deposit" }))}>
             Deposit
           </ActionButton>
@@ -184,6 +195,7 @@ const WalletCard = styled.div`
   background: #1a1a1a;
   cursor: pointer;
   transition: background 0.2s ease-in-out;
+  position: relative;
 
   &:hover {
     background: rgba(255, 255, 255, 0.04);

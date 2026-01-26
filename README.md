@@ -40,8 +40,9 @@ import { defaultConnectors } from "@hot-labs/kit/defaults";
 
 const connector = new HotConnector({
   connectors: defaultConnectors,
+  apiKey: "Get on https://pay.hot-labs.org/admin/api-keys for free",
 
-  // optional
+  // optional get on https://dashboard.reown.com
   walletConnect: {
     projectId: "1292473190ce7eb75c9de67e15aaad99",
     metadata: {
@@ -59,15 +60,16 @@ connector.onDisconnect(({ wallet }) => {});
 
 ## Server side usage
 
-On Node.js you can't use `@hot-labs/kit` because it's client-side library with UI dependencies, but you can use core package for working with Intents primitives and HotBridge primitives
+On Node.js you should use `@hot-labs/kit/core` library to exclude UI functional from hot-kit
 
 ```ts
 import { Intents, OmniToken } from "@hot-labs/kit/core";
+import { NearWallet } from "@hot-labs/kit/near";
 
-await Intents.builder //
+const wallet = await NearWallet.fromPrivateKey(Buffer.from(PRIVATE_KEY), SIGNER_ID);
+
+await Intents.builder(wallet) //
   .give(OmniToken.USDT, 1)
   .take(OmniToken.USDC, 1)
-  .attachCommitment(signedCommitment)
-  .attachSigner({ ed25519PrivateKey: Buffer }) // omniAddress as optional, default use hex of public key
   .execute(); // or sign or simulate
 ```

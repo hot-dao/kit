@@ -54,6 +54,7 @@ import { HotConnector } from "@hot-labs/kit";
 import { defaultConnectors } from "@hot-labs/kit/defaultConnectors"; // optional
 
 export const wibe3 = new HotConnector({
+  apiKey: "Get on https://pay.hot-labs.org/admin/api-keys for free",
   connectors: defaultConnectors,
   walletConnect: {
     projectId: "your-reown-project-id",
@@ -78,14 +79,14 @@ export const wibe3 = new HotConnector({
 
 > **⚠️ Important**: **By default, always use Omni Chain (Intents) approach**. Native chain transfers should only be used when you specifically need same-chain transfers and want to avoid omni chain overhead.
 
-| Operation                | Native Chain                          | Omni Chain (Intents) ⭐ **Default**               |
-| ------------------------ | ------------------------------------- | ------------------------------------------------- |
-| **Same chain transfer**  | `wallet.transfer()`                   | ✅ `requestToken()` → `wallet.intents.transfer()` |
-| **Cross-chain transfer** | ❌ Not supported                      | ✅ `requestToken()` → `wallet.intents.transfer()` |
-| **NFT mint**             | Direct contract call                  | ✅ `requestToken()` → `wallet.intents.authCall()` |
-| **Gas payment**          | Native token                          | NEAR (omni operations)                            |
-| **Speed**                | Fast                                  | Slower (cross-chain)                              |
-| **Recommended?**         | ❌ Only for specific same-chain needs | ✅ **Yes - Default approach**                     |
+| Operation                | Native Chain                          | Omni Chain (Intents) ⭐ **Default** |
+| ------------------------ | ------------------------------------- | ----------------------------------- |
+| **Same chain transfer**  | `wallet.transfer()`                   | ✅ `wallet.intents().transfer()`    |
+| **Cross-chain transfer** | ❌ Not supported                      | ✅ `wallet.intents().transfer()`    |
+| **NFT mint**             | Direct contract call                  | ✅ `wallet.intents().authCall()`    |
+| **Gas payment**          | Native token                          | NEAR (omni operations)              |
+| **Speed**                | Fast                                  | Slower (cross-chain)                |
+| **Recommended?**         | ❌ Only for specific same-chain needs | ✅ **Yes - Default approach**       |
 
 ### Connecting Wallets
 
@@ -113,7 +114,7 @@ const tonWallet = wibe3.ton;
 const cosmosWallet = wibe3.cosmos;
 const stellarWallet = wibe3.stellar;
 
-// Priority wallet (first connected)
+// Priority wallet
 const priorityWallet = wibe3.priorityWallet;
 ```
 
@@ -137,13 +138,13 @@ const wallet = wibe3.priorityWallet; // or any connected wallet
 if (wallet) {
   const jwt = await wallet.auth();
   console.log("JWT token:", jwt);
-  
+
   // Use JWT for backend authentication
   // Example: send to your backend API
   await fetch("https://your-api.com/authenticate", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${jwt}`,
+      Authorization: `Bearer ${jwt}`,
       "Content-Type": "application/json",
     },
   });
@@ -166,7 +167,7 @@ if (wallet) {
       amount: 10,
     },
   ];
-  
+
   const jwt = await wallet.auth(intents);
   console.log("JWT with signed intents:", jwt);
 }
@@ -205,20 +206,20 @@ const App = observer(() => {
     try {
       // Get JWT token
       const jwt = await wallet.auth();
-      
+
       // Store JWT (e.g., in localStorage or send to backend)
       localStorage.setItem("authToken", jwt);
-      
+
       // Use JWT for authenticated API calls
       const response = await fetch("https://your-api.com/user/profile", {
         headers: {
-          "Authorization": `Bearer ${jwt}`,
+          Authorization: `Bearer ${jwt}`,
         },
       });
-      
+
       const userData = await response.json();
       console.log("User data:", userData);
-      
+
       alert("Authentication successful!");
     } catch (error) {
       console.error("Authentication failed:", error);
@@ -228,9 +229,7 @@ const App = observer(() => {
 
   return (
     <div>
-      <button onClick={handleAuthenticate}>
-        Authenticate & Get JWT
-      </button>
+      <button onClick={handleAuthenticate}>Authenticate & Get JWT</button>
     </div>
   );
 });

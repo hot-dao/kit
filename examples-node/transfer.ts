@@ -32,7 +32,7 @@ const main = async () => {
     })
     .execute();
 
-  console.log("1 yoctoNEAR Transfer Hash:", hash);
+  console.log("1 yoctoNEAR Transfer Hash:", `https://hotscan.org/transaction/${hash}`);
 };
 
-main();
+main().catch(console.error);

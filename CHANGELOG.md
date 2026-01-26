@@ -1,1 +1,3 @@
-# 1.0.38
+# 1.4.17
+
+- Fix google auth flow

@@ -45,8 +45,9 @@ const main = async () => {
 
   // money sent, but not confirmed yet, so we need to wait for processing
   const resultReview = await processing?.();
+
   // money received!
   console.log(resultReview);
 };
 
-main();
+main().catch(console.error);

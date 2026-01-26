@@ -44,6 +44,8 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     return this.wibe3.storage;
   }
 
+  openWallet() {}
+
   async initWalletConnect() {
     if (!this.wibe3.settings?.projectId) throw new Error("Project ID is required");
     if (this.wc) return this.wc;

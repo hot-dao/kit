@@ -19,7 +19,7 @@ export const ActionButton = styled.button<{ $stroke?: boolean }>`
   flex: 1;
   width: 100%;
 
-  color: #121212;
+  color: #121212 !important;
   text-align: center;
   font-family: "Golos Text";
   font-size: 16px;
@@ -43,7 +43,7 @@ export const ActionButton = styled.button<{ $stroke?: boolean }>`
     css`
       background: transparent;
       border: 1px solid #d2d2d2;
-      color: #fff;
+      color: #fff !important;
 
       &:hover {
         background: rgba(255, 255, 255, 0.1);

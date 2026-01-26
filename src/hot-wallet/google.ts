@@ -22,18 +22,26 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
   walletTypes = [WalletType.EVM, WalletType.STELLAR, WalletType.TON, WalletType.NEAR, WalletType.SOLANA];
   icon = "https://storage.herewallet.app/upload/0eb073753bd1ddabc3ceb5611ad80dd0cb5ca5a9c6ed066bf89ec4f1364c809d.svg";
   type = ConnectorType.SOCIAL;
-  name = "Google Wallet";
+  name = "Connect via Google";
   id = "google";
   webWallet: string;
 
   constructor(wibe3: HotConnector, options?: GoogleConnectorOptions) {
     super(wibe3);
 
-    this.webWallet = options?.webWallet ?? "https://wallet.google.com";
+    this.webWallet = options?.webWallet ?? "https://app.hot-labs.org";
     makeObservable(this, { connectWallet: action });
     this.getStorage().then((accounts: any) => {
       accounts.forEach((account: any) => this.connectWallet(account));
     });
+  }
+
+  openWallet() {
+    const width = 480;
+    const height = 640;
+    const x = (window.screen.width - width) / 2;
+    const y = (window.screen.height - height) / 2;
+    return window.open(`${this.wibe3.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
   }
 
   connectWallet(account: { type: number; address: string; publicKey: string }) {
@@ -109,11 +117,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
   }
 
   requestWebWallet = (chain?: number, address?: string) => (method: string, request: any) => {
-    const width = 480;
-    const height = 640;
-    const x = (window.screen.width - width) / 2;
-    const y = (window.screen.height - height) / 2;
-    const popup = window.open(`${this.wibe3.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
+    const popup = this.openWallet();
 
     return new Promise<any>(async (resolve, reject) => {
       const interval = setInterval(() => {

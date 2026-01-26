@@ -20,6 +20,7 @@ export interface EvmProvider {
 class EvmWallet extends OmniWallet {
   readonly publicKey?: string;
   readonly type = WalletType.EVM;
+  readonly icon = "https://storage.herewallet.app/upload/06b43b164683c2cbfe9a9c0699f0953fd56f1f802035e7701ea10501d9e091c6.png";
 
   constructor(readonly connector: OmniConnector, readonly address: string, readonly provider: EvmProvider) {
     super();
@@ -27,10 +28,6 @@ class EvmWallet extends OmniWallet {
 
   get omniAddress() {
     return this.address.toLowerCase();
-  }
-
-  get icon() {
-    return this.connector.icon;
   }
 
   private rpcs: Record<number, JsonRpcProvider> = {};
