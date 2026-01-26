@@ -93,8 +93,17 @@ export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
 };
 
 export const openConnector = (hot: HotConnector) => {
-  return new Promise<void>((resolve) => {
-    present((close) => <Connector hot={hot} onClose={() => (resolve(), close())} />);
+  return new Promise<OmniWallet>((resolve, reject) => {
+    present((close) => (
+      <Connector
+        hot={hot}
+        onClose={(wallet) => {
+          close();
+          if (wallet) resolve(wallet);
+          else reject(new Error("User rejected"));
+        }}
+      />
+    ));
   });
 };
 
@@ -113,7 +122,15 @@ export const openSelectTokenPopup = ({ hot, initialChain, onSelect }: { hot: Hot
 };
 
 export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: OmniWallet) => void) => {
-  present((close) => <WalletPicker initialConnector={connector} onSelect={onSelect} onClose={close} />);
+  return new Promise<OmniWallet>((resolve, reject) => {
+    present((close) => (
+      <WalletPicker //
+        initialConnector={connector}
+        onSelect={(w) => (onSelect?.(w), resolve(w))}
+        onClose={(error) => (close(), reject(error ?? new Error("User rejected")))}
+      />
+    ));
+  });
 };
 
 export const openSelectSender = (props: { hot: HotConnector; type: WalletType; onSelect: (wallet?: OmniWallet | "qr") => void }) => {

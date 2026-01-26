@@ -15,7 +15,7 @@ import Popup from "../Popup";
 interface WalletPickerProps {
   initialConnector: OmniConnector | null;
   onSelect?: (wallet: OmniWallet) => void;
-  onClose: () => void;
+  onClose: (error?: string | Error | null) => void;
 }
 
 export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: WalletPickerProps) => {
@@ -44,14 +44,13 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
       onSelect?.(instance);
       onClose();
     } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setError(e?.toString?.() || "Unknown error");
     } finally {
       setLoading(false);
     }
   };
 
-  if (qrcode) {
+  if (qrcode && !error) {
     return (
       <WCPopup //
         title={wallet?.name || "WalletConnect"}
@@ -66,7 +65,7 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
 
   if (wallet != null) {
     return (
-      <Popup onClose={onClose}>
+      <Popup onClose={() => onClose(error)}>
         <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 0 }}>
           <ImageView style={{ marginTop: 32 }} src={wallet.icon} alt={wallet.name} size={100} />
 
@@ -89,7 +88,7 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
 
   if (connector != null) {
     return (
-      <Popup header={<p>Select {connector.name}</p>} onClose={onClose}>
+      <Popup header={<p>Select {connector.name}</p>} onClose={() => onClose(error)}>
         {connector.options.map((wallet) => (
           <PopupOption key={wallet.id} onClick={() => connectWallet(connector, wallet)}>
             <ImageView src={wallet.icon} alt={wallet.name} size={44} />

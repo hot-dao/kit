@@ -95,7 +95,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
         const selected = await this.getStorage();
         if (selected.type !== "walletconnect") return;
-        this.setupWalletConnect(selected.id as "keplr" | "leap");
+        await this.setupWalletConnect(selected.id as "keplr" | "leap");
       })
       .catch(() => {});
   }
@@ -140,7 +140,14 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     const wc = await this.wc;
     if (!wc) throw new Error("WalletConnect not found");
 
+    const chain = chains.getByKey(this.chainId);
+    if (!chain) throw new Error("Chain not found");
+
     const chainAccount = await this.getAccountFromWalletConnect(wc, this.chainId, id);
+    if (!chainAccount.address?.includes(chain.prefix)) {
+      throw `${id ? wallets[id]?.name : "This wallet"} does not support ${chain?.name} chain, add it manually or use another wallet`;
+    }
+
     const cosmosAccount = await this.getAccountFromWalletConnect(wc, "cosmoshub-4", id).catch((e) => {
       this.setStorage({ type: "walletconnect", id, [this.chainId]: chainAccount });
       throw e;
@@ -232,7 +239,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
   async connectGonkaWallet(): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     const result = await this.connectWalletConnect({
-      onConnect: () => this.setupWalletConnect("gonkaWallet"),
+      onConnect: async () => await this.setupWalletConnect("gonkaWallet"),
       deeplink: wallets["gonkaWallet"].deeplink,
       namespaces: {
         cosmos: {
@@ -251,7 +258,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   async connectKeplr(type: "keplr" | "leap" | "gonkaWallet", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     if (!extension) {
       return await this.connectWalletConnect({
-        onConnect: () => this.setupWalletConnect(type),
+        onConnect: async () => await this.setupWalletConnect(type),
         deeplink: wallets[type].deeplink,
         namespaces: {
           cosmos: {
@@ -290,7 +297,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   async connect(id: string) {
     if (id === "walletconnect") {
       return await this.connectWalletConnect({
-        onConnect: () => this.setupWalletConnect(),
+        onConnect: async () => await this.setupWalletConnect(),
         namespaces: {
           cosmos: {
             chains: [...new Set([`cosmos:${this.chainId}`, "cosmos:cosmoshub-4"])],
