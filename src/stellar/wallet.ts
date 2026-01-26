@@ -53,12 +53,17 @@ class StellarWallet extends OmniWallet {
   }
 
   async fetchBalances(chain: number): Promise<Record<string, bigint>> {
+    console.log("fetchBalances", chain);
     if (chain === Network.Omni) return await super.fetchBalances(chain);
     try {
-      return await super.fetchBalances(chain);
-    } catch {
+      const balances = await super.fetchBalances(chain);
+      console.log("balances", balances);
+      return balances;
+    } catch (e) {
+      console.log("error", e);
       const data = await fetch(`https://horizon.stellar.org/accounts/${this.address}`).then((res) => res.json());
-      const balances = data.balances?.map((ft: { asset_type: string; sponsor?: string | null; asset_code: string; asset_issuer: string; balance: string }) => {
+      console.log("data", data);
+      const balances: [string, bigint][] = data.balances?.map((ft: { asset_type: string; sponsor?: string | null; asset_code: string; asset_issuer: string; balance: string }) => {
         const asset = ft.asset_type === "native" ? Asset.native() : new Asset(ft.asset_code, ft.asset_issuer);
         const contractId = ft.asset_type === "native" ? "native" : asset.contractId(Networks.PUBLIC);
 
@@ -73,7 +78,7 @@ class StellarWallet extends OmniWallet {
         return [contractId, BigInt(formatter.parseAmount(ft.balance, 7))];
       });
 
-      Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));
+      balances.forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, balance));
       return Object.fromEntries(balances);
     }
   }

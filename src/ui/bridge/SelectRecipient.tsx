@@ -25,10 +25,7 @@ interface SelectRecipientProps {
 }
 
 export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onClose }: SelectRecipientProps) => {
-  const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const [customAddress, setCustomAddress] = useState<string>(recipient?.address || "");
-
-  const isError = !Recipient.isValidAddress(chain, customAddress) && customAddress.length > 0;
   const type = chains.get(chain)?.type;
 
   if (!type)
@@ -37,6 +34,9 @@ export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onCl
         <PSmall>Invalid chain</PSmall>
       </Popup>
     );
+
+  const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
+  const isError = !Recipient.isValidAddress(chain, customAddress) && customAddress.length > 0;
 
   const selectCustom = async () => {
     const recipient = await Recipient.fromAddress(type, customAddress);

@@ -142,6 +142,17 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     setIsReviewing(false);
   };
 
+  const openTooltip = (id: string) => {
+    const tooltip = document.getElementById(id);
+    if (!tooltip) return;
+    tooltip.style.transform = "translateY(0)";
+    tooltip.style.opacity = "1";
+    setTimeout(() => {
+      tooltip.style.transform = "translateY(8px)";
+      tooltip.style.opacity = "0";
+    }, 3000);
+  };
+
   const reviewSwap = useCallback(() => {
     reviewId.current = uuid4();
     const currentReviewId = reviewId.current;
@@ -151,9 +162,6 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 
     const refund = sender !== "qr" ? sender : hot.priorityWallet;
     if (valueInTokens <= 0) return throwError("Enter amount");
-    if (!sender) return throwError("Set sender");
-    if (!recipient) return throwError("Set recipient");
-    if (!refund) return throwError("Connect any wallet");
 
     const debounceTimer = setTimeout(async () => {
       try {
@@ -162,6 +170,12 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
         const recipientWallet = hot.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
         const review = await hot.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund, amount, type, from, to });
         if (currentReviewId !== reviewId.current) return;
+
+        if (amount > 0) {
+          if (!sender) setTimeout(() => openTooltip("sender-tooltip"), 100);
+          if (!recipient) openTooltip("recipient-tooltip");
+        }
+
         setIsReviewing(false);
         setIsError(null);
         setReview(review);
@@ -283,8 +297,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   }
 
   const button = () => {
-    if (sender == null) return <ActionButton disabled>Set sender</ActionButton>;
-    if (recipient == null) return <ActionButton disabled>Set recipient</ActionButton>;
+    if (sender == null) return <ActionButton disabled>Confirm</ActionButton>;
+    if (recipient == null) return <ActionButton disabled>Confirm</ActionButton>;
     if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
     return (
       <ActionButton style={{ width: "100%", marginTop: 40 }} disabled={isReviewing || isError != null} onClick={handleConfirm}>
@@ -307,6 +321,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <PSmall>Sender:</PSmall>
+
               <BadgeButton
                 onClick={() => {
                   if (from.type === WalletType.OMNI) openSelectSender({ hot, type: from.type, onSelect: (sender) => setSender(sender) });
@@ -314,6 +329,9 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
                 }}
               >
                 <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
+                <Tooltip id="sender-tooltip">
+                  <PSmall>Select sender wallet</PSmall>
+                </Tooltip>
               </BadgeButton>
             </div>
           </CardHeader>
@@ -433,6 +451,9 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
               <PSmall>Recipient:</PSmall>
               <BadgeButton onClick={() => openSelectRecipient({ hot, chain: to.chain, onSelect: (recipient) => setRecipient(recipient) })}>
                 <PSmall>{recipient == null ? "Select" : formatter.truncateAddress(recipient.address, 8)}</PSmall>
+                <Tooltip id="recipient-tooltip">
+                  <PSmall>Select recipient wallet</PSmall>
+                </Tooltip>
               </BadgeButton>
             </div>
           </CardHeader>
@@ -495,6 +516,41 @@ const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties;
   );
 };
 
+const Tooltip = styled.div`
+  transition: 0.2s transform, 0.2s opacity;
+  transform: translateY(8px);
+  opacity: 0;
+  position: absolute;
+  top: -48px;
+  right: 0;
+  z-index: 100000000;
+  border-radius: 16px;
+  background: var(--surface-white, #fff);
+  padding: 4px 12px;
+  justify-content: center;
+  pointer-events: none;
+  align-items: center;
+  gap: 4px;
+
+  p {
+    white-space: nowrap;
+    color: #000;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #fff;
+  }
+`;
+
 const BadgeButton = styled.button`
   display: flex;
   border-radius: 8px;
@@ -502,6 +558,7 @@ const BadgeButton = styled.button`
   padding: 4px 8px;
   background: transparent;
   transition: 0.2s border-color;
+  position: relative;
   cursor: pointer;
   outline: none;
   gap: 4px;
