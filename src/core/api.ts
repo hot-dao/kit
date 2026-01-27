@@ -1,3 +1,4 @@
+import uuid4 from "uuid4";
 import { Commitment } from "./types";
 
 export class NetworkError extends Error {
@@ -46,12 +47,21 @@ export class Api {
     options.headers = {
       "Content-Type": "application/json",
       "Api-Key": this.apiKey,
+      "Device-Id": this.deviceId,
       ...options.headers,
     };
 
     const response = await fetch(`${this.baseUrl}${url}`, options);
     if (!response.ok) throw new NetworkError(response.status, url, await response.text());
     return await response.json();
+  }
+
+  get deviceId() {
+    const deviceId = localStorage.getItem("hotkit:id");
+    if (deviceId) return deviceId;
+    const newDeviceId = uuid4();
+    localStorage.setItem("hotkit:id", newDeviceId);
+    return newDeviceId;
   }
 
   getRpcUrl(chain: number) {

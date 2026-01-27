@@ -1,4 +1,4 @@
-import { makeObservable, observable, runInAction } from "mobx";
+import { makeObservable, observable, runInAction, computed } from "mobx";
 import { OneClickService } from "@defuse-protocol/one-click-sdk-typescript";
 
 import { defaultTokens } from "./defaultTokens";
@@ -6,11 +6,27 @@ import { chains, Network, OmniToken } from "./chains";
 import { Token } from "./token";
 
 class TokensStorage {
-  public list = defaultTokens.flatMap((t: any) => [new Token(t), new Token({ ...t, omni: true })]);
   private initialTokensLoader = this.refreshTokens().catch(() => {});
+  public repository: Record<string, Token> = Object.fromEntries(
+    defaultTokens.flatMap((t: any) => {
+      const onchain = new Token(t);
+      const omni = new Token({ ...t, omni: true });
+      return [
+        [onchain.id, onchain],
+        [omni.id, omni],
+      ];
+    })
+  );
 
   constructor() {
-    makeObservable(this, { list: observable });
+    makeObservable(this, {
+      repository: observable,
+      list: computed,
+    });
+  }
+
+  get list() {
+    return Object.values(this.repository);
   }
 
   get(id: OmniToken | string, chain = Network.Omni): Token {
@@ -22,9 +38,9 @@ class TokensStorage {
     return tokens.find((t) => t.chain === chain && t.address === address)!;
   }
 
-  async startTokenPolling() {
+  async startTokenPolling(interval = 120_000) {
     await this.initialTokensLoader;
-    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    await new Promise((resolve) => setTimeout(resolve, interval));
     await this.refreshTokens().catch(() => {});
     await this.startTokenPolling();
   }
@@ -43,9 +59,16 @@ class TokensStorage {
     });
 
     runInAction(() => {
-      this.list = list.flatMap((t) => {
-        if (!chains.getByKey(t.blockchain)) return [];
-        return [new Token(t), new Token({ ...t, omni: true })];
+      list.forEach((t) => {
+        if (!chains.getByKey(t.blockchain)) return;
+        const onchain = new Token(t);
+        const omni = new Token({ ...t, omni: true });
+
+        if (this.repository[onchain.id]) this.repository[onchain.id].update(t);
+        else this.repository[onchain.id] = onchain;
+
+        if (this.repository[omni.id]) this.repository[omni.id].update(t);
+        else this.repository[omni.id] = omni;
       });
     });
 

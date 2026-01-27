@@ -1,4 +1,5 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
+import { action, computed, makeObservable, observable } from "mobx";
 import { Asset, Networks } from "@stellar/stellar-base";
 
 import { Network, OmniToken, WalletType, chains } from "./chains";
@@ -18,10 +19,16 @@ export class Token {
   symbol: string;
   omniAddress: string;
   originalChain: number;
-  originalAddress: string;
+  originalAddress!: string;
   originalChainSymbol: string;
 
-  constructor(readonly info: TokenResponse & { omni?: true }) {
+  constructor(public info: TokenResponse & { omni?: true }) {
+    makeObservable(this, {
+      info: observable,
+      update: action,
+      usd: computed,
+    });
+
     this.originalChainSymbol = info.blockchain;
     this.originalChain = chains.getByKey(info.blockchain)?.id || 0;
     this.chain = info.omni ? -4 : chains.getByKey(info.blockchain)?.id || 0;
@@ -45,6 +52,11 @@ export class Token {
     this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;
     this.omniAddress = info.assetId;
     this.decimals = info.decimals;
+  }
+
+  update(info: TokenResponse & { omni?: true }) {
+    this.info.priceUpdatedAt = info.priceUpdatedAt;
+    this.info.price = info.price;
   }
 
   get usd() {

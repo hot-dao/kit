@@ -25,8 +25,18 @@ export class Telemetry {
     await this.flush();
   }
 
-  log(event: string, value: string | number) {
-    if (typeof value === "string") this.events.push({ event, value_str: value, ts: Date.now() });
-    else this.events.push({ event, value_float: value, ts: Date.now() });
+  track(event: string, obj: Record<string, string | number> = {}) {
+    const ts = Date.now();
+
+    if (Object.keys(obj).length === 0) {
+      this.events.push({ event, ts });
+      return;
+    }
+
+    for (const [key, value] of Object.entries(obj)) {
+      const id = `${event}_${key}`;
+      if (typeof value === "string") this.events.push({ event: id, value_str: value, ts });
+      else this.events.push({ event: id, value_float: value, ts });
+    }
   }
 }
