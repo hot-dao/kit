@@ -1,5 +1,7 @@
 # HOT Kit
 
+Documentation: https://hot-labs.gitbook.io/hot-protocol/hot-kit
+
 `yarn add @hot-labs/kit react react-dom`
 
 Multi-chain connector for NEAR Intents support.
