@@ -5,4 +5,4 @@ import evm from "./evm";
 import ton from "./ton";
 import tron from "./tron";
 
-export const defaultConnectors = [near(), evm(), solana(), ton(), stellar(), tron()];
+export const defaultConnectors = [evm(), near(), solana(), ton(), stellar(), tron()];

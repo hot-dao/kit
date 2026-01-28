@@ -32,7 +32,7 @@ interface HotConnectorOptions {
   apiKey: string;
   storage?: DataStorage;
   chains?: Record<number, ChainConfig>;
-  connectors?: ((wibe3: HotConnector) => Promise<OmniConnector>)[];
+  connectors?: (((wibe3: HotConnector) => Promise<OmniConnector>) | null | undefined)[];
   walletConnect?: {
     projectId?: string;
     metadata?: {
@@ -93,6 +93,7 @@ export class HotConnector {
     const connectors: OmniConnector[] = [];
     const configConnectors = options?.connectors || defaultConnectors;
     const tasks = configConnectors.map(async (initConnector, index) => {
+      if (!initConnector) return;
       const connector = await initConnector(this);
       connector.onConnect((payload) => this.events.emit("connect", payload));
       connector.onDisconnect((payload) => this.events.emit("disconnect", payload));
