@@ -68,7 +68,7 @@ export class Token {
   }
 
   get originalChainIcon() {
-    if (this.originalChain === Network.Juno) return "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+    if (this.originalChain === Network.Juno) return "https://cryptologos.cc/logos/cosmos-atom-logo.svg";
     return `https://storage.herewallet.app/ft/${this.originalChain}:native.png`;
   }
 

@@ -98,6 +98,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
     return this.setWallet(
       new SolanaWallet({
         address: account,
+        disconnect: () => this.disconnectWalletConnect(),
         sendTransaction: async (tx: Transaction | VersionedTransaction, connection: Connection, options?: any) => {
           const transaction = Buffer.from(tx.serialize()).toString("base64");
           const { signature } = await this.requestWalletConnect<{ signature: string }>({
@@ -114,8 +115,6 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
           });
           return base58.decode(signature);
         },
-
-        disconnect: () => this.disconnectWalletConnect(),
       })
     );
   }

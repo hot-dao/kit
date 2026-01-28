@@ -23,11 +23,14 @@ interface ProtocolWallet {
 }
 
 export default class CosmosWallet extends OmniWallet {
-  readonly icon = "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
   readonly type = WalletType.COSMOS;
 
   constructor(readonly wallet: ProtocolWallet) {
     super();
+  }
+
+  get icon() {
+    return chains.getByKey(this.wallet.chainId)?.logo || "";
   }
 
   get address() {

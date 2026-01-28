@@ -1,3 +1,4 @@
+import { base58 } from "@scure/base";
 import type { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
 import type { Wallet } from "@wallet-standard/base";
 
@@ -9,12 +10,15 @@ export interface ISolanaProtocolWallet {
 }
 
 class SolanaProtocolWallet implements ISolanaProtocolWallet {
-  constructor(readonly wallet: Wallet, readonly address: string) {}
+  readonly address: string;
+  constructor(readonly wallet: Wallet, readonly publicKey: Uint8Array) {
+    this.address = base58.encode(publicKey);
+  }
 
   static async connect(wallet: Wallet, { silent = false }: { silent?: boolean } = {}): Promise<ISolanaProtocolWallet> {
-    const a = new SolanaProtocolWallet(wallet, "");
+    const a = new SolanaProtocolWallet(wallet, new Uint8Array(32));
     const account = await a.getAccount({ silent });
-    return new SolanaProtocolWallet(wallet, account.address);
+    return new SolanaProtocolWallet(wallet, new Uint8Array(account.publicKey));
   }
 
   async getAccount({ silent = false }: { silent?: boolean } = {}) {
@@ -28,6 +32,7 @@ class SolanaProtocolWallet implements ISolanaProtocolWallet {
     }
 
     if (!accounts.length) throw new Error("No account found");
+    if (!accounts[0].publicKey) throw new Error("No account found");
     return accounts[0];
   }
 

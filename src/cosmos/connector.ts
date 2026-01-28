@@ -100,7 +100,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   }
 
   get icon() {
-    return chains.getByKey(this.chainId)?.logo || "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+    return chains.getByKey(this.chainId)?.logo || "";
   }
 
   get name() {
