@@ -61,7 +61,7 @@ class TronConnector extends OmniConnector<TronWallet> {
 
     if (this.wallets.length > 0) this.removeWallet();
     await this.setStorage({ type: "wallet", id: TRONLINK.id, address });
-    this.setWallet(new TronWallet(this, address, tronWeb as any));
+    this.setWallet({ wallet: new TronWallet(this, address, tronWeb as any), isNew: false });
   }
 
   async connect(id: string = TRONLINK.id) {
@@ -78,7 +78,7 @@ class TronConnector extends OmniConnector<TronWallet> {
       if (!address) throw new Error("No account found");
 
       await this.setStorage({ type: "wallet", id: TRONLINK.id, address });
-      return this.setWallet(new TronWallet(this, address, window.tronLink.tronWeb));
+      return this.setWallet({ wallet: new TronWallet(this, address, window.tronLink.tronWeb), isNew: true });
     } catch (e) {
       await this.removeStorage();
       throw e;

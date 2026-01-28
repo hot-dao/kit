@@ -73,12 +73,16 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
       if (data.type === "keplr") {
         const keplr = await Keplr.getKeplr();
-        if (keplr) this.setKeplrWallet(keplr, data[this.chainId]);
-        else this.disconnect();
+        if (keplr) await this.createKeplrWallet({ wallet: keplr, account: data[this.chainId], isNew: false });
+        else await this.disconnect();
       }
 
       if (data.type === "leap" && window.leap) {
-        this.setKeplrWallet(window.leap, data[this.chainId]);
+        await this.createKeplrWallet({
+          wallet: window.leap,
+          account: data[this.chainId],
+          isNew: false,
+        });
       }
     });
 
@@ -94,7 +98,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
         const selected = await this.getStorage();
         if (selected.type !== "walletconnect") return;
-        await this.setupWalletConnect(selected.id as "keplr" | "leap");
+        await this.createWalletConnect({ id: selected.id as "keplr" | "leap", isNew: false });
       })
       .catch(() => {});
   }
@@ -143,7 +147,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return { publicKey: hex.encode(base64.decode(data[0].pubkey)), address: data[0].address };
   }
 
-  async setupWalletConnect(id?: "keplr" | "leap" | "gonkaWallet"): Promise<CosmosWallet> {
+  async createWalletConnect({ id, isNew }: { id?: "keplr" | "leap" | "gonkaWallet"; isNew: boolean }): Promise<CosmosWallet> {
     const wc = await this.wc;
     if (!wc) throw new Error("WalletConnect not found");
 
@@ -213,40 +217,40 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       },
     });
 
-    return this.setWallet(wallet);
+    return this.setWallet({ wallet, isNew });
   }
 
-  async setKeplrWallet(keplr: Keplr, data: { address: string; publicKey: string }) {
-    const account = await keplr.getKey("cosmoshub-4");
-    return this.setWallet(
-      new CosmosWallet({
-        account: data,
-        cosmos: { address: account.bech32Address, publicKey: hex.encode(account.pubKey) },
-        chainId: this.chainId,
-        disableOmni: true,
+  async createKeplrWallet({ wallet, account, isNew }: { wallet: Keplr; account: { address: string; publicKey: string }; isNew: boolean }) {
+    const cosmosAccount = await wallet.getKey("cosmoshub-4");
+    const instance = new CosmosWallet({
+      account,
+      cosmos: { address: cosmosAccount.bech32Address, publicKey: hex.encode(cosmosAccount.pubKey) },
+      chainId: this.chainId,
+      disableOmni: true,
 
-        disconnect: () => keplr.disable(),
+      disconnect: () => wallet.disable(),
 
-        signMessage: async (chainId: string, address: string, message: string) => {
-          return await keplr.signArbitrary(chainId, address, message);
-        },
+      signMessage: async (chainId: string, address: string, message: string) => {
+        return await wallet.signArbitrary(chainId, address, message);
+      },
 
-        sendTransaction: async (signDoc: any) => {
-          await keplr.enable(this.chains);
-          const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
-          return await signAndSendTx(keplr, rpcEndpoint, api.apiKey, signDoc);
-        },
+      sendTransaction: async (signDoc: any) => {
+        await wallet.enable(this.chains);
+        const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
+        return await signAndSendTx(wallet, rpcEndpoint, api.apiKey, signDoc);
+      },
 
-        signAmino: async (chainId: string, address: string, signDoc: any) => {
-          return await keplr.signAmino(chainId, address, signDoc);
-        },
-      })
-    );
+      signAmino: async (chainId: string, address: string, signDoc: any) => {
+        return await wallet.signAmino(chainId, address, signDoc);
+      },
+    });
+
+    return this.setWallet({ wallet: instance, isNew });
   }
 
   async connectGonkaWallet(): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     const result = await this.connectWalletConnect({
-      onConnect: async () => await this.setupWalletConnect("gonkaWallet"),
+      onConnect: async () => await this.createWalletConnect({ id: "gonkaWallet", isNew: true }),
       deeplink: wallets["gonkaWallet"].deeplink,
       namespaces: {
         cosmos: {
@@ -265,7 +269,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   async connectKeplr(type: "keplr" | "leap" | "gonkaWallet", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     if (!extension) {
       return await this.connectWalletConnect({
-        onConnect: async () => await this.setupWalletConnect(type),
+        onConnect: async () => await this.createWalletConnect({ id: type, isNew: true }),
         deeplink: wallets[type].deeplink,
         namespaces: {
           cosmos: {
@@ -298,13 +302,13 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     const chainAccount = { address: account.bech32Address, publicKey: hex.encode(account.pubKey) };
     const cosmosAccountData = { address: cosmosAccount.bech32Address, publicKey: hex.encode(cosmosAccount.pubKey) };
     await this.setStorage({ type, [this.chainId]: chainAccount, "cosmoshub-4": cosmosAccountData });
-    return await this.setKeplrWallet(extension, chainAccount);
+    return await this.createKeplrWallet({ wallet: extension, account: chainAccount, isNew: true });
   }
 
   async connect(id: string) {
     if (id === "walletconnect") {
       return await this.connectWalletConnect({
-        onConnect: async () => await this.setupWalletConnect(),
+        onConnect: async () => await this.createWalletConnect({ isNew: true }),
         namespaces: {
           cosmos: {
             chains: [...new Set([`cosmos:${this.chainId}`, "cosmos:cosmoshub-4"])],

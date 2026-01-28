@@ -92,15 +92,15 @@ export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
   });
 };
 
-export const openConnector = (hot: HotConnector) => {
+export const openConnector = async (hot: HotConnector) => {
   return new Promise<OmniWallet>((resolve, reject) => {
     present((close) => (
       <Connector
         hot={hot}
         onClose={(wallet) => {
-          close();
           if (wallet) resolve(wallet);
           else reject(new Error("User rejected"));
+          close();
         }}
       />
     ));

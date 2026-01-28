@@ -28,7 +28,8 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   description?: string;
 
   protected events = new EventEmitter<{
-    connect: { wallet: T; connector: OmniConnector<T, O> };
+    restore_connect: { wallet: T; connector: OmniConnector<T, O> };
+    new_connect: { wallet: T; connector: OmniConnector<T, O> };
     disconnect: { wallet: T; connector: OmniConnector<T, O> };
   }>();
 
@@ -104,12 +105,13 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   abstract icon: string;
   abstract id: string;
 
-  protected setWallet(wallet: T) {
+  protected setWallet({ wallet, isNew }: { wallet: T; isNew: boolean }) {
     const existing = this.wallets.find((t) => t.address === wallet.address);
     if (existing) return existing;
 
     runInAction(() => this.wallets.push(wallet));
-    this.events.emit("connect", { wallet, connector: this });
+    if (isNew) this.events.emit("new_connect", { wallet, connector: this });
+    else this.events.emit("restore_connect", { wallet, connector: this });
     return wallet;
   }
 
@@ -146,9 +148,23 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     this.events.removeAllListeners();
   }
 
+  onRestoreConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
+    this.events.on("restore_connect", handler);
+    return () => this.events.off("restore_connect", handler);
+  }
+
+  onNewConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
+    this.events.on("new_connect", handler);
+    return () => this.events.off("new_connect", handler);
+  }
+
   onConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
-    this.events.on("connect", handler);
-    return () => this.events.off("connect", handler);
+    this.events.on("new_connect", handler);
+    this.events.on("restore_connect", handler);
+    return () => {
+      this.events.off("new_connect", handler);
+      this.events.off("restore_connect", handler);
+    };
   }
 
   onDisconnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {

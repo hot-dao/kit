@@ -8,6 +8,7 @@ import ExchangeIcon from "../icons/exchange";
 import { ImageView } from "../uikit/image";
 import { Loader } from "../uikit/loader";
 
+import { OmniWallet } from "../../core/OmniWallet";
 import { ConnectorType } from "../../core/OmniConnector";
 import { formatter } from "../../core/utils";
 import { OmniToken } from "../../core/chains";
@@ -19,7 +20,7 @@ import { TokenCard, TokenIcon } from "../bridge/TokenCard";
 import { PopupOption } from "../styles";
 import Popup from "../Popup";
 
-export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
+export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: (wallet?: OmniWallet) => void }) => {
   let totalBalance = 0;
 
   const tokensList = hot.walletsTokens
@@ -68,7 +69,14 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         )}
 
         {hot.wallets.length < hot.connectors.length && (
-          <WalletCard style={{ paddingRight: 12 }} onClick={() => openConnector(hot)}>
+          <WalletCard
+            style={{ paddingRight: 12 }}
+            onClick={() =>
+              openConnector(hot)
+                .then((wallet) => onClose(wallet))
+                .catch(() => onClose())
+            }
+          >
             <PlusIcon />
             Add wallet
           </WalletCard>

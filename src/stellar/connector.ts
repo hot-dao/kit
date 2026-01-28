@@ -36,7 +36,7 @@ class StellarConnector extends OmniConnector<StellarWallet> {
       if (!id || !address) return;
       const wallet = this.getWallet(id);
       const isAvailable = await wallet?.isAvailable();
-      if (isAvailable && wallet) this.selectWallet(address, wallet);
+      if (isAvailable && wallet) this.selectWallet({ address, wallet, isNew: false });
     });
   }
 
@@ -53,11 +53,11 @@ class StellarConnector extends OmniConnector<StellarWallet> {
     return await this.getStorage();
   }
 
-  async selectWallet(address: string, wallet: HotWalletModule | FreighterModule) {
+  async selectWallet({ address, wallet, isNew }: { address: string; wallet: HotWalletModule | FreighterModule; isNew: boolean }) {
     const signMessage = async (message: string) => wallet.signMessage(message);
     const signTransaction = async (transaction: Transaction) => wallet.signTransaction(transaction.toXDR());
     const instance = new StellarWallet({ address, rpc: this.wibe3.exchange.bridge.stellar, signMessage, signTransaction });
-    return this.setWallet(instance);
+    return this.setWallet({ wallet: instance, isNew });
   }
 
   async connect(id: string) {
@@ -66,7 +66,7 @@ class StellarConnector extends OmniConnector<StellarWallet> {
 
     const { address } = await wallet.getAddress();
     this.setStorage({ type: "wallet", id, address });
-    return this.selectWallet(address, wallet);
+    return this.selectWallet({ address, wallet, isNew: true });
   }
 
   async disconnect() {

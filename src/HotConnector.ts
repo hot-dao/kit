@@ -22,6 +22,7 @@ import type EvmWallet from "./evm/wallet";
 import type SolanaWallet from "./solana/wallet";
 import type StellarWallet from "./stellar/wallet";
 import type TonWallet from "./ton/wallet";
+import type TronWallet from "./tron/wallet";
 
 import { openBridge, openConnector, openProfile, openWalletPicker } from "./ui/router";
 import { ConnectorType, OmniConnector } from "./core/OmniConnector";
@@ -54,9 +55,9 @@ export class HotConnector {
   public version = packageJson.version;
 
   private events = new EventEmitter<{
-    connect: { wallet: OmniWallet; connector: OmniConnector };
     disconnect: { wallet: OmniWallet; connector: OmniConnector };
-    tokensUpdate: { tokens: Token[] };
+    new_connect: { wallet: OmniWallet; connector: OmniConnector };
+    restore_connect: { wallet: OmniWallet; connector: OmniConnector };
   }>();
 
   public settings: {
@@ -95,8 +96,8 @@ export class HotConnector {
     const tasks = configConnectors.map(async (initConnector, index) => {
       if (!initConnector) return;
       const connector = await initConnector(this);
-      connector.onConnect((payload) => this.events.emit("connect", payload));
-      connector.onDisconnect((payload) => this.events.emit("disconnect", payload));
+      connector.onNewConnect((payload) => this.events.emit("new_connect", payload));
+      connector.onRestoreConnect((payload) => this.events.emit("restore_connect", payload));
       connectors[index] = connector;
     });
 
@@ -105,8 +106,9 @@ export class HotConnector {
     });
 
     this.connectors.forEach((t) => {
-      t.onConnect((payload) => this.events.emit("connect", payload));
       t.onDisconnect((payload) => this.events.emit("disconnect", payload));
+      t.onNewConnect((payload) => this.events.emit("new_connect", payload));
+      t.onRestoreConnect((payload) => this.events.emit("restore_connect", payload));
     });
 
     this.onConnect((payload) => {
@@ -140,6 +142,7 @@ export class HotConnector {
     if (this.solana) return this.solana;
     if (this.ton) return this.ton;
     if (this.stellar) return this.stellar;
+    if (this.tron) return this.tron;
   }
 
   get wallets(): OmniWallet[] {
@@ -177,6 +180,10 @@ export class HotConnector {
 
   get stellar(): StellarWallet | null {
     return this.wallets.find((w) => w.type === WalletType.STELLAR) as StellarWallet | null;
+  }
+
+  get tron(): TronWallet | null {
+    return this.wallets.find((w) => w.type === WalletType.Tron) as TronWallet | null;
   }
 
   get ton(): TonWallet | null {
@@ -280,13 +287,27 @@ export class HotConnector {
   }
 
   onConnect(handler: (payload: { wallet: OmniWallet; connector: OmniConnector }) => void) {
-    this.events.on("connect", handler);
-    return () => this.events.off("connect", handler);
+    this.events.on("new_connect", handler);
+    this.events.on("restore_connect", handler);
+    return () => {
+      this.events.off("new_connect", handler);
+      this.events.off("restore_connect", handler);
+    };
   }
 
   onDisconnect(handler: (payload: { wallet: OmniWallet; connector: OmniConnector }) => void) {
     this.events.on("disconnect", handler);
     return () => this.events.off("disconnect", handler);
+  }
+
+  onNewConnect(handler: (payload: { wallet: OmniWallet; connector: OmniConnector }) => void) {
+    this.events.on("new_connect", handler);
+    return () => this.events.off("new_connect", handler);
+  }
+
+  onRestoreConnect(handler: (payload: { wallet: OmniWallet; connector: OmniConnector }) => void) {
+    this.events.on("restore_connect", handler);
+    return () => this.events.off("restore_connect", handler);
   }
 
   async withdraw(token: OmniToken, amount?: number, settings?: { sender?: OmniWallet }) {
@@ -342,10 +363,10 @@ export class HotConnector {
   }
 
   async connect(type?: WalletType) {
-    if (!type) return openConnector(this);
+    if (!type) return await openConnector(this);
     const connector = this.connectors.find((t) => t.type === ConnectorType.WALLET && t.walletTypes.includes(type));
     if (!connector) throw new Error("Connector not found");
-    return openWalletPicker(connector);
+    return await openWalletPicker(connector);
   }
 
   async disconnect(wallet: WalletType | OmniWallet) {
