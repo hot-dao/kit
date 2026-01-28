@@ -82,6 +82,12 @@ export class Exchange {
     const balance = await sender.fetchBalance(token.chain, token.address);
     amount = formatter.bigIntMin(amount, balance);
 
+    if (token.chain === Network.Omni) {
+      return await Intents.builder(sender)
+        .transfer({ amount: amount, token: token.address as OmniToken, recipient: recipient.omniAddress })
+        .execute();
+    }
+
     if (token.type === WalletType.COSMOS && sender.type === WalletType.COSMOS) {
       const cosmosBridge = await this.bridge.cosmos();
       const hash = await cosmosBridge.deposit({
@@ -180,7 +186,7 @@ export class Exchange {
   }
 
   isDirectDeposit(from: Token, to: Token) {
-    const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
+    const directChains = [Network.Near, Network.Omni, Network.Juno, Network.Gonka, Network.ADI];
     return directChains.includes(from.chain) && to.chain === Network.Omni && from.omniAddress === to.omniAddress;
   }
 
