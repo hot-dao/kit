@@ -22,7 +22,7 @@ const main = async () => {
   const assets = await wallet.fetchBalance(Network.Omni, OmniToken.NEAR);
   console.log("NEAR balance:", token.float(assets[token.omniAddress]));
 
-  const recipient = await Recipient.fromAddress(WalletType.NEAR, "azbang69.near");
+  const recipient = await Recipient.fromAddress(Network.Near, "azbang69.near");
   const hash = await wallet
     .intents()
     .transfer({

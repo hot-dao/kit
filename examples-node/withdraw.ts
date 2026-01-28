@@ -18,7 +18,7 @@ const SIGNER_ID = process.env.ED25519_NEAR_SIGNER_ID;
 const main = async () => {
   const exchange = new Exchange();
   const wallet = await NearWallet.fromPrivateKey(Buffer.from(PRIVATE_KEY), SIGNER_ID);
-  const recipient = await Recipient.fromAddress(WalletType.Tron, "TTBMJ2ohKYgFon6owqM4nxNSUg1JNAa3Zm");
+  const recipient = await Recipient.fromAddress(Network.Tron, "TTBMJ2ohKYgFon6owqM4nxNSUg1JNAa3Zm");
 
   const omniUSDT = tokens.get(OmniToken.USDT);
   const realTRONUSDT = tokens.get("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", Network.Tron);

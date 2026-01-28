@@ -39,7 +39,7 @@ export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onCl
   const isError = !Recipient.isValidAddress(chain, customAddress) && customAddress.length > 0;
 
   const selectCustom = async () => {
-    const recipient = await Recipient.fromAddress(type, customAddress);
+    const recipient = await Recipient.fromAddress(chain, customAddress);
     onSelect(recipient);
     onClose();
   };

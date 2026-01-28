@@ -11,6 +11,7 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   icon = "https://storage.herewallet.app/upload/06b43b164683c2cbfe9a9c0699f0953fd56f1f802035e7701ea10501d9e091c6.png";
   walletTypes = [WalletType.EVM, WalletType.OMNI];
   type = ConnectorType.WALLET;
+  description = "Any Ethereum-like wallet";
   name = "EVM Wallet";
   id = "evm";
 

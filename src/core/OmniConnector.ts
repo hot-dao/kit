@@ -25,6 +25,7 @@ export const WC_ICON = "https://raw.githubusercontent.com/WalletConnect/walletco
 export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   wallets: T[] = [];
   options: (O & OmniConnectorOption)[] = [];
+  description?: string;
 
   protected events = new EventEmitter<{
     connect: { wallet: T; connector: OmniConnector<T, O> };

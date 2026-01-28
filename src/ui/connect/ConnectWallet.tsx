@@ -46,7 +46,7 @@ export const Connector = observer(({ hot, onClose, title, walletType, widget }: 
             </PopupOption>
           ))}
 
-          <div style={{ margin: "4px 0", display: "flex", width: "100%", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          <div style={{ margin: "4px 0 6px", display: "flex", width: "100%", alignItems: "center", justifyContent: "center", gap: "8px" }}>
             <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }}></div>
             <div>or</div>
             <div style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }}></div>
@@ -59,7 +59,7 @@ export const Connector = observer(({ hot, onClose, title, walletType, widget }: 
           <ImageView src={t.icon} alt={t.name} size={44} />
           <PopupOptionInfo>
             <p>{t.name}</p>
-            {t.wallets[0]?.address && <span className="wallet-address">{formatter.truncateAddress(t.wallets[0].address, 24)}</span>}
+            {t.wallets[0]?.address ? <span className="wallet-address">{formatter.truncateAddress(t.wallets[0].address, 24)}</span> : <span className="wallet-address">{t.description}</span>}
           </PopupOptionInfo>
           {t.wallets[0]?.address && <LogoutIcon width={32} height={32} />}
         </PopupOption>

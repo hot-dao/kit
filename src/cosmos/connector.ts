@@ -52,8 +52,7 @@ const wallets: Record<string, OmniConnectorOption> = {
 export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.COSMOS];
-  icon = "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
-  name = "Cosmos Wallet";
+  description = "Any Cosmos-like wallet";
   isSupported = true;
   id = "cosmos";
 
@@ -98,6 +97,14 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         await this.setupWalletConnect(selected.id as "keplr" | "leap");
       })
       .catch(() => {});
+  }
+
+  get icon() {
+    return chains.getByKey(this.chainId)?.logo || "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+  }
+
+  get name() {
+    return (chains.getByKey(this.chainId)?.name || "Cosmos") + " Wallet";
   }
 
   getClient(chain: string) {

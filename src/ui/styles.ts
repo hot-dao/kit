@@ -226,6 +226,7 @@ export const PopupOptionInfo = styled.div`
     font-style: normal;
     font-weight: 400;
     line-height: normal;
+    margin-top: 3px;
   }
 `;
 
