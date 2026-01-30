@@ -22,6 +22,7 @@ import type EvmWallet from "./evm/wallet";
 import type SolanaWallet from "./solana/wallet";
 import type StellarWallet from "./stellar/wallet";
 import type TonWallet from "./ton/wallet";
+import type TronWallet from "./tron/wallet";
 
 import { openBridge, openConnector, openProfile, openWalletPicker } from "./ui/router";
 import { ConnectorType, OmniConnector } from "./core/OmniConnector";
@@ -78,6 +79,7 @@ export class HotConnector {
       stellar: computed,
       ton: computed,
       cosmos: computed,
+      tron: computed,
     });
 
     api.apiKey = options?.apiKey ?? "";
@@ -140,6 +142,8 @@ export class HotConnector {
     if (this.solana) return this.solana;
     if (this.ton) return this.ton;
     if (this.stellar) return this.stellar;
+    if (this.tron) return this.tron;
+    if (this.cosmos) return this.cosmos;
   }
 
   get wallets(): OmniWallet[] {
@@ -185,6 +189,10 @@ export class HotConnector {
 
   get cosmos(): CosmosWallet | null {
     return this.wallets.find((w) => w.type === WalletType.COSMOS) as CosmosWallet | null;
+  }
+
+  get tron(): TronWallet | null {
+    return this.wallets.find((w) => w.type === WalletType.Tron) as TronWallet | null;
   }
 
   isCosmosWallet(wallet?: OmniWallet): wallet is CosmosWallet {
