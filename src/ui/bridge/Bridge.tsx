@@ -43,8 +43,6 @@ export interface BridgeProps {
     autoClose?: boolean; // if true, the popup will close automatically when the transaction is successful
     title?: string;
     readonlyAmount?: boolean;
-    readonlyTo?: boolean;
-    readonlyFrom?: boolean;
     type?: "exactIn" | "exactOut";
     sender?: OmniWallet;
     recipient?: Recipient;
@@ -338,10 +336,15 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 
           <CardBody>
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-              <TokenPreview //
-                onSelect={() => openSelectTokenPopup({ onSelect: (token, wallet) => (setFrom(token), setSender(wallet)), initialChain: from.chain, hot })}
-                style={{ pointerEvents: setup?.readonlyFrom ? "none" : "all" }}
+              <TokenPreview
                 token={from}
+                onSelect={() =>
+                  openSelectTokenPopup({
+                    onSelect: (token, wallet) => (setFrom(token), setSender(wallet)),
+                    initialChain: from.chain,
+                    hot,
+                  })
+                }
               />
 
               {isReviewing && type === "exactOut" ? (
@@ -404,6 +407,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
                     </Button>
                   </AvailableBalance>
                 )}
+
                 {sender === "qr" && <div />}
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {from.usd !== 0 && <PSmall style={{ marginRight: 8 }}>${from.readable(amountFrom, from.usd)}</PSmall>}
@@ -460,9 +464,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
 
           <CardBody style={{ borderRadius: "0 0 20px 20px" }}>
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-              <TokenPreview //
+              <TokenPreview
                 token={to}
-                style={{ pointerEvents: setup?.readonlyTo ? "none" : "all" }}
                 onSelect={() =>
                   openSelectTokenPopup({
                     hot,

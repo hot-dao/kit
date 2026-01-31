@@ -346,7 +346,6 @@ export class HotConnector {
       sender: sender,
       type: "exactOut",
       readonlyAmount: !!amount,
-      readonlyTo: true,
       recipient: recipient,
       amount: amount,
       from: orig,
