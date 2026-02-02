@@ -372,7 +372,7 @@ export class Intents {
 
     this.unsignedCommitment = undefined;
     this.commitments.push(commitment);
-    return this;
+    return commitment;
   }
 
   async simulate() {

@@ -10,10 +10,12 @@ class TokensStorage {
   public repository: Record<string, Token> = Object.fromEntries(
     defaultTokens.flatMap((t: any) => {
       const onchain = new Token(t);
-      const omni = new Token({ ...t, omni: true });
+      const omni = new Token({ ...t, omni: Network.Omni });
+      const hotCraft = new Token({ ...t, omni: Network.HotCraft });
       return [
         [onchain.id, onchain],
         [omni.id, omni],
+        [hotCraft.id, hotCraft],
       ];
     })
   );
@@ -62,13 +64,17 @@ class TokensStorage {
       list.forEach((t) => {
         if (!chains.getByKey(t.blockchain)) return;
         const onchain = new Token(t);
-        const omni = new Token({ ...t, omni: true });
+        const omni = new Token({ ...t, omni: Network.Omni });
+        const hotCraft = new Token({ ...t, omni: Network.HotCraft });
 
         if (this.repository[onchain.id]) this.repository[onchain.id].update(t);
         else this.repository[onchain.id] = onchain;
 
         if (this.repository[omni.id]) this.repository[omni.id].update(t);
         else this.repository[omni.id] = omni;
+
+        if (this.repository[hotCraft.id]) this.repository[hotCraft.id].update(t);
+        else this.repository[hotCraft.id] = hotCraft;
       });
     });
 

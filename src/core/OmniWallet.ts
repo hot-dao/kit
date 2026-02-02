@@ -2,8 +2,8 @@ import { hex } from "@scure/base";
 import { action, makeObservable, observable } from "mobx";
 
 import type { HotConnector } from "../HotConnector";
+import { Network, OmniToken, WalletType } from "./chains";
 import { Commitment } from "./types";
-import { WalletType } from "./chains";
 import { Intents } from "./Intents";
 import { ReviewFee } from "./bridge";
 import { Token } from "./token";
@@ -66,18 +66,22 @@ export abstract class OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {
-    throw new Error("Method not implemented.");
+    if (args.token.chain !== Network.Omni) throw new Error("Invalid token chain");
+    return await this.intents()
+      .transfer({ amount: args.amount, recipient: args.receiver, token: args.token.omniAddress as OmniToken })
+      .execute();
   }
 
   async fetchBalance(chain: number, address: string): Promise<bigint> {
-    if (chain !== -4) return 0n;
+    if (chain !== Network.Omni) return 0n;
     if (!this.omniAddress) return 0n;
+
     const balances = await Intents.getIntentsBalances([address], this.omniAddress);
     return this.setBalance(`${chain}:${address}`, balances[address] || 0n);
   }
 
   async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
-    if (chain === -4) {
+    if (chain === Network.Omni) {
       if (!this.omniAddress) return {};
       const list = whitelist.length > 0 ? whitelist : await Intents.getIntentsAssets(this.omniAddress);
       const balances = await Intents.getIntentsBalances(list, this.omniAddress);
@@ -89,7 +93,6 @@ export abstract class OmniWallet {
     const { balances } = await res.json();
 
     if (Object.keys(balances).length === 0) throw "No balances found";
-
     Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));
     const native = await this.fetchBalance(chain, "native").catch(() => 0n);
     return { ...balances, native };

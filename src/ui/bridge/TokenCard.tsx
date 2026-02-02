@@ -14,7 +14,7 @@ export const TokenIcon = observer(({ token, wallet, withoutChain, size = 40 }: {
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <ImageView src={token.icon} alt={token.symbol} size={size} />
       {!withoutChain && <ImageView src={token.chainIcon} alt={token.symbol} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, right: 0 }} />}
-      {token.chain === -4 && wallet?.type && <ImageView src={wallet.icon} alt={chains.getByType(wallet.type)?.[0]?.name || ""} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, left: 0 }} />}
+      {token.isOmni && wallet?.type && <ImageView src={wallet.icon} alt={chains.getByType(wallet.type)?.[0]?.name || ""} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, left: 0 }} />}
     </div>
   );
 });
@@ -22,7 +22,7 @@ export const TokenIcon = observer(({ token, wallet, withoutChain, size = 40 }: {
 export const TokenCard = observer(
   ({ token, onSelect, amount, hot, wallet, rightControl }: { rightControl?: React.ReactNode; token: Token; onSelect?: (token: Token, wallet?: OmniWallet) => void; amount?: bigint; hot: HotConnector; wallet?: OmniWallet }) => {
     const balance = amount || hot.balance(wallet, token);
-    const symbol = token.chain === -4 && !token.isMainOmni ? `${token.symbol} (${token.originalChainSymbol})` : token.symbol;
+    const symbol = token.isOmni && !token.isMainOmni ? `${token.symbol} (${token.originalChainSymbol})` : token.symbol;
 
     return (
       <Card key={token.id} onClick={() => onSelect?.(token, wallet)}>

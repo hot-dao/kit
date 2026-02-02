@@ -8,7 +8,7 @@ import ExchangeIcon from "../icons/exchange";
 import RefreshIcon from "../icons/refresh";
 
 import { HotConnector } from "../../HotConnector";
-import { chains, WalletType } from "../../core/chains";
+import { chains, Network, WalletType } from "../../core/chains";
 import { BridgeReview } from "../../core/exchange";
 import { OmniWallet } from "../../core/OmniWallet";
 import { Recipient } from "../../core/recipient";
@@ -17,7 +17,7 @@ import { tokens } from "../../core/tokens";
 import { Token } from "../../core/token";
 
 import { ActionButton, Button } from "../uikit/button";
-import { PLarge, PSmall, PTiny } from "../uikit/text";
+import { PLarge, PMedium, PSmall, PTiny } from "../uikit/text";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
 
@@ -113,8 +113,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   const availableBalance = sender !== "qr" ? +Math.max(0, from.float(hot.balance(sender, from)) - from.reserve).toFixed(FIXED) : 0;
 
   let title = "Exchange";
-  if (from.chain === -4) title = `Withdraw ${from.symbol}`;
-  if (to.chain === -4) title = `Deposit ${to.symbol}`;
+  if (from.chain === Network.HotCraft || from.chain === Network.Omni) title = `Withdraw ${from.symbol}`;
+  if (to.chain === Network.HotCraft || to.chain === Network.Omni) title = `Deposit ${to.symbol}`;
   if (to.chain === from.chain) title = "Exchange";
 
   useEffect(() => {
@@ -283,12 +283,13 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
   if (processing?.status === "error") {
     return (
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
-        <div style={{ width: "100%", height: 400, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+        <div style={{ width: "100%", height: 400, marginBottom: 8, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
           <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} failed</p>
-          <p style={{ fontSize: 14 }}>{processing.message}</p>
+          <TextField>{processing.message}</TextField>
         </div>
+
         <ActionButton onClick={() => (cancelReview(), onClose())}>Continue</ActionButton>
       </Popup>
     );
@@ -518,6 +519,19 @@ const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties;
     </SelectTokenButton>
   );
 };
+
+const TextField = styled(PTiny)`
+  width: 100%;
+  overflow: auto;
+  max-height: 200px;
+  background: #2c2c2c;
+  border-radius: 12px;
+  font-size: 12px;
+  padding: 8px;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+  line-break: anywhere;
+`;
 
 const Tooltip = styled.div`
   transition: 0.2s transform, 0.2s opacity;

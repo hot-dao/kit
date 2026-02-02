@@ -11,7 +11,7 @@ import { Loader } from "../uikit/loader";
 import { OmniWallet } from "../../core/OmniWallet";
 import { ConnectorType } from "../../core/OmniConnector";
 import { formatter } from "../../core/utils";
-import { OmniToken } from "../../core/chains";
+import { Network, OmniToken } from "../../core/chains";
 import { tokens } from "../../core/tokens";
 
 import { HotConnector } from "../../HotConnector";
@@ -32,7 +32,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         component: (
           <TokenCard //
             onSelect={() => {
-              if (token.chain === -4) hot.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
+              if (token.chain === Network.Omni || token.chain === Network.HotCraft) hot.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
               else openBridge(hot, { title: "Exchange", sender: wallet, from: token });
             }}
             key={`${wallet.type}:${wallet.address}:${token.id}`}
@@ -45,8 +45,8 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
     })
     .filter((t) => t != null);
 
-  const omniTokens = tokensList.filter((t) => t.chain === -4);
-  const nonOmniTokens = tokensList.filter((t) => t.chain !== -4);
+  const omniTokens = tokensList.filter((t) => t.chain === Network.Omni || t.chain === Network.HotCraft);
+  const nonOmniTokens = tokensList.filter((t) => t.chain !== Network.Omni && t.chain !== Network.HotCraft);
   const socialConnector = hot.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
 
   useEffect(() => {
@@ -57,16 +57,17 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
   return (
     <Popup onClose={onClose} style={{ gap: 16 }}>
       <div style={{ display: "flex", flexWrap: "wrap", width: "100%", gap: 8 }}>
-        {hot.connectors.map((connector) =>
-          connector.wallets.map((wallet) => (
+        {hot.connectors.map((connector) => {
+          if (connector.type === ConnectorType.HOTCRAFT) return null;
+          return connector.wallets.map((wallet) => (
             <WalletCard onClick={() => connector.disconnect()}>
-              <ImageView src={wallet.icon} alt={connector.name} size={20} />
-              {connector.type === ConnectorType.SOCIAL && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={connector.icon} alt={connector.name} size={12} />}
+              <ImageView src={connector.icon} alt={connector.name} size={20} />
+              {connector.icon !== wallet.icon && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={wallet.icon} alt={connector.name} size={12} />}
               <div>{formatter.truncateAddress(wallet.address, 8)}</div>
               <LogoutIcon />
             </WalletCard>
-          ))
-        )}
+          ));
+        })}
 
         {hot.wallets.length < hot.connectors.length && (
           <WalletCard

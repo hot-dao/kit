@@ -122,6 +122,7 @@ class TonWallet extends OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }) {
+    if (args.token.isOmni) return await super.transfer(args);
     const memo = args.comment ? comment(args.comment) : null;
 
     if (args.token.address === "native") {

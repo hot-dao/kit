@@ -22,7 +22,7 @@ export class Token {
   originalAddress!: string;
   originalChainSymbol: string;
 
-  constructor(public info: TokenResponse & { omni?: true }) {
+  constructor(public info: TokenResponse & { omni?: Network.Omni | Network.HotCraft }) {
     makeObservable(this, {
       info: observable,
       update: action,
@@ -31,7 +31,7 @@ export class Token {
 
     this.originalChainSymbol = info.blockchain;
     this.originalChain = chains.getByKey(info.blockchain)?.id || 0;
-    this.chain = info.omni ? -4 : chains.getByKey(info.blockchain)?.id || 0;
+    this.chain = info.omni ? info.omni : chains.getByKey(info.blockchain)?.id || 0;
 
     if (this.originalChain === Network.Near) {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
@@ -52,6 +52,10 @@ export class Token {
     this.symbol = info.symbol === "wNEAR" ? "NEAR" : info.symbol;
     this.omniAddress = info.assetId;
     this.decimals = info.decimals;
+  }
+
+  get isOmni() {
+    return this.chain === Network.Omni || this.chain === Network.HotCraft;
   }
 
   update(info: TokenResponse & { omni?: true }) {
@@ -85,7 +89,7 @@ export class Token {
   }
 
   get isMainOmni() {
-    if (this.chain !== Network.Omni) return false;
+    if (this.chain !== Network.Omni && this.chain !== Network.HotCraft) return false;
     return Object.values(OmniToken).some((token) => this.address === token);
   }
 
@@ -101,8 +105,8 @@ export class Token {
     if (this.chain === Network.Gonka) return 0.01;
     if (this.chain === Network.Juno) return 0.01;
 
+    if (this.isOmni) return 0;
     if (this.address !== "native") return 0;
-    if (this.chain === Network.Omni) return 0;
     if (this.chain === Network.Ton) return 0.01;
     if (this.chain === Network.Stellar) return 0;
     if (this.chain === Network.Solana) return 0.001;
@@ -114,7 +118,7 @@ export class Token {
   }
 
   get icon() {
-    if (this.chain === Network.Omni) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
+    if (this.isOmni) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
     return `https://storage.herewallet.app/ft/${this.id.toLowerCase()}.png`;
   }
 

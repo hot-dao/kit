@@ -1,6 +1,6 @@
 {
   "name": "@hot-labs/kit",
-  "version": "1.4.27",
+  "version": "1.5.0",
   "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
@@ -18,6 +18,7 @@
     "./stellar": "./build/stellar/index.js",
     "./ton": "./build/ton/index.js",
     "./tron": "./build/tron/index.js",
+    "./hocraft": "./build/hocraft/index.js",
     "./core": "./build/core/index.js"
   },
   "directories": {

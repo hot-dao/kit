@@ -11,6 +11,7 @@ export enum OmniToken {
 }
 
 export enum WalletType {
+  HotCraft = -1030,
   NEAR = 1010,
   EVM = 1,
   OMNI = -4,
@@ -35,6 +36,7 @@ export enum WalletType {
 export enum Network {
   Omni_v1 = 0,
   Omni = -4,
+  HotCraft = -1030,
 
   Zcash = -5,
   Btc = -6,
@@ -363,9 +365,19 @@ const chainsRepository: Record<number, ChainConfig> = {
     name: "Omni",
     testAddress: "root.near",
     logo: "https://tgapp.herewallet.app/images/hot/hot-icon.png",
-    currency: { id: "native", symbol: "OMNI", decimals: 6, logo: logo(Network.Omni) },
+    currency: { id: "native", symbol: "OMNI", decimals: 24, logo: logo(Network.Omni) },
     rpc: rpc(Network.Omni),
     type: WalletType.OMNI,
+  },
+  [Network.HotCraft]: {
+    id: Network.HotCraft,
+    key: "hotcraft",
+    name: "HotCraft",
+    testAddress: "root.near",
+    logo: "https://hotcraft.art/favicon-beige.ico",
+    currency: { id: "native", symbol: "HOTCRAFT", decimals: 24, logo: logo(Network.HotCraft) },
+    rpc: rpc(Network.HotCraft),
+    type: WalletType.HotCraft,
   },
   [Network.Cardano]: {
     id: Network.Cardano,

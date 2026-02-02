@@ -80,6 +80,7 @@ export class Activity {
 
   async fetchPendingWithdrawalsByWallet(wallet: OmniWallet) {
     if (wallet.type === WalletType.NEAR) return;
+    if (wallet.type === WalletType.HotCraft) return;
     const tasks = chains.getByType(wallet.type).map((t) => this.fetchPendingWithdrawalsByChain(t.id, wallet));
     await Promise.all(tasks);
   }

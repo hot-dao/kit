@@ -62,7 +62,7 @@ export class Exchange {
   readonly bridge = createHotBridge();
 
   async getToken(chain: number, address: string): Promise<string | null> {
-    if (chain === Network.Omni) return address;
+    if (chain === Network.Omni || chain === Network.HotCraft) return address;
     const tokensList = await tokens.getTokens();
     const token = tokensList.find((t) => {
       if (t.chain !== chain) return false;
@@ -82,10 +82,8 @@ export class Exchange {
     const balance = await sender.fetchBalance(token.chain, token.address);
     amount = formatter.bigIntMin(amount, balance);
 
-    if (token.chain === Network.Omni) {
-      return await Intents.builder(sender)
-        .transfer({ amount: amount, token: token.address as OmniToken, recipient: recipient.omniAddress })
-        .execute();
+    if (token.isOmni) {
+      return await sender.transfer({ amount: amount, token: token, receiver: recipient.omniAddress });
     }
 
     if (token.type === WalletType.COSMOS && sender.type === WalletType.COSMOS) {
@@ -164,7 +162,7 @@ export class Exchange {
   async withdrawFee(request: BridgeRequest) {
     if (request.recipient == null) return 0n;
     if (request.sender === "qr") throw new Error("Sender is QR");
-    if (request.to.chain === Network.Near || request.to.chain === Network.Omni) return 0n;
+    if (request.to.chain === Network.Near || request.to.isOmni) return 0n;
     const gaslessFee = await this.bridge.getGaslessWithdrawFee({
       receiver: request.recipient.address,
       token: request.to.address,
@@ -186,13 +184,13 @@ export class Exchange {
   }
 
   isDirectDeposit(from: Token, to: Token) {
-    const directChains = [Network.Near, Network.Omni, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(from.chain) && to.chain === Network.Omni && from.omniAddress === to.omniAddress;
+    const directChains = [Network.Near, Network.Omni, Network.HotCraft, Network.Juno, Network.Gonka, Network.ADI];
+    return directChains.includes(from.chain) && to.isOmni && from.omniAddress === to.omniAddress;
   }
 
   isDirectWithdraw(from: Token, to: Token) {
-    const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(to.chain) && from.chain === Network.Omni && from.omniAddress === to.omniAddress;
+    const directChains = [Network.Near, Network.Omni, Network.HotCraft, Network.Juno, Network.Gonka, Network.ADI];
+    return directChains.includes(to.chain) && from.isOmni && from.omniAddress === to.omniAddress;
   }
 
   async reviewSwap(request: BridgeRequest): Promise<BridgeReview> {
@@ -240,7 +238,7 @@ export class Exchange {
         to: to,
         amountIn: amount,
         sender: sender,
-        fee: new ReviewFee({ chain: -4 }),
+        fee: new ReviewFee({ chain: from.chain }),
         amountOut: amount - fee,
         minAmountOut: amount - fee,
         slippage: slippage,
@@ -279,10 +277,10 @@ export class Exchange {
         quoteWaitingTimeMs: 3000,
         slippageTolerance: Math.round(slippage * 10_000),
         swapType: type === "exactOut" ? QuoteRequest.swapType.EXACT_OUTPUT : QuoteRequest.swapType.EXACT_INPUT,
-        depositType: from.chain === Network.Omni ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
+        depositType: from.isOmni ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
         depositMode: from.chain === Network.Stellar ? QuoteRequest.depositMode.MEMO : QuoteRequest.depositMode.SIMPLE,
-        recipientType: to.chain === Network.Omni ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
-        recipient: (to.chain === Network.Omni ? recipient?.omniAddress : recipient?.address) || chains.get(to.chain)?.testAddress,
+        recipientType: to.isOmni ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
+        recipient: (to.isOmni ? recipient?.omniAddress : recipient?.address) || chains.get(to.chain)?.testAddress,
         appFees: noFee ? [] : [{ recipient: "intents.tg", fee: 25 }],
         amount: request.amount.toString(),
         referral: "intents.tg",
@@ -306,7 +304,7 @@ export class Exchange {
     }
 
     let fee: ReviewFee | null = null;
-    if (request.from.chain !== Network.Omni && sender !== "qr" && sender != null) {
+    if (!request.from.isOmni && sender !== "qr" && sender != null) {
       const amount = BigInt(qoute.quote.amountIn);
       const depositAddress = qoute.quote.depositAddress!;
       fee = await sender.transferFee(request.from, depositAddress, amount).catch(() => null);
@@ -360,21 +358,13 @@ export class Exchange {
       }
 
       const depositAddress = review.qoute.depositAddress!;
-      let hash = "";
-
-      if (review.from.chain === Network.Omni) {
-        hash = await Intents.builder(sender)
-          .transfer({ amount: review.amountIn, token: review.from.address as OmniToken, recipient: depositAddress })
-          .execute();
-      } else {
-        hash = await sender.transfer({
-          receiver: depositAddress,
-          amount: review.amountIn,
-          comment: review.qoute.depositMemo,
-          gasFee: review.fee ?? undefined,
-          token: review.from,
-        });
-      }
+      const hash = await sender.transfer({
+        receiver: depositAddress,
+        amount: review.amountIn,
+        comment: review.qoute.depositMemo,
+        gasFee: review.fee ?? undefined,
+        token: review.from,
+      });
 
       if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
       OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});

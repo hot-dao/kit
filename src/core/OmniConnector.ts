@@ -1,4 +1,4 @@
-import { makeObservable, observable, runInAction } from "mobx";
+import { action, makeObservable, observable, runInAction } from "mobx";
 import UniversalProvider, { NamespaceConfig } from "@walletconnect/universal-provider";
 
 import type { HotConnector } from "../HotConnector";
@@ -9,6 +9,7 @@ import { WalletType } from "./chains";
 export enum ConnectorType {
   WALLET = "wallet",
   SOCIAL = "social",
+  HOTCRAFT = "hotcraft",
 }
 
 export interface OmniConnectorOption {
@@ -39,6 +40,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     makeObservable(this, {
       wallets: observable,
       options: observable,
+      removeWallet: action,
     });
   }
 
@@ -115,11 +117,16 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     return wallet;
   }
 
-  protected removeWallet() {
-    runInAction(() => {
-      const wallet = this.wallets.pop();
-      if (wallet) this.events.emit("disconnect", { wallet, connector: this });
-    });
+  removeWallet(wallet?: T) {
+    if (wallet) {
+      this.wallets = this.wallets.filter((t) => t !== wallet);
+      this.events.emit("disconnect", { wallet, connector: this });
+      return;
+    }
+
+    if (this.wallets.length === 0) return;
+    const deleted = this.wallets.pop()!;
+    this.events.emit("disconnect", { wallet: deleted, connector: this });
   }
 
   protected removeAllWallets(): void {
