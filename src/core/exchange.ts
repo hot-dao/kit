@@ -139,12 +139,15 @@ export class Exchange {
   }
 
   async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: OmniWallet | Recipient; logger?: ILogger }) {
-    const { sender, token, amount, recipient, logger } = args;
+    const { sender, token, recipient, logger } = args;
 
     if (recipient.type === WalletType.NEAR && token.type === WalletType.NEAR && recipient instanceof NearWallet) {
       logger?.log("Registering NEAR token");
       await recipient.registerToken(token.originalAddress);
     }
+
+    const balance = await sender.fetchBalance(token.chain, token.address);
+    const amount = formatter.bigIntMin(args.amount, balance);
 
     logger?.log("Withdrawing token");
     await this.bridge.withdrawToken({
@@ -355,25 +358,25 @@ export class Exchange {
       return { review };
     }
 
-    if (sender !== "qr") {
-      if (recipient.type === WalletType.STELLAR) {
-        const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
-        if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
-        if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
-      }
+    if (sender === "qr") throw new Error("Sender is QR");
 
-      const depositAddress = review.qoute.depositAddress!;
-      const hash = await sender.transfer({
-        receiver: depositAddress,
-        amount: review.amountIn,
-        comment: review.qoute.depositMemo,
-        gasFee: review.fee ?? undefined,
-        token: review.from,
-      });
-
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
+    if (recipient.type === WalletType.STELLAR) {
+      const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
+      if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
+      if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
     }
+
+    const depositAddress = review.qoute.depositAddress!;
+    const hash = await sender.transfer({
+      comment: review.qoute.depositMemo,
+      gasFee: review.fee ?? undefined,
+      receiver: depositAddress,
+      amount: review.amountIn,
+      token: review.from,
+    });
+
+    if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
+    OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
 
     return {
       review,
