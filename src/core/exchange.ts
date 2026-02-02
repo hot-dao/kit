@@ -251,8 +251,13 @@ export class Exchange {
       };
     }
 
-    const refundParams = { refundType: QuoteRequest.refundType.ORIGIN_CHAIN, refundTo: refund?.address || chains.get(from.chain)?.testAddress };
-    if (refund?.type !== from.type && refund != null) {
+    const refundParams = {
+      refundType: QuoteRequest.refundType.ORIGIN_CHAIN,
+      refundTo: refund?.address || chains.get(from.chain)?.testAddress,
+    };
+
+    // Refund to omni wallet if token is not 1-1 mapping or if this token is omni
+    if ((refund?.type !== from.type || from.isOmni) && refund != null) {
       if (!refund.omniAddress) throw "Setup refund address";
       refundParams.refundType = QuoteRequest.refundType.INTENTS;
       refundParams.refundTo = refund.omniAddress;

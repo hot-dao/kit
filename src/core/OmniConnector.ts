@@ -41,6 +41,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
       wallets: observable,
       options: observable,
       removeWallet: action,
+      removeAllWallets: action,
     });
   }
 
@@ -129,11 +130,12 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     this.events.emit("disconnect", { wallet: deleted, connector: this });
   }
 
-  protected removeAllWallets(): void {
-    runInAction(() => {
-      const wallets = this.wallets;
-      this.wallets = [];
-      wallets.forEach((wallet) => this.events.emit("disconnect", { wallet, connector: this }));
+  removeAllWallets(): void {
+    const wallets = this.wallets;
+    this.wallets = [];
+
+    wallets.forEach((wallet) => {
+      this.events.emit("disconnect", { wallet, connector: this });
     });
   }
 

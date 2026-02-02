@@ -48,6 +48,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
   const omniTokens = tokensList.filter((t) => t.chain === Network.Omni || t.chain === Network.HotCraft);
   const nonOmniTokens = tokensList.filter((t) => t.chain !== Network.Omni && t.chain !== Network.HotCraft);
   const socialConnector = hot.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
+  const connectors = hot.connectors.filter((connector) => connector.type !== ConnectorType.HOTCRAFT);
 
   useEffect(() => {
     if (hot.wallets.length > 0) return;
@@ -57,10 +58,9 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
   return (
     <Popup onClose={onClose} style={{ gap: 16 }}>
       <div style={{ display: "flex", flexWrap: "wrap", width: "100%", gap: 8 }}>
-        {hot.connectors.map((connector) => {
-          if (connector.type === ConnectorType.HOTCRAFT) return null;
+        {connectors.flatMap((connector) => {
           return connector.wallets.map((wallet) => (
-            <WalletCard onClick={() => connector.disconnect()}>
+            <WalletCard key={wallet.type} onClick={() => connector.disconnect()}>
               <ImageView src={connector.icon} alt={connector.name} size={20} />
               {connector.icon !== wallet.icon && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={wallet.icon} alt={connector.name} size={12} />}
               <div>{formatter.truncateAddress(wallet.address, 8)}</div>
@@ -69,7 +69,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
           ));
         })}
 
-        {hot.wallets.length < hot.connectors.length && (
+        {connectors.some((t) => t.wallets.length === 0) && (
           <WalletCard
             style={{ paddingRight: 12 }}
             onClick={() =>

@@ -96,6 +96,7 @@ export class HotConnector {
     const tasks = configConnectors.map(async (initConnector, index) => {
       if (!initConnector) return;
       const connector = await initConnector(this);
+      connector.onDisconnect((payload) => this.events.emit("disconnect", payload));
       connector.onNewConnect((payload) => this.events.emit("new_connect", payload));
       connector.onRestoreConnect((payload) => this.events.emit("restore_connect", payload));
       connectors[index] = connector;
