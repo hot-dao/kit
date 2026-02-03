@@ -8,7 +8,6 @@ import { OmniWallet } from "./OmniWallet";
 import { Recipient } from "./recipient";
 import { ILogger } from "./telemetry";
 import { formatter } from "./utils";
-import { Intents } from "./Intents";
 import { tokens } from "./tokens";
 import { Token } from "./token";
 
@@ -358,12 +357,25 @@ export class Exchange {
       return { review };
     }
 
-    if (sender === "qr") throw new Error("Sender is QR");
-
     if (recipient.type === WalletType.STELLAR) {
       const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
       if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
       if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
+    }
+
+    if (sender === "qr") {
+      return {
+        review,
+        processing: async () => {
+          if (!(recipient instanceof OmniWallet)) return await this.processing(review);
+          const beforeBalance = await recipient.fetchBalance(review.to.chain, review.to.address).catch(() => null);
+          if (!beforeBalance) return await this.processing(review);
+          return await Promise.race([
+            this.waitBalance(review.to, recipient, beforeBalance, review),
+            this.processing(review), //
+          ]);
+        },
+      };
     }
 
     const depositAddress = review.qoute.depositAddress!;

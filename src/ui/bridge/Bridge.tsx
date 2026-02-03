@@ -17,12 +17,12 @@ import { tokens } from "../../core/tokens";
 import { Token } from "../../core/token";
 
 import { ActionButton, Button } from "../uikit/button";
-import { PLarge, PMedium, PSmall, PTiny } from "../uikit/text";
+import { PLarge, PSmall, PTiny } from "../uikit/text";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
 
 import Popup from "../Popup";
-import { openSelectRecipient, openSelectSender, openSelectTokenPopup, openWalletPicker } from "../router";
+import { openConnector, openSelectRecipient, openSelectSender, openSelectTokenPopup } from "../router";
 import DepositQR from "../profile/DepositQR";
 import { TokenIcon } from "./TokenCard";
 
@@ -32,10 +32,19 @@ const animations = {
   loading: "https://hex.exchange/loading.json",
 };
 
+export interface ProcessingState {
+  status: "qr" | "processing" | "success" | "error";
+  resolve?: (value: BridgeReview) => void;
+  reject?: (error: Error) => void;
+  message: string;
+  review: BridgeReview;
+}
+
 export interface BridgeProps {
   hot: HotConnector;
   widget?: boolean;
   onClose: () => void;
+  onStateUpdate?: (state: ProcessingState | null) => void;
   onProcess: (task: Promise<BridgeReview>) => void;
   onSelectPair?: (from: Token, to: Token) => void;
   setup?: {
@@ -54,12 +63,12 @@ export interface BridgeProps {
 
 const FIXED = 6;
 
-export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSelectPair }: BridgeProps) => {
-  const [isFiat, setIsFiat] = useState(false);
+export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStateUpdate, onSelectPair }: BridgeProps) => {
   const [type, setType] = useState<"exactIn" | "exactOut">(setup?.type || "exactIn");
   const [from, setFrom] = useState<Token>(setup?.from || tokens.list.find((t) => t.id === localStorage.getItem("bridge:from")) || tokens.list.find((t) => t.symbol === "NEAR")!);
   const [to, setTo] = useState<Token>(setup?.to || tokens.list.find((t) => t.id === localStorage.getItem("bridge:to")) || tokens.list.find((t) => t.symbol === "USDT")!);
   const [value, setValue] = useState<string>(setup?.amount?.toFixed(6) ?? "");
+  const [isFiat, setIsFiat] = useState(false);
 
   const [review, setReview] = useState<BridgeReview | null>(null);
   const [isError, setIsError] = useState<string | null>(null);
@@ -71,13 +80,11 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     fetch(animations.failed);
   });
 
-  const [processing, setProcessing] = useState<{
-    status: "qr" | "processing" | "success" | "error";
-    resolve?: (value: BridgeReview) => void;
-    reject?: (error: Error) => void;
-    message: string;
-    review: BridgeReview;
-  } | null>(null);
+  const [processing, setProcessing] = useState<ProcessingState | null>(null);
+
+  useEffect(() => {
+    onStateUpdate?.(processing);
+  }, [processing]);
 
   useEffect(() => {
     onSelectPair?.(from, to);
@@ -151,6 +158,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     }, 3000);
   };
 
+  const refundWallet = sender !== "qr" ? sender : hot.priorityWallet;
   const reviewSwap = useCallback(() => {
     reviewId.current = uuid4();
     const currentReviewId = reviewId.current;
@@ -158,15 +166,13 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
     setReview(null);
     setIsError(null);
 
-    const refund = sender !== "qr" ? sender : hot.priorityWallet;
     if (valueInTokens <= 0) return throwError("Enter amount");
-
     const debounceTimer = setTimeout(async () => {
       try {
         if (currentReviewId !== reviewId.current) return;
         const amount = type === "exactIn" ? from.int(valueInTokens) : to.int(valueInTokens);
         const recipientWallet = hot.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
-        const review = await hot.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund, amount, type, from, to });
+        const review = await hot.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund: refundWallet, amount, type, from, to });
         if (currentReviewId !== reviewId.current) return;
 
         if (amount > 0) {
@@ -290,12 +296,15 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
           <TextField>{processing.message}</TextField>
         </div>
 
-        <ActionButton onClick={() => (cancelReview(), onClose())}>Continue</ActionButton>
+        <ActionButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
+          Continue
+        </ActionButton>
       </Popup>
     );
   }
 
   const button = () => {
+    if (refundWallet == null) return <ActionButton onClick={() => openConnector(hot)}>Sign in to HEX</ActionButton>;
     if (sender == null) return <ActionButton disabled>Confirm</ActionButton>;
     if (recipient == null) return <ActionButton disabled>Confirm</ActionButton>;
     if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
@@ -321,12 +330,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onSele
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <PSmall>Sender:</PSmall>
 
-              <BadgeButton
-                onClick={() => {
-                  if (from.type === WalletType.OMNI) openSelectSender({ hot, type: from.type, onSelect: (sender) => setSender(sender) });
-                  else openWalletPicker(hot.getWalletConnector(from.type)!, (wallet) => setSender(wallet));
-                }}
-              >
+              <BadgeButton onClick={() => openSelectSender({ hot, type: from.type, onSelect: (sender) => setSender(sender) })}>
                 <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
                 <Tooltip id="sender-tooltip">
                   <PSmall>Select sender wallet</PSmall>
@@ -521,7 +525,9 @@ const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties;
 };
 
 const TextField = styled(PTiny)`
-  width: 100%;
+  max-width: 100%;
+  min-width: 300px;
+  min-height: 64px;
   overflow: auto;
   max-height: 200px;
   background: #2c2c2c;

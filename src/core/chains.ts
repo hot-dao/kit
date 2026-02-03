@@ -293,7 +293,7 @@ const chainsRepository: Record<number, ChainConfig> = {
     id: Network.Zcash,
     key: "zec",
     name: "Zcash",
-    testAddress: "t1Q20340340340340340340340340340340340340",
+    testAddress: "t14oHp2v54vfmdgQ3v3SNuQga8JKHTNi2a1",
     logo: "https://storage.herewallet.app/ft/-5:native.png",
     currency: { id: "native", symbol: "ZEC", decimals: 8, logo: logo(Network.Zcash) },
     rpc: rpc(Network.Zcash),

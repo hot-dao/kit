@@ -2,17 +2,17 @@ import { observer } from "mobx-react-lite";
 
 import { QRIcon } from "../icons/qr";
 import { ArrowRightIcon } from "../icons/arrow-right";
-import { PopupOption, PopupOptionInfo } from "../styles";
-
-import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
-import { HotConnector } from "../../HotConnector";
-import { OmniWallet } from "../../core/OmniWallet";
 import { ImageView } from "../uikit/image";
 
-import { WalletType } from "../../core/chains";
-import { formatter } from "../../core/utils";
+import { HotConnector } from "../../HotConnector";
+import { PopupOption, PopupOptionInfo } from "../styles";
 import { openWalletPicker } from "../router";
 import Popup from "../Popup";
+
+import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
+import { OmniWallet } from "../../core/OmniWallet";
+import { WalletType } from "../../core/chains";
+import { formatter } from "../../core/utils";
 
 interface SelectSenderProps {
   type: WalletType;

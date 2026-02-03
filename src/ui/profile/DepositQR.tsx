@@ -4,7 +4,10 @@ import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
 import { BridgeReview } from "../../core/exchange";
-import { PopupButton } from "../styles";
+import { formatter } from "../../core";
+
+import { ActionButton, Button } from "../uikit/button";
+import { PMedium, PSmall } from "../uikit/text";
 
 const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeReview; onConfirm: () => void; onCancel: () => void }) => {
   const qrCodeRef = useRef<HTMLDivElement>(null);
@@ -12,9 +15,9 @@ const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeRev
     if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
     return new QRCodeStyling({
       data: review.qoute.depositAddress,
-      dotsOptions: { color: "#eeeeee", type: "rounded" },
+      dotsOptions: { color: "#eeeeee", type: "dots" },
       backgroundOptions: { color: "transparent" },
-      shape: "circle",
+      shape: "square",
       width: 180,
       height: 180,
       type: "svg",
@@ -30,59 +33,62 @@ const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeRev
   if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-      <CloseButton onClick={onCancel} aria-label="Close">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="11" stroke="#2d2d2d" strokeWidth="2" fill="#181818" />
-          <path d="M8 8l8 8M16 8l-8 8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+    <div style={{ position: "relative", width: "100%", height: "100%", gap: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
+      <CloseButton onClick={onCancel}>
+        <PSmall>Back</PSmall>
       </CloseButton>
 
-      <div
-        ref={qrCodeRef}
-        style={{
-          marginTop: "auto",
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 8,
-          paddingTop: 10,
-          paddingLeft: 10,
-          border: "1px solid #2d2d2d",
-          background: "#1c1c1c",
-        }}
-      ></div>
+      <div ref={qrCodeRef} style={{ marginTop: "auto", borderRadius: 12, padding: 8, border: "1px solid #2d2d2d", background: "#1c1c1c", textAlign: "left" }}></div>
 
-      <p style={{ marginTop: 24 }}>
-        Send{" "}
-        <b>
-          {review.qoute.amountInFormatted} {review.from.symbol}
-        </b>{" "}
-        on <b>{review.from.chainName}</b> to
-      </p>
+      <PMedium style={{ marginTop: 16, color: "#ababab", textAlign: "left", width: "100%" }}>
+        Send <Pre>{review.qoute.amountInFormatted}</Pre> <Pre>{review.from.symbol}</Pre> on <Pre>{review.from.chainName}</Pre> chain to:
+      </PMedium>
 
-      <div style={{ width: "100%", marginTop: 8, padding: 12, marginBottom: 24, border: "1px solid #2d2d2d", borderRadius: 12, background: "#1c1c1c" }}>
-        <p style={{ wordBreak: "break-all" }}>{review.qoute.depositAddress}</p>
-      </div>
+      <Pre style={{ width: "100%", fontSize: 14, fontWeight: "bold", textAlign: "left", padding: 0, background: "transparent", border: "none" }}>{review.qoute.depositAddress}</Pre>
 
-      <PopupButton style={{ marginTop: "auto" }} onClick={onConfirm}>
+      <PSmall style={{ marginTop: 12, color: "#ababab", textAlign: "left" }}>
+        Please make sure you send <Pre>{review.from.symbol}</Pre> token on <Pre>{review.from.chainName}</Pre> chain, otherwise you may lose your funds!
+      </PSmall>
+
+      <PSmall style={{ color: "#ababab", textAlign: "left" }}>
+        If the exchange fails, your funds will be refunded on your HEX balance to <Pre>{formatter.truncateAddress(review.refund?.address || "", 12)}</Pre> after 20 minutes and you will be able to withdraw or exchange them.
+      </PSmall>
+
+      <ActionButton style={{ marginTop: 12 }} onClick={onConfirm}>
         I sent the funds
-      </PopupButton>
+      </ActionButton>
     </div>
   );
 });
 
-const CloseButton = styled.button`
+const Pre = styled.pre`
+  display: inline;
+  background: #2d2d2d;
+  padding: 0 2px;
+  border-radius: 4px;
+  border: 1px solid #ffffff14;
+  word-break: break-all;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: left;
+  margin: 0;
+`;
+
+const CloseButton = styled(Button)`
   position: absolute;
-  top: -8px;
-  right: -12px;
+  top: 2px;
+  left: 2px;
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 6;
-  border-radius: 50%;
-  transition: background 0.2s;
+  padding: 4px 8px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ffffff14;
+  background: #2d2d2d;
 `;
 
 export default DepositQR;

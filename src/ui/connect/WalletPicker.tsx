@@ -100,4 +100,10 @@ export const WalletPicker = observer(({ initialConnector, onSelect, onClose }: W
       </Popup>
     );
   }
+
+  return (
+    <Popup header={<p>No wallets found</p>} onClose={() => onClose(error)}>
+      <PMedium>Maybe we not support this wallet yet</PMedium>
+    </Popup>
+  );
 });
