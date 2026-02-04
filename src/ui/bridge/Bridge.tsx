@@ -7,7 +7,7 @@ import { ArrowRightIcon } from "../icons/arrow-right";
 import ExchangeIcon from "../icons/exchange";
 import RefreshIcon from "../icons/refresh";
 
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { chains, Network, WalletType } from "../../core/chains";
 import { BridgeReview } from "../../core/exchange";
 import { OmniWallet } from "../../core/OmniWallet";
@@ -17,7 +17,7 @@ import { tokens } from "../../core/tokens";
 import { Token } from "../../core/token";
 
 import { ActionButton, Button } from "../uikit/button";
-import { PLarge, PSmall, PTiny } from "../uikit/text";
+import { H5, PLarge, PSmall, PTiny } from "../uikit/text";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
 
@@ -36,12 +36,12 @@ export interface ProcessingState {
   status: "qr" | "processing" | "success" | "error";
   resolve?: (value: BridgeReview) => void;
   reject?: (error: Error) => void;
-  message: string;
+  message?: string;
   review: BridgeReview;
 }
 
 export interface BridgeProps {
-  hot: HotConnector;
+  kit: HotKit;
   widget?: boolean;
   onClose: () => void;
   onStateUpdate?: (state: ProcessingState | null) => void;
@@ -63,7 +63,7 @@ export interface BridgeProps {
 
 const FIXED = 6;
 
-export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStateUpdate, onSelectPair }: BridgeProps) => {
+export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStateUpdate, onSelectPair }: BridgeProps) => {
   const [type, setType] = useState<"exactIn" | "exactOut">(setup?.type || "exactIn");
   const [from, setFrom] = useState<Token>(setup?.from || tokens.list.find((t) => t.id === localStorage.getItem("bridge:from")) || tokens.list.find((t) => t.symbol === "NEAR")!);
   const [to, setTo] = useState<Token>(setup?.to || tokens.list.find((t) => t.id === localStorage.getItem("bridge:to")) || tokens.list.find((t) => t.symbol === "USDT")!);
@@ -92,19 +92,19 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
 
   const [sender, setSender] = useState<OmniWallet | "qr" | undefined>(() => {
     if (setup?.sender) return setup.sender;
-    if (from.type === WalletType.OMNI) return hot.priorityWallet;
-    return hot.wallets.find((w) => w.type === from.type);
+    if (from.type === WalletType.OMNI) return kit.priorityWallet;
+    return kit.wallets.find((w) => w.type === from.type);
   });
 
   useEffect(() => {
-    if (from.type === WalletType.OMNI) setSender(hot.priorityWallet);
-    if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet!));
-  }, [hot.priorityWallet]);
+    if (from.type === WalletType.OMNI) setSender(kit.priorityWallet);
+    if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(kit.priorityWallet!));
+  }, [kit.priorityWallet]);
 
   const [recipient, setRecipient] = useState<Recipient | undefined>(() => {
     if (setup?.recipient) return setup.recipient;
-    if (to.type === WalletType.OMNI) return Recipient.fromWallet(hot.priorityWallet!);
-    return Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)!);
+    if (to.type === WalletType.OMNI) return Recipient.fromWallet(kit.priorityWallet!);
+    return Recipient.fromWallet(kit.wallets.find((w) => w.type === to.type)!);
   });
 
   const initialSender = useRef<OmniWallet | "qr" | undefined>(sender);
@@ -117,7 +117,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
   const showAmountFrom = type === "exactOut" ? +from.float(review?.amountIn ?? 0).toFixed(FIXED) : formatter.fromInput(value);
   const showAmountTo = type === "exactIn" ? +to.float(review?.amountOut ?? 0).toFixed(FIXED) : formatter.fromInput(value);
 
-  const availableBalance = sender !== "qr" ? +Math.max(0, from.float(hot.balance(sender, from)) - from.reserve).toFixed(FIXED) : 0;
+  const availableBalance = sender !== "qr" ? +Math.max(0, from.float(kit.balance(sender, from)) - from.reserve).toFixed(FIXED) : 0;
 
   let title = "Exchange";
   if (from.chain === Network.HotCraft || from.chain === Network.Omni) title = `Withdraw ${from.symbol}`;
@@ -131,15 +131,15 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
 
   useEffect(() => {
     if (initialSender.current == null) {
-      if (from.type === WalletType.OMNI) setSender(hot.priorityWallet);
-      else setSender(hot.wallets.find((w) => w.type === from.type));
+      if (from.type === WalletType.OMNI) setSender(kit.priorityWallet);
+      else setSender(kit.wallets.find((w) => w.type === from.type));
     }
 
     if (initialRecipient.current == null) {
-      if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(hot.priorityWallet));
-      else setRecipient(Recipient.fromWallet(hot.wallets.find((w) => w.type === to.type)));
+      if (to.type === WalletType.OMNI) setRecipient(Recipient.fromWallet(kit.priorityWallet));
+      else setRecipient(Recipient.fromWallet(kit.wallets.find((w) => w.type === to.type)));
     }
-  }, [to, from, hot.wallets, hot.priorityWallet]);
+  }, [to, from, kit.wallets, kit.priorityWallet]);
 
   const reviewId = useRef(uuid4());
   const throwError = (message: string) => {
@@ -158,7 +158,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
     }, 3000);
   };
 
-  const refundWallet = sender !== "qr" ? sender : hot.priorityWallet;
+  const refundWallet = sender !== "qr" ? sender : kit.priorityWallet;
   const reviewSwap = useCallback(() => {
     reviewId.current = uuid4();
     const currentReviewId = reviewId.current;
@@ -171,8 +171,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
       try {
         if (currentReviewId !== reviewId.current) return;
         const amount = type === "exactIn" ? from.int(valueInTokens) : to.int(valueInTokens);
-        const recipientWallet = hot.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
-        const review = await hot.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund: refundWallet, amount, type, from, to });
+        const recipientWallet = kit.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
+        const review = await kit.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund: refundWallet, amount, type, from, to });
         if (currentReviewId !== reviewId.current) return;
 
         if (amount > 0) {
@@ -193,7 +193,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
     }, 500);
 
     return () => clearTimeout(debounceTimer);
-  }, [valueInTokens, type, from, to, sender, hot.exchange, recipient, hot.priorityWallet]);
+  }, [valueInTokens, type, from, to, sender, kit.exchange, recipient, kit.priorityWallet]);
 
   useEffect(() => {
     reviewSwap();
@@ -202,21 +202,17 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
   const process = async (review: BridgeReview) => {
     try {
       const log = (message: string) => setProcessing({ status: "processing", message, review });
-      hot.exchange.bridge.logger = { log, warn: console.warn };
+      kit.exchange.bridge.logger = { log, warn: console.warn };
       log("Signing transaction");
 
       review.logger = { log };
-      const result = await hot.exchange.makeSwap(review);
-      let resultReview = result.review;
+      const pending = await kit.exchange.makeSwap(review);
 
-      if (result.processing) {
-        log("Waiting for transaction to be confirmed");
-        resultReview = await result.processing();
-      }
+      setProcessing({ status: "success", review: pending.review });
+      kit.activity.addBridgePending(pending);
 
-      setProcessing({ status: "success", message: "Transaction signed", review: resultReview });
       if (setup?.autoClose) onClose();
-      return resultReview;
+      return pending.review;
     } catch (e) {
       setProcessing({ status: "error", message: e?.toString?.() ?? "Unknown error", review });
       throw e;
@@ -251,6 +247,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
     return (
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <DepositQR //
+          kit={kit}
           review={processing.review}
           onConfirm={() => onProcess(process(processing.review))}
           onCancel={cancelReview}
@@ -265,7 +262,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="loading" src={animations.loading} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ marginTop: -32, fontSize: 16 }}>{processing.message}</p>
+          <H5 style={{ marginTop: -32 }}>{processing.message}</H5>
         </div>
       </Popup>
     );
@@ -277,7 +274,8 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
         <div style={{ width: "100%", height: 400, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="success" src={animations.success} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} successful</p>
+          <H5 style={{ marginTop: -32 }}>{title} in progress</H5>
+          <PSmall style={{ marginTop: 8 }}>You can track your transaction in the activity</PSmall>
         </div>
         <ActionButton style={{ marginTop: "auto" }} onClick={() => (cancelReview(), onClose())}>
           Continue
@@ -292,7 +290,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
         <div style={{ width: "100%", height: 400, marginBottom: 8, gap: 8, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
           {/* @ts-expect-error: dotlottie-wc is not typed */}
           <dotlottie-wc key="error" src={animations.failed} speed="1" style={{ width: 300, height: 300 }} mode="forward" loop autoplay></dotlottie-wc>
-          <p style={{ fontSize: 24, marginTop: -32, fontWeight: "bold" }}>{title} failed</p>
+          <H5 style={{ marginTop: -32 }}>{title} failed</H5>
           <TextField>{processing.message}</TextField>
         </div>
 
@@ -304,10 +302,10 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
   }
 
   const button = () => {
-    if (refundWallet == null) return <ActionButton onClick={() => openConnector(hot)}>Sign in to HEX</ActionButton>;
+    if (refundWallet == null) return <ActionButton onClick={() => openConnector(kit)}>Sign in to HEX</ActionButton>;
     if (sender == null) return <ActionButton disabled>Confirm</ActionButton>;
     if (recipient == null) return <ActionButton disabled>Confirm</ActionButton>;
-    if (sender !== "qr" && +from.float(hot.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
+    if (sender !== "qr" && +from.float(kit.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
     return (
       <ActionButton style={{ width: "100%", marginTop: 40 }} disabled={isReviewing || isError != null} onClick={handleConfirm}>
         {isReviewing ? "Quoting..." : isError != null ? isError : "Confirm"}
@@ -320,7 +318,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", height: "100%" }}>
         <Card style={{ borderRadius: "20px 20px 2px 2px" }}>
           <CardHeader>
-            <ChainButton onClick={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })}>
+            <ChainButton onClick={() => openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })}>
               <PSmall>From</PSmall>
               <ImageView src={chains.get(from.chain)?.logo || ""} alt={from.symbol} size={16} />
               <PSmall>{chains.get(from.chain)?.name}</PSmall>
@@ -329,8 +327,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <PSmall>Sender:</PSmall>
-
-              <BadgeButton onClick={() => openSelectSender({ hot, type: from.type, onSelect: (sender) => setSender(sender) })}>
+              <BadgeButton onClick={() => openSelectSender({ kit, type: from.type, onSelect: (sender) => setSender(sender) })}>
                 <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
                 <Tooltip id="sender-tooltip">
                   <PSmall>Select sender wallet</PSmall>
@@ -347,7 +344,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
                   openSelectTokenPopup({
                     onSelect: (token, wallet) => (setFrom(token), setSender(wallet)),
                     initialChain: from.chain,
-                    hot,
+                    kit,
                   })
                 }
               />
@@ -376,7 +373,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
                 {sender !== "qr" && (
                   <AvailableBalance>
                     <PSmall>Balance: ${from.readable(availableBalance, from.usd)}</PSmall>
-                    <Button onClick={() => sender && hot.fetchToken(from, sender)}>
+                    <Button onClick={() => sender && kit.fetchToken(from, sender)}>
                       <RefreshIcon color="#fff" />
                     </Button>
                   </AvailableBalance>
@@ -407,7 +404,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
                 {sender !== "qr" && (
                   <AvailableBalance>
                     <PSmall>Balance: {`${from.readable(availableBalance)} ${from.symbol}`}</PSmall>
-                    <Button style={{ marginTop: 2 }} onClick={() => sender && hot.fetchToken(from, sender)}>
+                    <Button style={{ marginTop: 2 }} onClick={() => sender && kit.fetchToken(from, sender)}>
                       <RefreshIcon color="#fff" />
                     </Button>
                   </AvailableBalance>
@@ -437,7 +434,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
             onClick={() => {
               setFrom(to);
               setTo(from);
-              setSender(hot.wallets.find((w) => w.address === recipient?.address));
+              setSender(kit.wallets.find((w) => w.address === recipient?.address));
               setRecipient(sender === "qr" ? undefined : sender ? Recipient.fromWallet(sender) : undefined);
               setType(type === "exactIn" ? "exactOut" : "exactIn");
               setValue("");
@@ -449,7 +446,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
 
         <Card style={{ borderRadius: "2px 2px 20px 20px" }}>
           <CardHeader>
-            <ChainButton onClick={() => openSelectTokenPopup({ hot, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
+            <ChainButton onClick={() => openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
               <PSmall>To</PSmall>
               <ImageView src={chains.get(to.chain)?.logo || ""} alt={to.symbol} size={16} />
               <PSmall>{chains.get(to.chain)?.name}</PSmall>
@@ -458,7 +455,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <PSmall>Recipient:</PSmall>
-              <BadgeButton onClick={() => openSelectRecipient({ hot, chain: to.chain, onSelect: (recipient) => setRecipient(recipient) })}>
+              <BadgeButton onClick={() => openSelectRecipient({ kit, chain: to.chain, onSelect: (recipient) => setRecipient(recipient) })}>
                 <PSmall>{recipient == null ? "Select" : formatter.truncateAddress(recipient.address, 8)}</PSmall>
                 <Tooltip id="recipient-tooltip">
                   <PSmall>Select recipient wallet</PSmall>
@@ -473,7 +470,7 @@ export const Bridge = observer(({ hot, widget, setup, onClose, onProcess, onStat
                 token={to}
                 onSelect={() =>
                   openSelectTokenPopup({
-                    hot,
+                    kit,
                     initialChain: to.chain,
                     onSelect: (token, wallet) => {
                       setRecipient(wallet ? Recipient.fromWallet(wallet) : undefined);

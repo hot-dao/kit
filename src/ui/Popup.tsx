@@ -6,7 +6,7 @@ import { PopupRoot, ModalContainer, ModalContent, ModalHeader, ModalBody, Footer
 
 export const present = (render: (close: () => void) => React.ReactNode) => {
   const div = document.createElement("div");
-  div.className = "wibe3-popup";
+  div.className = "kit-popup";
   document.body.appendChild(div);
   const root = createRoot(div);
 
@@ -30,9 +30,10 @@ interface PopupProps {
   onClose?: () => void;
   style?: React.CSSProperties;
   mobileFullscreen?: boolean;
+  height?: number;
 }
 
-const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: PopupProps) => {
+const Popup = ({ widget, children, header, onClose, style, mobileFullscreen, height }: PopupProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +60,7 @@ const Popup = ({ widget, children, header, onClose, style, mobileFullscreen }: P
     <PopupRoot>
       <ModalContainer>
         <ModalOverlay ref={containerRef} onClick={onClose} style={{ opacity: 0, transition: "all 0.2s ease-in-out" }} />
-        <ModalContent ref={contentRef} $mobileFullscreen={mobileFullscreen} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out" }}>
+        <ModalContent ref={contentRef} $mobileFullscreen={mobileFullscreen} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.2s ease-in-out", maxHeight: height, height }}>
           {header && (
             <ModalHeader>
               {onClose != null && (

@@ -8,6 +8,7 @@ export enum OmniToken {
   SOL = "nep141:sol.omft.near",
   BNB = "nep245:v2_1.omni.hot.tg:56_11111111111111111111",
   ADI = "nep245:v2_1.omni.hot.tg:36900_11111111111111111111",
+  ZEC = "nep141:zec.omft.near",
 }
 
 export enum WalletType {

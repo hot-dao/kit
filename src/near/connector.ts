@@ -1,7 +1,7 @@
 import { NearConnector } from "@hot-labs/near-connect";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
 import NearWallet from "./wallet";
@@ -14,8 +14,8 @@ class Connector extends OmniConnector<NearWallet> {
   name = "NEAR Wallet";
   id = "near";
 
-  constructor(readonly wibe3: HotConnector, connector?: NearConnector) {
-    super(wibe3);
+  constructor(readonly kit: HotKit, connector?: NearConnector) {
+    super(kit);
 
     if (connector) this.connector = connector;
     else {

@@ -1,4 +1,4 @@
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
 import TronWallet from "./wallet";
@@ -38,8 +38,8 @@ class TronConnector extends OmniConnector<TronWallet> {
   name = "TRON Wallet";
   id = "tron";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
     this.options = [TRONLINK];
 
     this.syncFromProvider().catch(() => this.removeStorage());

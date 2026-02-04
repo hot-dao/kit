@@ -1,7 +1,7 @@
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 import TronConnector from "./connector";
 import TronWallet from "./wallet";
 
 export { TronConnector, TronWallet };
 
-export default () => async (wibe3: HotConnector) => new TronConnector(wibe3);
+export default () => async (kit: HotKit) => new TronConnector(kit);

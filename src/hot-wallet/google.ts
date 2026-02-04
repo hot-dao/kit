@@ -12,7 +12,7 @@ import TonWallet from "../ton/wallet";
 import NearWallet from "../near/wallet";
 import SolanaWallet from "../solana/wallet";
 import StellarWallet from "../stellar/wallet";
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
 export interface GoogleConnectorOptions {
   webWallet?: string;
@@ -26,8 +26,8 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
   id = "google";
   webWallet: string;
 
-  constructor(wibe3: HotConnector, options?: GoogleConnectorOptions) {
-    super(wibe3);
+  constructor(kit: HotKit, options?: GoogleConnectorOptions) {
+    super(kit);
 
     this.webWallet = options?.webWallet ?? "https://app.hot-labs.org";
     makeObservable(this, { connectWallet: action });
@@ -42,7 +42,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
     const height = 640;
     const x = (window.screen.width - width) / 2;
     const y = (window.screen.height - height) / 2;
-    return window.open(`${this.wibe3.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
+    return window.open(`${this.kit.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
   }
 
   connectWallet({ account, isNew }: { account: { type: number; address: string; publicKey: string }; isNew: boolean }) {
@@ -57,7 +57,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
       const signMessage = async (message: string) => request("stellar:signMessage", { message });
       const signTransaction = async (transaction: Transaction) => request("stellar:signTransaction", { transaction: transaction.toXDR() });
       const wallet = new StellarWallet({
-        rpc: this.wibe3.exchange.bridge.stellar,
+        rpc: this.kit.exchange.bridge.stellar,
         address: account.address,
         signTransaction,
         signMessage,
@@ -122,7 +122,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
 
       const id = uuid4();
       const handler = (event: MessageEvent) => {
-        if (event.origin !== this.wibe3.settings.webWallet) return;
+        if (event.origin !== this.kit.settings.webWallet) return;
 
         if (event.data === "hot:ready") {
           popup?.postMessage({ chain, address, method, request, id }, "*");

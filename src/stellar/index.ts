@@ -1,7 +1,7 @@
 import StellarConnector from "./connector";
 import StellarWallet from "./wallet";
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
 export { StellarConnector, StellarWallet };
 
-export default () => async (wibe3: HotConnector) => new StellarConnector(wibe3);
+export default () => async (kit: HotKit) => new StellarConnector(kit);

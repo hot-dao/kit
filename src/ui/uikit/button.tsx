@@ -34,7 +34,7 @@ export const ActionButton = styled.button<{ $stroke?: boolean }>`
 
   &:disabled {
     background: #3e3e3e;
-    color: #828282;
+    color: #828282 !important;
     cursor: not-allowed;
   }
 

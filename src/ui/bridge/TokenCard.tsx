@@ -5,44 +5,51 @@ import { chains } from "../../core/chains";
 import { formatter } from "../../core/utils";
 import { Token } from "../../core/token";
 
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { OmniWallet } from "../../core/OmniWallet";
 import { ImageView } from "../uikit/image";
 
-export const TokenIcon = observer(({ token, wallet, withoutChain, size = 40 }: { token: Token; wallet?: OmniWallet; withoutChain?: boolean; size?: number }) => {
+export const TokenIcon = observer(({ token, wallet, withoutChain, size = 40 }: { token: Token; wallet?: OmniWallet | "qr"; withoutChain?: boolean; size?: number }) => {
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <ImageView src={token.icon} alt={token.symbol} size={size} />
       {!withoutChain && <ImageView src={token.chainIcon} alt={token.symbol} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, right: 0 }} />}
-      {token.isOmni && wallet?.type && <ImageView src={wallet.icon} alt={chains.getByType(wallet.type)?.[0]?.name || ""} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, left: 0 }} />}
+      {token.isOmni && wallet !== "qr" && wallet?.type && <ImageView src={wallet.icon} alt={chains.getByType(wallet.type)?.[0]?.name || ""} size={size / 2 - 6} style={{ position: "absolute", bottom: 0, left: 0 }} />}
     </div>
   );
 });
 
-export const TokenCard = observer(
-  ({ token, onSelect, amount, hot, wallet, rightControl }: { rightControl?: React.ReactNode; token: Token; onSelect?: (token: Token, wallet?: OmniWallet) => void; amount?: bigint; hot: HotConnector; wallet?: OmniWallet }) => {
-    const balance = amount || hot.balance(wallet, token);
-    const symbol = token.isOmni && !token.isMainOmni ? `${token.symbol} (${token.originalChainSymbol})` : token.symbol;
+interface TokenCardProps<T extends OmniWallet | "qr"> {
+  token: Token;
+  onSelect?: (token: Token, wallet?: T) => void;
+  amount?: bigint;
+  kit: HotKit;
+  wallet?: T;
+  rightControl?: React.ReactNode;
+}
 
-    return (
-      <Card key={token.id} onClick={() => onSelect?.(token, wallet)}>
-        <TokenIcon token={token} wallet={wallet} />
+export const TokenCard = observer(<T extends OmniWallet | "qr">({ token, onSelect, amount, kit, wallet, rightControl }: TokenCardProps<T>) => {
+  const balance = amount || (wallet === "qr" ? 0n : kit.balance(wallet, token));
+  const symbol = token.isOmni && !token.isMainOmni ? `${token.symbol} (${token.originalChainSymbol})` : token.symbol;
 
-        <TokenWrap>
-          <Text style={{ textAlign: "left" }}>{symbol}</Text>
-          <PSmall style={{ textAlign: "left" }}>${formatter.amount(token.usd)}</PSmall>
+  return (
+    <Card key={token.id} onClick={() => onSelect?.(token, wallet)}>
+      <TokenIcon token={token} wallet={wallet} />
+
+      <TokenWrap>
+        <Text style={{ textAlign: "left" }}>{symbol}</Text>
+        <PSmall style={{ textAlign: "left" }}>${formatter.amount(token.usd)}</PSmall>
+      </TokenWrap>
+
+      {rightControl || (
+        <TokenWrap style={{ textAlign: "right", paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
+          <Text>{token.readable(balance)}</Text>
+          <PSmall>${token.readable(balance, token.usd)}</PSmall>
         </TokenWrap>
-
-        {rightControl || (
-          <TokenWrap style={{ textAlign: "right", paddingRight: 4, marginLeft: "auto", alignItems: "flex-end" }}>
-            <Text>{token.readable(balance)}</Text>
-            <PSmall>${token.readable(balance, token.usd)}</PSmall>
-          </TokenWrap>
-        )}
-      </Card>
-    );
-  }
-);
+      )}
+    </Card>
+  );
+});
 
 const Card = styled.div`
   display: flex;

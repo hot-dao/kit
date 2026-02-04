@@ -3,13 +3,15 @@ import QRCodeStyling from "qr-code-styling";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
+import { HotKit } from "../../HotKit";
 import { BridgeReview } from "../../core/exchange";
-import { formatter } from "../../core";
+import { WarningIcon } from "../icons/warning";
 
 import { ActionButton, Button } from "../uikit/button";
 import { PMedium, PSmall } from "../uikit/text";
+import CopyIcon from "../icons/copy";
 
-const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeReview; onConfirm: () => void; onCancel: () => void }) => {
+const DepositQR = observer(({ kit, review, onConfirm, onCancel }: { kit: HotKit; review: BridgeReview; onConfirm: () => void; onCancel?: () => void }) => {
   const qrCodeRef = useRef<HTMLDivElement>(null);
   const [qrCode] = useState<QRCodeStyling | null>(() => {
     if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
@@ -31,28 +33,46 @@ const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeRev
   }, []);
 
   if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
+  const depositAddress = review.qoute.depositAddress as string;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(depositAddress);
+      kit.toast.success("Address copied to clipboard");
+    } catch (error) {
+      kit.toast.failed("Failed to copy address");
+    }
+  };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", gap: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-      <CloseButton onClick={onCancel}>
-        <PSmall>Back</PSmall>
-      </CloseButton>
+      {onCancel != null && (
+        <CloseButton onClick={onCancel}>
+          <PSmall>Back</PSmall>
+        </CloseButton>
+      )}
 
-      <div ref={qrCodeRef} style={{ marginTop: "auto", borderRadius: 12, padding: 8, border: "1px solid #2d2d2d", background: "#1c1c1c", textAlign: "left" }}></div>
+      <div ref={qrCodeRef} style={{ marginTop: "auto", borderRadius: 12, padding: "4px 4px 0 4px", border: "1px solid #2d2d2d", background: "#1c1c1c", textAlign: "left" }}></div>
 
-      <PMedium style={{ marginTop: 16, color: "#ababab", textAlign: "left", width: "100%" }}>
+      <PMedium style={{ textAlign: "center", marginTop: 16, color: "#ababab", width: "100%" }}>
         Send <Pre>{review.qoute.amountInFormatted}</Pre> <Pre>{review.from.symbol}</Pre> on <Pre>{review.from.chainName}</Pre> chain to:
       </PMedium>
 
-      <Pre style={{ width: "100%", fontSize: 14, fontWeight: "bold", textAlign: "left", padding: 0, background: "transparent", border: "none" }}>{review.qoute.depositAddress}</Pre>
+      <div style={{ width: "100%", justifyContent: "center", display: "flex", gap: 4 }}>
+        <Pre style={{ fontSize: 14, fontWeight: "bold", padding: 0, background: "transparent", border: "none" }}>{depositAddress}</Pre>
+        <Button onClick={handleCopy}>
+          <CopyIcon width={16} height={16} color="#ababab" />
+        </Button>
+      </div>
 
-      <PSmall style={{ marginTop: 12, color: "#ababab", textAlign: "left" }}>
-        Please make sure you send <Pre>{review.from.symbol}</Pre> token on <Pre>{review.from.chainName}</Pre> chain, otherwise you may lose your funds!
-      </PSmall>
-
-      <PSmall style={{ color: "#ababab", textAlign: "left" }}>
-        If the exchange fails, your funds will be refunded on your HEX balance to <Pre>{formatter.truncateAddress(review.refund?.address || "", 12)}</Pre> after 20 minutes and you will be able to withdraw or exchange them.
-      </PSmall>
+      <WarningBadge>
+        <WarningIcon color="#F3AE47" style={{ marginTop: 4, flexShrink: 0 }} />
+        <PSmall style={{ color: "#F3AE47", fontWeight: "bold" }}>
+          Only deposit {review.from.symbol} from {review.from.chainName} network.
+          <br />
+          Depositing other assets or using a different network will result in loss of funds
+        </PSmall>
+      </WarningBadge>
 
       <ActionButton style={{ marginTop: 12 }} onClick={onConfirm}>
         I sent the funds
@@ -61,7 +81,18 @@ const DepositQR = observer(({ review, onConfirm, onCancel }: { review: BridgeRev
   );
 });
 
-const Pre = styled.pre`
+const WarningBadge = styled.div`
+  border-radius: 8px;
+  border: 1px solid var(--border-border-orange, #f3ae47);
+  background: var(--surface-warning, #3f311d);
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  text-align: left;
+  margin-top: 12px;
+`;
+
+const Pre = styled.code`
   display: inline;
   background: #2d2d2d;
   padding: 0 2px;

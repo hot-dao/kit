@@ -11,7 +11,7 @@ import { chains, WalletType } from "../core/chains";
 import { OmniWallet } from "../core/OmniWallet";
 import { api } from "../core/api";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
 
@@ -56,8 +56,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   isSupported = true;
   id = "cosmos";
 
-  constructor(wibe3: HotConnector, readonly chainId = "gonka-mainnet") {
-    super(wibe3);
+  constructor(kit: HotKit, readonly chainId = "gonka-mainnet") {
+    super(kit);
 
     this.options = Object.values(wallets);
     Keplr.getKeplr().then((keplr) => {

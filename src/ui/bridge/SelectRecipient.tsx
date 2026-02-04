@@ -12,19 +12,19 @@ import { PSmall } from "../uikit/text";
 import { ImageView } from "../uikit/image";
 import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 import { PopupOption, PopupOptionInfo } from "../styles";
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { openWalletPicker } from "../router";
 import Popup from "../Popup";
 
 interface SelectRecipientProps {
   chain: number;
-  hot: HotConnector;
+  kit: HotKit;
   recipient?: Recipient;
   onSelect: (recipient?: Recipient) => void;
   onClose: () => void;
 }
 
-export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onClose }: SelectRecipientProps) => {
+export const SelectRecipient = observer(({ recipient, kit, chain, onSelect, onClose }: SelectRecipientProps) => {
   const [customAddress, setCustomAddress] = useState<string>(recipient?.address || "");
   const type = chains.get(chain)?.type;
 
@@ -35,7 +35,7 @@ export const SelectRecipient = observer(({ recipient, hot, chain, onSelect, onCl
       </Popup>
     );
 
-  const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
+  const connectors = kit.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const isError = !Recipient.isValidAddress(chain, customAddress) && customAddress.length > 0;
 
   const selectCustom = async () => {

@@ -18,7 +18,7 @@ Also supported: Passkey accounts and Google Auth via HOT MPC Network
 
 ## Installation: Setup Vite Node polyfills and React plugins
 
-Wibe3 require you to install node polyfills and react to work, for vite you need to complete the following extra steps:
+kit require you to install node polyfills and react to work, for vite you need to complete the following extra steps:
 
 `npm install vite-plugin-node-polyfills @vitejs/plugin-react`
 
@@ -37,10 +37,10 @@ export default defineConfig({
 ## Getting started
 
 ```ts
-import { HotConnector } from "@hot-labs/kit";
+import { HotKit } from "@hot-labs/kit";
 import { defaultConnectors } from "@hot-labs/kit/defaults";
 
-const connector = new HotConnector({
+const kit = new HotKit({
   connectors: defaultConnectors,
   apiKey: "Get on https://pay.hot-labs.org/admin/api-keys for free",
 
@@ -56,8 +56,8 @@ const connector = new HotConnector({
   },
 });
 
-connector.onConnect(({ wallet }) => {});
-connector.onDisconnect(({ wallet }) => {});
+kit.onConnect(({ wallet }) => {});
+kit.onDisconnect(({ wallet }) => {});
 ```
 
 ## Server side usage

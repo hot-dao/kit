@@ -19,7 +19,7 @@ const Loader: React.FC = () => {
   );
 };
 
-const AuthIntentPopupComponent: React.FC<AuthIntentPopupProps> = ({ onApprove, onReject }) => {
+export const AuthPopup: React.FC<AuthIntentPopupProps> = ({ onApprove, onReject }) => {
   const [loading, setLoading] = useState(false);
 
   const handleApprove = async () => {
@@ -52,27 +52,4 @@ const AuthIntentPopupComponent: React.FC<AuthIntentPopupProps> = ({ onApprove, o
       </PopupButton>
     </Popup>
   );
-};
-
-export const openAuthPopup = <T,>(wallet: OmniWallet, then: () => Promise<T>) => {
-  return new Promise<T>((resolve, reject) => {
-    present((close) => {
-      return (
-        <AuthIntentPopupComponent
-          wallet={wallet}
-          onReject={() => (close(), reject())}
-          onApprove={async () => {
-            try {
-              const result = await then();
-              resolve(result);
-            } catch (e) {
-              reject(e);
-            } finally {
-              close();
-            }
-          }}
-        />
-      );
-    });
-  });
 };

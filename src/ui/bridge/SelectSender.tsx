@@ -4,7 +4,7 @@ import { QRIcon } from "../icons/qr";
 import { ArrowRightIcon } from "../icons/arrow-right";
 import { ImageView } from "../uikit/image";
 
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { PopupOption, PopupOptionInfo } from "../styles";
 import { openWalletPicker } from "../router";
 import Popup from "../Popup";
@@ -16,13 +16,13 @@ import { formatter } from "../../core/utils";
 
 interface SelectSenderProps {
   type: WalletType;
-  hot: HotConnector;
+  kit: HotKit;
   onClose: () => void;
   onSelect: (wallet?: OmniWallet | "qr") => void;
 }
 
-export const SelectSender = observer(({ hot, type, onSelect, onClose }: SelectSenderProps) => {
-  const connectors = hot.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
+export const SelectSender = observer(({ kit, type, onSelect, onClose }: SelectSenderProps) => {
+  const connectors = kit.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const noExternal = type === WalletType.OMNI || type === WalletType.COSMOS;
 
   const selectWallet = async (t: OmniConnector) => {

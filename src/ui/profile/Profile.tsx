@@ -5,25 +5,27 @@ import { useEffect } from "react";
 import PlusIcon from "../icons/plus";
 import { LogoutIcon } from "../icons/logout";
 import ExchangeIcon from "../icons/exchange";
+
+import { ActionButton } from "../uikit/button";
 import { ImageView } from "../uikit/image";
 import { Loader } from "../uikit/loader";
+import { PMedium } from "../uikit/text";
 
 import { OmniWallet } from "../../core/OmniWallet";
 import { ConnectorType } from "../../core/OmniConnector";
-import { formatter } from "../../core/utils";
 import { Network, OmniToken } from "../../core/chains";
-import { tokens } from "../../core/tokens";
+import { formatter } from "../../core/utils";
+import { Token } from "../../core/token";
 
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { openBridge, openConnector } from "../router";
 import { TokenCard, TokenIcon } from "../bridge/TokenCard";
-import { PopupOption } from "../styles";
 import Popup from "../Popup";
 
-export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose: (wallet?: OmniWallet) => void }) => {
+export const Profile = observer(({ kit, onClose }: { kit: HotKit; onClose: (wallet?: OmniWallet) => void }) => {
   let totalBalance = 0;
 
-  const tokensList = hot.walletsTokens
+  const tokensList = kit.walletsTokens
     .map(({ token, wallet, balance }) => {
       if (token.float(balance) < 0.000001) return null;
       totalBalance += token.float(balance) * token.usd;
@@ -32,13 +34,13 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         component: (
           <TokenCard //
             onSelect={() => {
-              if (token.chain === Network.Omni || token.chain === Network.HotCraft) hot.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
-              else openBridge(hot, { title: "Exchange", sender: wallet, from: token });
+              if (token.chain === Network.Omni || token.chain === Network.HotCraft) kit.withdraw(token.address as OmniToken, +token.float(balance).toFixed(6), { sender: wallet });
+              else openBridge(kit, { title: "Exchange", sender: wallet, from: token });
             }}
             key={`${wallet.type}:${wallet.address}:${token.id}`}
             wallet={wallet}
             token={token}
-            hot={hot}
+            kit={kit}
           />
         ),
       };
@@ -47,13 +49,13 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
 
   const omniTokens = tokensList.filter((t) => t.chain === Network.Omni || t.chain === Network.HotCraft);
   const nonOmniTokens = tokensList.filter((t) => t.chain !== Network.Omni && t.chain !== Network.HotCraft);
-  const socialConnector = hot.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
-  const connectors = hot.connectors.filter((connector) => connector.type !== ConnectorType.HOTCRAFT);
+  const socialConnector = kit.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
+  const connectors = kit.connectors.filter((connector) => connector.type !== ConnectorType.HOTCRAFT);
 
   useEffect(() => {
-    if (hot.wallets.length > 0) return;
+    if (kit.wallets.length > 0) return;
     onClose();
-  }, [hot.wallets.length]);
+  }, [kit.wallets.length]);
 
   return (
     <Popup onClose={onClose} style={{ gap: 16 }}>
@@ -73,7 +75,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
           <WalletCard
             style={{ paddingRight: 12 }}
             onClick={() =>
-              openConnector(hot)
+              openConnector(kit)
                 .then((wallet) => onClose(wallet))
                 .catch(() => onClose())
             }
@@ -89,7 +91,7 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
         <BalanceCard>${formatter.amount(totalBalance)}</BalanceCard>
 
         <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-          <ActionButton onClick={() => (onClose(), openBridge(hot, { title: "Exchange" }))}>
+          <ActionButton onClick={() => (onClose(), openBridge(kit, { title: "Exchange" }))}>
             <ExchangeIcon />
             Exchange
           </ActionButton>
@@ -101,32 +103,37 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
             </ActionButton>
           )}
 
-          <ActionButton disabled onClick={() => (onClose(), openBridge(hot, { title: "Deposit" }))}>
+          <ActionButton disabled onClick={() => (onClose(), openBridge(kit, { title: "Deposit" }))}>
             Deposit
           </ActionButton>
         </div>
       </Card>
 
-      {hot.activity.withdrawalsList.length > 0 && (
+      {kit.activity.activityList.length > 0 && (
         <TokenCards>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Pending withdrawals</p>
-          {hot.activity.withdrawalsList.map((withdrawal) => {
-            const token = tokens.get(withdrawal.token as OmniToken, withdrawal.chain);
+          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Pendings</PSmall>
+          {kit.activity.activityList.map((activity) => {
             return (
-              <PopupOption key={withdrawal.nonce} onClick={() => hot.activity.finishWithdrawal(withdrawal)} disabled={withdrawal.loading}>
-                <TokenIcon token={token} />
+              <Card key={activity.id} onClick={() => activity.action()} style={{ flexDirection: "row", gap: 12 }}>
+                {activity.preview instanceof Token && <TokenIcon token={activity.preview} />}
 
                 <div>
-                  <p style={{ marginTop: -4, textAlign: "left", fontSize: 20, fontWeight: "bold" }}>
-                    {token.float(withdrawal.amount)} {token.symbol}
-                  </p>
-                  <p style={{ textAlign: "left", fontSize: 12, color: "#828282" }}>{new Date(withdrawal.timestamp).toLocaleString()}</p>
+                  <PMedium style={{ textAlign: "left" }}>{activity.title}</PMedium>
+                  <PSmall style={{ textAlign: "left" }}>{activity.subtitle}</PSmall>
                 </div>
 
-                <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
-                  <p style={{ color: "#d6d6d6" }}>{withdrawal.loading ? <Loader /> : "Withdraw"}</p>
-                </div>
-              </PopupOption>
+                {activity.status === "pending" && (
+                  <div style={{ marginLeft: "auto", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Loader />
+                  </div>
+                )}
+
+                {activity.actionText && !activity.actionLoading && (
+                  <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
+                    <PSmall style={{ color: "#d6d6d6" }}>{activity.actionText}</PSmall>
+                  </div>
+                )}
+              </Card>
             );
           })}
         </TokenCards>
@@ -134,56 +141,20 @@ export const Profile = observer(({ hot, onClose }: { hot: HotConnector; onClose:
 
       {omniTokens.length > 0 && (
         <TokenCards>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Tokens to withdraw</p>
+          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Tokens to withdraw</PSmall>
           {omniTokens.map((t) => t.component)}
         </TokenCards>
       )}
 
       {nonOmniTokens.length > 0 && (
         <TokenCards>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Portfolio</p>
+          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Portfolio</PSmall>
           {nonOmniTokens.map((t) => t.component)}
         </TokenCards>
       )}
     </Popup>
   );
 });
-
-const ActionButton = styled.button`
-  display: flex;
-  padding: 0 24px;
-  border-radius: 12px;
-  background: #e7e7e7;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  transition: background 0.2s ease-in-out;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 1;
-
-  color: #121212;
-  text-align: center;
-  font-family: "Golos Text";
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 22px;
-  letter-spacing: -0.16px;
-
-  &:hover {
-    background: #d2d2d2;
-  }
-
-  &:disabled {
-    background: #3e3e3e;
-    color: #828282;
-    cursor: not-allowed;
-  }
-`;
 
 const TokenCards = styled.div`
   display: flex;

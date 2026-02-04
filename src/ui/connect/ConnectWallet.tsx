@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
 
 import { OmniWallet } from "../../core/OmniWallet";
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 
 import { formatter } from "../../core/utils";
@@ -14,16 +14,16 @@ import { ImageView } from "../uikit/image";
 import Popup from "../Popup";
 
 interface MultichainPopupProps {
-  hot: HotConnector;
+  kit: HotKit;
   onClose: (wallet?: OmniWallet) => void;
   title?: string;
   walletType?: WalletType;
   widget?: boolean;
 }
 
-export const Connector = observer(({ hot, onClose, title, walletType, widget }: MultichainPopupProps) => {
-  const onechain = hot.connectors.filter((t) => t.type === ConnectorType.WALLET && (walletType == null || t.walletTypes.includes(walletType as WalletType)) && t.options.length > 0);
-  const social = hot.connectors.filter((t) => t.type === ConnectorType.SOCIAL && (walletType == null || t.walletTypes.includes(walletType as WalletType)));
+export const Connector = observer(({ kit, onClose, title, walletType, widget }: MultichainPopupProps) => {
+  const onechain = kit.connectors.filter((t) => t.type === ConnectorType.WALLET && (walletType == null || t.walletTypes.includes(walletType as WalletType)) && t.options.length > 0);
+  const social = kit.connectors.filter((t) => t.type === ConnectorType.SOCIAL && (walletType == null || t.walletTypes.includes(walletType as WalletType)));
 
   const selectConnector = async (t: OmniConnector) => {
     if (t.wallets[0]) return t.disconnect();

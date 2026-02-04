@@ -4,9 +4,11 @@ import styled from "styled-components";
 
 import { HelpIcon } from "../icons/help";
 import { WalletIcon } from "../icons/wallet";
+import { QRIcon } from "../icons/qr";
 
-import { Commitment, Intents } from "../../core";
+import { Commitment, Intents, tokens } from "../../core";
 import { BridgeReview } from "../../core/exchange";
+import { BridgePending } from "../../core/pendings";
 import { OmniWallet } from "../../core/OmniWallet";
 import { formatter } from "../../core/utils";
 import { Token } from "../../core/token";
@@ -16,24 +18,26 @@ import { ActionButton } from "../uikit/button";
 import { H6, PSmall } from "../uikit/text";
 import { Loader } from "../uikit/loader";
 
+import { HotKit } from "../../HotKit";
 import { PopupOption, PopupOptionInfo } from "../styles";
-import { HotConnector } from "../../HotConnector";
 import { TokenCard } from "../bridge/TokenCard";
-import { openConnector } from "../router";
 import Popup from "../Popup";
+import DepositQR from "./DepositQR";
 
 interface PaymentProps {
   onReject: (message: string) => void;
-  onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+  onConfirm: (pending?: BridgePending) => Promise<void>;
   close: () => void;
+
+  title?: string;
   excludedTokens?: string[];
   allowedTokens?: string[];
+
   prepaidAmount: bigint;
   payableToken: Token;
   needAmount: bigint;
-  connector: HotConnector;
   intents: Intents;
-  title?: string;
+  kit: HotKit;
 }
 
 const animations = {
@@ -45,7 +49,7 @@ const animations = {
 const PAY_SLIPPAGE = 0.002;
 const STABLE_SLIPPAGE = 0.001;
 
-export const Payment = observer(({ connector, intents, title = "Payment", allowedTokens, excludedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
+export const Payment = observer(({ kit, intents, title = "Payment", allowedTokens, excludedTokens, prepaidAmount, payableToken, needAmount, onReject, onConfirm, close }: PaymentProps) => {
   useState(() => {
     fetch(animations.loading);
     fetch(animations.success);
@@ -53,13 +57,13 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   });
 
   useEffect(() => {
-    if (connector.wallets.length !== 0) return;
-    openConnector(connector);
-  }, [connector.wallets.length]);
+    if (kit.wallets.length !== 0) return;
+    kit.router.openConnector(kit);
+  }, [kit.wallets.length]);
 
   const [flow, setFlow] = useState<{
     token?: Token;
-    wallet?: OmniWallet;
+    wallet?: OmniWallet | "qr";
     commitment?: Commitment;
     review?: BridgeReview;
     success?: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> };
@@ -71,40 +75,40 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   const paymentTitle = title || `Pay ${payableToken.readable(needAmount)} ${payableToken.symbol}`;
   const showPrepaidToken = payableToken.float(prepaidAmount) >= 0.001;
 
-  const selectToken = async (from: Token, wallet?: OmniWallet) => {
+  const selectToken = async (from: Token, wallet?: OmniWallet | "qr") => {
     if (!wallet) return;
 
     setFlow({ token: from, wallet, review: undefined, step: "sign" });
     const isStableFrom = from.symbol === "USDT" || from.symbol === "USDC";
     const isStableTo = payableToken.symbol === "USDT" || payableToken.symbol === "USDC";
-    const isDirectDeposit = connector.exchange.isDirectDeposit(from, payableToken);
+    const isDirectDeposit = kit.exchange.isDirectDeposit(from, payableToken);
     const isStable = isStableFrom && isStableTo;
 
     let tasks: Promise<BridgeReview>[] = [];
-    if (isStable && !isDirectDeposit) {
+    if (isStable && !isDirectDeposit && wallet !== "qr") {
       const slippages = [0.0005, 0.001, 0.0015];
       tasks = slippages.map((slippage) => {
         const extra = (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000);
-        return connector.exchange.reviewSwap({
+        return kit.exchange.reviewSwap({
           amount: from.int(payableToken.float(needAmount + extra)),
           recipient: intents.signer!,
           slippage: slippage,
           sender: wallet,
-          refund: wallet,
           type: "exactIn",
           to: payableToken,
+          refund: wallet,
           from,
         });
       });
     }
 
-    const exectOutReview = await connector.exchange
+    const exectOutReview = await kit.exchange
       .reviewSwap({
         slippage: isStable ? STABLE_SLIPPAGE : PAY_SLIPPAGE,
+        refund: wallet === "qr" ? kit.priorityWallet : wallet,
         recipient: intents.signer!,
         amount: needAmount,
         sender: wallet,
-        refund: wallet,
         type: "exactOut",
         to: payableToken,
         from,
@@ -148,15 +152,16 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
 
       if (flow?.review == null) {
         await intents.sign();
-        await onConfirm({});
+        await onConfirm();
         setFlow({ loading: false, step: "success" });
         setTimeout(() => close(), 2000);
         return;
       }
 
       flow.review.logger = console;
-      const result = await connector.exchange.makeSwap(flow.review);
-      await onConfirm({ depositQoute: result.review, processing: result.processing });
+      const result = await kit.exchange.makeSwap(flow.review);
+
+      await onConfirm(result);
       setFlow({ loading: false, step: "success" });
       setTimeout(() => close(), 2000);
     } catch (error) {
@@ -209,6 +214,15 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
   }
 
   if (flow?.step === "transfer") {
+    if (flow.wallet === "qr") {
+      return (
+        <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
+          <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
+          <DepositQR kit={kit} review={flow.review!} onConfirm={confirmPaymentStep} />
+        </Popup>
+      );
+    }
+
     return (
       <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
         <HorizontalStepper style={{ marginBottom: 24 }} steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
@@ -219,11 +233,11 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         </div>
 
         <div style={{ marginTop: 8, position: "relative", width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-          {showPrepaidToken && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
+          {showPrepaidToken && <TokenCard token={payableToken} kit={kit} wallet={intents.signer} amount={prepaidAmount} />}
 
           {flow.token != null && (
             <TokenCard //
-              hot={connector}
+              kit={kit}
               token={flow.token}
               wallet={flow.wallet}
               amount={flow.review == null ? needAmount : flow.review?.amountIn ?? 0n}
@@ -273,11 +287,11 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
         </div>
 
         <div style={{ marginTop: 8, position: "relative", width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-          {showPrepaidToken && <TokenCard token={payableToken} hot={connector} wallet={intents.signer} amount={prepaidAmount} />}
+          {showPrepaidToken && <TokenCard token={payableToken} kit={kit} wallet={intents.signer} amount={prepaidAmount} />}
 
           {flow.token != null && (
             <TokenCard //
-              hot={connector}
+              kit={kit}
               token={flow.token}
               wallet={flow.wallet}
               rightControl={flow.review ? undefined : rightControl}
@@ -326,26 +340,28 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
     );
   }
 
-  const recommendedTokens = connector.walletsTokens.filter((t) => t.token.symbol === "USDT" || t.token.symbol === "USDC");
-  const otherTokens = connector.walletsTokens.filter((t) => t.token.symbol !== "USDT" && t.token.symbol !== "USDC");
+  const availableTokens = kit.walletsTokens.filter(({ token }) => {
+    // Allow only tokens in the allowedTokens list
+    if (allowedTokens != null && !allowedTokens?.includes(token.id)) return false;
+    // Exclude tokens in the excludedTokens list
+    if (excludedTokens != null && excludedTokens?.includes(token.id)) return false;
+    return true;
+  });
+
+  const recommendedTokens = availableTokens.filter((t) => t.token.symbol === "USDT" || t.token.symbol === "USDC");
+  const otherTokens = availableTokens.filter((t) => t.token.symbol !== "USDT" && t.token.symbol !== "USDC");
 
   const renderToken = (token: Token, wallet: OmniWallet, balance: bigint) => {
-    if (token.id === payableToken.id && connector.priorityWallet?.type === wallet.type) return null;
+    if (token.id === payableToken.id && kit.priorityWallet?.type === wallet.type) return null;
     const availableBalance = token.float(balance) - token.reserve;
-
-    // Allow only tokens in the allowedTokens list
-    if (allowedTokens != null && !allowedTokens?.includes(token.id)) return null;
-
-    // Exclude tokens in the excludedTokens list
-    if (excludedTokens != null && excludedTokens?.includes(token.id)) return null;
 
     // same token as need and enough balance is direct deposit
     if (token.originalId === payableToken.originalId && availableBalance >= payableToken.float(needAmount)) {
-      return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
+      return <TokenCard key={token.id} token={token} onSelect={selectToken} kit={kit} wallet={wallet} />;
     }
 
     if (availableBalance * token.usd <= payableToken.usd * payableToken.float(needAmount) * (1 + PAY_SLIPPAGE)) return null;
-    return <TokenCard key={token.id} token={token} onSelect={selectToken} hot={connector} wallet={wallet} />;
+    return <TokenCard key={token.id} token={token} onSelect={selectToken} kit={kit} wallet={wallet} />;
   };
 
   return (
@@ -355,10 +371,24 @@ export const Payment = observer(({ connector, intents, title = "Payment", allowe
       {recommendedTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
       {otherTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
 
-      <PopupOption style={{ marginTop: 8 }} onClick={() => openConnector(connector)}>
+      {kit.connectors.every((t) => !t.walletTypes.includes(payableToken.originalChain)) && (
+        <PopupOption style={{ marginTop: 8 }} onClick={() => selectToken(tokens.get(payableToken.originalAddress, payableToken.originalChain), "qr")}>
+          <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <QRIcon />
+          </div>
+
+          <PopupOptionInfo>
+            <p>Send via QR code</p>
+            <span className="wallet-address">Transfer from CEX or external wallet</span>
+          </PopupOptionInfo>
+        </PopupOption>
+      )}
+
+      <PopupOption style={{ marginTop: 8 }} onClick={() => kit.router.openConnector(kit)}>
         <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <WalletIcon />
         </div>
+
         <PopupOptionInfo>
           <p>Don't find the right token?</p>
           <span className="wallet-address">Connect another wallet</span>

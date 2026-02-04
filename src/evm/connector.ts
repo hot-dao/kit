@@ -1,7 +1,7 @@
 import { runInAction } from "mobx";
 
 import HOT from "../hot-wallet/iframe";
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 
 import { Network, WalletType } from "../core/chains";
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
@@ -15,8 +15,8 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   name = "EVM Wallet";
   id = "evm";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
 
     window.addEventListener<any>("eip6963:announceProvider", async (provider) => {
       if (this.options.find((t) => t.name === provider.detail.info.name || t.id === provider.detail.info.uuid)) return;

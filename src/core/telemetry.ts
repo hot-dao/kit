@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 import { formatter } from "./utils";
 
 export interface ILogger {
@@ -8,7 +8,7 @@ export interface ILogger {
 
 export class Telemetry {
   events: { event: string; value_str?: string; value_float?: number; ts: number }[] = [];
-  constructor(readonly wibe3: HotConnector) {
+  constructor(readonly kit: HotKit) {
     this.flush();
   }
 
@@ -17,7 +17,7 @@ export class Telemetry {
 
     if (this.events.length > 0) {
       await api
-        .publishTelemetry(this.events, this.wibe3.priorityWallet?.address ?? "")
+        .publishTelemetry(this.events, this.kit.priorityWallet?.address ?? "")
         .then(() => (this.events = []))
         .catch(() => {});
     }

@@ -1,7 +1,7 @@
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 import HotCraftConnector from "./connector";
 import HotCraftWallet from "./wallet";
 
 export { HotCraftConnector, HotCraftWallet };
 
-export default () => async (wibe3: HotConnector) => new HotCraftConnector(wibe3);
+export default () => async (kit: HotKit) => new HotCraftConnector(kit);

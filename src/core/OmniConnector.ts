@@ -1,7 +1,7 @@
 import { action, makeObservable, observable, runInAction } from "mobx";
 import UniversalProvider, { NamespaceConfig } from "@walletconnect/universal-provider";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { EventEmitter } from "./events";
 import { OmniWallet } from "./OmniWallet";
 import { WalletType } from "./chains";
@@ -36,7 +36,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
 
   protected wc: Promise<UniversalProvider> | null = null;
 
-  constructor(readonly wibe3: HotConnector) {
+  constructor(readonly kit: HotKit) {
     makeObservable(this, {
       wallets: observable,
       options: observable,
@@ -46,19 +46,19 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   }
 
   get storage() {
-    return this.wibe3.storage;
+    return this.kit.storage;
   }
 
   openWallet() {}
 
   async initWalletConnect() {
-    if (!this.wibe3.settings?.projectId) throw new Error("Project ID is required");
+    if (!this.kit.settings?.projectId) throw new Error("Project ID is required");
     if (this.wc) return this.wc;
     this.wc = UniversalProvider.init({
       relayUrl: "wss://relay.walletconnect.org",
-      projectId: this.wibe3.settings?.projectId,
-      metadata: this.wibe3.settings?.metadata,
-      customStoragePrefix: `wibe3:${this.id}`,
+      projectId: this.kit.settings?.projectId,
+      metadata: this.kit.settings?.metadata,
+      customStoragePrefix: `kit:${this.id}`,
       name: this.name,
     });
 
@@ -86,8 +86,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   }
 
   async requestWalletConnect<T>(args: { chain?: string; request: any; deeplink?: string; name?: string; icon?: string }): Promise<T> {
-    const { openWCRequest } = await import("../ui/router");
-    return openWCRequest<T>({
+    return this.kit.router.openWCRequest<T>({
       deeplink: args.deeplink,
       name: args.name || "WalletConnect",
       icon: args.icon || WC_ICON,
@@ -109,6 +108,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   abstract id: string;
 
   protected setWallet({ wallet, isNew }: { wallet: T; isNew: boolean }) {
+    wallet.kit = this.kit;
     const existing = this.wallets.find((t) => t.address === wallet.address);
     if (existing) return existing;
 
@@ -140,15 +140,15 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   }
 
   async setStorage(obj: { type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }) {
-    await this.storage.set(`wibe3:${this.id}`, JSON.stringify(obj));
+    await this.storage.set(`kit:${this.id}`, JSON.stringify(obj));
   }
 
   async removeStorage() {
-    await this.storage.remove(`wibe3:${this.id}`);
+    await this.storage.remove(`kit:${this.id}`);
   }
 
   async getStorage(): Promise<{ type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }> {
-    const data = await this.storage.get(`wibe3:${this.id}`);
+    const data = await this.storage.get(`kit:${this.id}`);
     if (!data) return {};
     return JSON.parse(data);
   }

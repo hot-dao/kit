@@ -1,7 +1,7 @@
 import { hex } from "@scure/base";
 import { action, makeObservable, observable } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { Network, OmniToken, WalletType } from "./chains";
 import { Commitment } from "./types";
 import { Intents } from "./Intents";
@@ -11,6 +11,7 @@ import { api } from "./api";
 
 export abstract class OmniWallet {
   balances: Record<string, bigint> = {};
+  kit?: HotKit;
 
   abstract address: string;
   abstract publicKey?: string;
@@ -22,8 +23,8 @@ export abstract class OmniWallet {
     makeObservable(this, { balances: observable, setBalance: action });
   }
 
-  intents(wibe3?: HotConnector) {
-    return new Intents(wibe3).attachWallet(this);
+  intents(kit?: HotKit) {
+    return new Intents(kit).attachWallet(this);
   }
 
   setBalance(id: string, balance: bigint) {
@@ -113,9 +114,8 @@ export abstract class OmniWallet {
       return (await api.auth(signed, seed)) as T;
     };
 
-    if (typeof window === "undefined") return await authFn();
-    const { openAuthPopup } = await import("../ui/connect/AuthPopup");
-    return openAuthPopup(this, authFn);
+    if (this.kit == null) return await authFn();
+    return this.kit.router.openAuthPopup(this, authFn);
   }
 
   async waitUntilOmniBalance(need: Record<string, bigint>, receiver = this.omniAddress, attempts = 0) {

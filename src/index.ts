@@ -1,4 +1,9 @@
 import "@lottiefiles/dotlottie-wc";
 
 export * from "./core";
-export { HotConnector } from "./HotConnector";
+import { HotKit } from "./HotKit";
+
+export { HotKit };
+
+// Alias for backward compatibility
+export const HotConnector = HotKit;

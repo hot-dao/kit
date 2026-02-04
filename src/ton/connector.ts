@@ -1,7 +1,7 @@
 import { TonConnectUI, TonConnect, Feature } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import HOT from "../hot-wallet/iframe";
 
 import { WalletType } from "../core/chains";
@@ -43,8 +43,8 @@ class TonConnector extends OmniConnector<TonWallet> {
   id = "ton";
 
   private tonConnect = this.initializeConnector();
-  constructor(wibe3: HotConnector, readonly args?: TonConnectorOptions) {
-    super(wibe3);
+  constructor(kit: HotKit, readonly args?: TonConnectorOptions) {
+    super(kit);
   }
 
   async initializeConnector() {
@@ -104,7 +104,7 @@ class TonConnector extends OmniConnector<TonWallet> {
     if (HOT.isInjected) {
       tonConnect.getWallets().then((wallets) => {
         const wallet = wallets.find((w) => w.appName === "hot");
-        if (wallet) tonConnect.connector.connect(wallet, { tonProof: "wibe3" });
+        if (wallet) tonConnect.connector.connect(wallet, { tonProof: "kit" });
       });
     }
 

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { HotConnector, OmniToken } from "@hot-labs/kit";
+import { HotKit, OmniToken } from "@hot-labs/kit";
 import { defaultConnectors } from "@hot-labs/kit/defaults";
 import cosmos from "@hot-labs/kit/cosmos";
 
 import { observer } from "mobx-react-lite";
 
-const wibe3 = new HotConnector({
+const kit = new HotKit({
   apiKey: "",
   connectors: [...defaultConnectors, cosmos()],
   walletConnect: {
@@ -23,7 +23,7 @@ export const MultichainExample = observer(() => {
   const [signedIntent, setSignedIntent] = useState<string>("");
 
   const handlePay = async () => {
-    await wibe3
+    await kit
       .intentsBuilder()
       .transfer({
         amount: 0.1,
@@ -43,19 +43,19 @@ export const MultichainExample = observer(() => {
       <div className="view">
         <p>Multichain Example</p>
 
-        <button className={"input-button"} onClick={() => wibe3.connect()}>
+        <button className={"input-button"} onClick={() => kit.connect()}>
           Open connector
         </button>
 
-        <button className={"input-button"} onClick={() => wibe3.openBridge()}>
+        <button className={"input-button"} onClick={() => kit.openBridge()}>
           Exchange
         </button>
 
-        <button className={"input-button"} onClick={() => wibe3.deposit(OmniToken.GONKA, 1)}>
+        <button className={"input-button"} onClick={() => kit.deposit(OmniToken.GONKA, 1)}>
           Deposit 1 GONKA
         </button>
 
-        <button className={"input-button"} onClick={() => wibe3.withdraw(OmniToken.GONKA, 1)}>
+        <button className={"input-button"} onClick={() => kit.withdraw(OmniToken.GONKA, 1)}>
           Withdraw 1 GONKA
         </button>
 
@@ -64,7 +64,7 @@ export const MultichainExample = observer(() => {
         </button>
       </div>
 
-      {wibe3.wallets.map(
+      {kit.wallets.map(
         (wallet) =>
           wallet != null && (
             <div key={wallet.type} style={{ width: 300, overflow: "hidden" }} className="view">
@@ -83,7 +83,7 @@ export const MultichainExample = observer(() => {
                 className={"input-button"}
                 onClick={async () => {
                   try {
-                    const signed = await wibe3.intentsBuilder(wallet).authCall({ contractId: "demo.tg", msg: "hello", attachNear: 0n, tgas: 50 }).sign();
+                    const signed = await kit.intentsBuilder(wallet).authCall({ contractId: "demo.tg", msg: "hello", attachNear: 0n, tgas: 50 }).sign();
                     setSignedIntent(JSON.stringify(signed, null, 2));
                   } catch (e) {
                     console.error(e);
@@ -98,7 +98,7 @@ export const MultichainExample = observer(() => {
                 className={"input-button"}
                 onClick={async () => {
                   try {
-                    const signed = await wibe3.intentsBuilder(wallet).give(OmniToken.USDC, -40).sign();
+                    const signed = await kit.intentsBuilder(wallet).give(OmniToken.USDC, -40).sign();
                     setSignedIntent(JSON.stringify(signed, null, 2));
                   } catch (e) {
                     console.error(e);

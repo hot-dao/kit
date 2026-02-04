@@ -24,16 +24,18 @@ import type StellarWallet from "./stellar/wallet";
 import type TonWallet from "./ton/wallet";
 import type TronWallet from "./tron/wallet";
 
-import { openBridge, openConnector, openProfile, openWalletPicker } from "./ui/router";
-import { ConnectorType, OmniConnector } from "./core/OmniConnector";
+import * as Router from "./ui/router";
+import { ToastManager } from "./ui/toast";
+
 import { DataStorage, LocalStorage } from "./storage";
+import { ConnectorType, OmniConnector } from "./core/OmniConnector";
 import { Activity } from "./activity";
 
-interface HotConnectorOptions {
+interface HotKitOptions {
   apiKey: string;
   storage?: DataStorage;
   chains?: Record<number, ChainConfig>;
-  connectors?: (((wibe3: HotConnector) => Promise<OmniConnector>) | null | undefined)[];
+  connectors?: (((kit: HotKit) => Promise<OmniConnector>) | null | undefined)[];
   walletConnect?: {
     projectId?: string;
     metadata?: {
@@ -45,11 +47,13 @@ interface HotConnectorOptions {
   };
 }
 
-export class HotConnector {
+export class HotKit {
   public storage: DataStorage;
   public connectors: OmniConnector[] = [];
   public telemetry: Telemetry;
   public exchange: Exchange;
+  public toast = new ToastManager();
+  public router = Router;
 
   public activity: Activity;
   public version = packageJson.version;
@@ -66,7 +70,7 @@ export class HotConnector {
     metadata?: { name: string; description: string; url: string; icons: string[] };
   } = { webWallet: "https://app.hot-labs.org" };
 
-  constructor(options?: HotConnectorOptions) {
+  constructor(options?: HotKitOptions) {
     makeObservable(this, {
       priorityWallet: computed,
       walletsTokens: computed,
@@ -89,7 +93,7 @@ export class HotConnector {
     this.storage = options?.storage ?? new LocalStorage();
     this.telemetry = new Telemetry(this);
     this.activity = new Activity(this);
-    this.exchange = new Exchange();
+    this.exchange = new Exchange(this);
 
     const connectors: OmniConnector[] = [];
     const configConnectors = options?.connectors || defaultConnectors;
@@ -325,7 +329,7 @@ export class HotConnector {
         return bBalance - aBalance;
       })[0];
 
-    return openBridge(this, {
+    return this.router.openBridge(this, {
       mobileFullscreen: true,
       recipient: recipient,
       to: originalToken,
@@ -342,7 +346,7 @@ export class HotConnector {
     const sender = this.wallets.find((t) => t.type === orig.type)!;
     const recipient = Recipient.fromWallet(this.wallets.find((w) => !!w.omniAddress));
 
-    return openBridge(this, {
+    return this.router.openBridge(this, {
       mobileFullscreen: true,
       sender: sender,
       type: "exactOut",
@@ -355,18 +359,18 @@ export class HotConnector {
   }
 
   async openBridge() {
-    await openBridge(this);
+    await this.router.openBridge(this);
   }
 
   async openProfile() {
-    openProfile(this);
+    this.router.openProfile(this);
   }
 
   async connect(type?: WalletType) {
-    if (!type) return await openConnector(this);
+    if (!type) return await this.router.openConnector(this);
     const connector = this.connectors.find((t) => t.type === ConnectorType.WALLET && t.walletTypes.includes(type));
     if (!connector) throw new Error("Connector not found");
-    return await openWalletPicker(connector);
+    return await this.router.openWalletPicker(connector);
   }
 
   async disconnect(wallet: WalletType | OmniWallet) {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { OmniWallet } from "../../core/OmniWallet";
 
 import { Network, OmniToken } from "../../core/chains";
@@ -16,13 +16,13 @@ import { ImageView } from "../uikit/image";
 import { TokenCard } from "./TokenCard";
 
 interface SelectTokenPopupProps {
-  hot: HotConnector;
+  kit: HotKit;
   initialChain?: number;
   onClose: () => void;
   onSelect: (token: Token, wallet?: OmniWallet) => void;
 }
 
-export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect }: SelectTokenPopupProps) => {
+export const SelectTokenPopup = observer(({ kit, initialChain, onClose, onSelect }: SelectTokenPopupProps) => {
   const [chain, setChain] = useState<number | null>(initialChain || null);
   const [search, setSearch] = useState<string>("");
 
@@ -37,8 +37,8 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
           balance: 0,
         };
 
-      hot.wallets.forEach((wallet) => {
-        const balance = hot.balance(wallet, token);
+      kit.wallets.forEach((wallet) => {
+        const balance = kit.balance(wallet, token);
         chains[token.chain].balance += token.float(balance) * token.usd;
       });
     });
@@ -75,15 +75,15 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
         {tokens.list
           .filter((token) => token.chain === chain && token.symbol.toLowerCase().includes(search.toLowerCase()))
           .sort((a, b) => {
-            const wallet = hot.wallets.find((w) => w.type === a.type)!;
-            const aBalance = a.float(hot.balance(wallet, a)) * a.usd;
-            const bBalance = b.float(hot.balance(wallet, b)) * b.usd;
+            const wallet = kit.wallets.find((w) => w.type === a.type)!;
+            const aBalance = a.float(kit.balance(wallet, a)) * a.usd;
+            const bBalance = b.float(kit.balance(wallet, b)) * b.usd;
             return bBalance - aBalance;
           })
           .map((token) => {
-            const wallet = hot.wallets.find((w) => w.type === token.type);
+            const wallet = kit.wallets.find((w) => w.type === token.type);
             if (search && !token.symbol.toLowerCase().includes(search.toLowerCase())) return;
-            return <TokenCard key={token.id} token={token} onSelect={onSelect} hot={hot} wallet={wallet} />;
+            return <TokenCard key={token.id} token={token} onSelect={onSelect} kit={kit} wallet={wallet} />;
           })}
       </Popup>
     );
@@ -93,7 +93,7 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
   return (
     <Popup onClose={onClose} header={<p>Select token</p>}>
       <SearchInput type="text" placeholder="Search token" onChange={(e) => setSearch(e.target.value)} />
-      {hot.walletsTokens
+      {kit.walletsTokens
         .filter(({ token, balance }) => {
           if (token.chain !== Network.Omni) return false;
           if (token.float(balance) < 0.0001) return false;
@@ -107,13 +107,13 @@ export const SelectTokenPopup = observer(({ hot, initialChain, onClose, onSelect
           return bBalance - aBalance;
         })
         .map(({ token, wallet }) => (
-          <TokenCard key={token.id} token={token} onSelect={onSelect} hot={hot} wallet={wallet} />
+          <TokenCard key={token.id} token={token} onSelect={onSelect} kit={kit} wallet={wallet} />
         ))}
 
       {Object.values(OmniToken)
-        .filter((token) => !used.has(token) && hot.omni(token).symbol.toLowerCase().includes(search.toLowerCase()))
+        .filter((token) => !used.has(token) && kit.omni(token).symbol.toLowerCase().includes(search.toLowerCase()))
         .map((token) => (
-          <TokenCard key={token} token={hot.omni(token)} onSelect={onSelect} hot={hot} wallet={hot.priorityWallet} />
+          <TokenCard key={token} token={kit.omni(token)} onSelect={onSelect} kit={kit} wallet={kit.priorityWallet} />
         ))}
     </Popup>
   );

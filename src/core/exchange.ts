@@ -1,9 +1,12 @@
-import { GetExecutionStatusResponse, OneClickService, ApiError, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
+import { OneClickService, ApiError, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { utils } from "@hot-labs/omni-sdk";
 import { hex } from "@scure/base";
 
-import { chains, Network, OmniToken, WalletType } from "./chains";
+import type { HotKit } from "../HotKit";
+
+import { chains, Network, WalletType } from "./chains";
 import { createHotBridge, ReviewFee } from "./bridge";
+import { BridgePending } from "./pendings";
 import { OmniWallet } from "./OmniWallet";
 import { Recipient } from "./recipient";
 import { ILogger } from "./telemetry";
@@ -55,9 +58,8 @@ export interface BridgeRequest {
   to: Token;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export class Exchange {
+  constructor(readonly kit?: HotKit) {}
   readonly bridge = createHotBridge();
 
   async getToken(chain: number, address: string): Promise<string | null> {
@@ -196,11 +198,17 @@ export class Exchange {
   }
 
   async reviewSwap(request: BridgeRequest): Promise<BridgeReview> {
-    const { sender, refund, from, to, amount, recipient, slippage, type, logger } = request;
+    const { sender, refund, from, to, amount, recipient, type, logger } = request;
 
     const deadlineTime = 5 * 60 * 1000;
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
-    const noFee = from.symbol === to.symbol || (from.symbol.toLowerCase().includes("usd") && to.symbol.toLowerCase().includes("usd"));
+
+    const stables = ["usdt", "usdc", "dai", "frax"];
+    const isFromStable = stables.some((stable) => from.symbol.toLowerCase().includes(stable));
+    const isToStable = stables.some((stable) => to.symbol.toLowerCase().includes(stable));
+    const isDirect = from.originalId === to.originalId;
+    const noFee = from.symbol === to.symbol || (isFromStable && isToStable) || isDirect;
+    const slippage = isDirect ? 0 : request.slippage;
 
     if (sender !== "qr" && this.isDirectDeposit(from, to)) {
       let fee: ReviewFee | null = null;
@@ -335,7 +343,7 @@ export class Exchange {
     };
   }
 
-  async makeSwap(review: BridgeReview): Promise<{ review: BridgeReview; processing?: () => Promise<BridgeReview> }> {
+  async makeSwap(review: BridgeReview): Promise<BridgePending> {
     const { sender, recipient, logger, refund } = review;
     if (sender == null) throw new Error("Sender is required");
     if (recipient == null) throw new Error("Recipient is required");
@@ -346,7 +354,7 @@ export class Exchange {
       await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient, logger });
       if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
       if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      return { review };
+      return new BridgePending(review, this.kit);
     }
 
     if (review.qoute === "deposit") {
@@ -354,7 +362,7 @@ export class Exchange {
       await this.deposit({ sender, token: review.from, amount: review.amountIn, recipient, logger });
       if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
       if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      return { review };
+      return new BridgePending(review, this.kit);
     }
 
     if (recipient.type === WalletType.STELLAR) {
@@ -364,18 +372,7 @@ export class Exchange {
     }
 
     if (sender === "qr") {
-      return {
-        review,
-        processing: async () => {
-          if (!(recipient instanceof OmniWallet)) return await this.processing(review);
-          const beforeBalance = await recipient.fetchBalance(review.to.chain, review.to.address).catch(() => null);
-          if (!beforeBalance) return await this.processing(review);
-          return await Promise.race([
-            this.waitBalance(review.to, recipient, beforeBalance, review),
-            this.processing(review), //
-          ]);
-        },
-      };
+      return new BridgePending(review, this.kit);
     }
 
     const depositAddress = review.qoute.depositAddress!;
@@ -389,73 +386,6 @@ export class Exchange {
 
     if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
     OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
-
-    return {
-      review,
-      processing: async () => {
-        if (!(recipient instanceof OmniWallet)) return await this.processing(review);
-
-        const beforeBalance = await recipient.fetchBalance(review.to.chain, review.to.address).catch(() => null);
-        if (!beforeBalance) return await this.processing(review);
-
-        return await Promise.race([
-          this.waitBalance(review.to, recipient, beforeBalance, review),
-          this.processing(review), //
-        ]);
-      },
-    };
-  }
-
-  async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint, review: BridgeReview): Promise<BridgeReview> {
-    const afterBalance = await wallet.fetchBalance(to.chain, to.address).catch(() => beforeBalance);
-    if (afterBalance > beforeBalance) {
-      return {
-        ...review,
-        amountOut: afterBalance - beforeBalance,
-        statusMessage: "Swap successful",
-        status: "success",
-      };
-    }
-
-    await wait(2000);
-    return await this.waitBalance(to, wallet, beforeBalance, review);
-  }
-
-  getMessage(status: GetExecutionStatusResponse.status): string | null {
-    if (status === GetExecutionStatusResponse.status.PENDING_DEPOSIT) return "Waiting for deposit";
-    if (status === GetExecutionStatusResponse.status.INCOMPLETE_DEPOSIT) return "Incomplete deposit";
-    if (status === GetExecutionStatusResponse.status.KNOWN_DEPOSIT_TX) return "Known deposit tx";
-    if (status === GetExecutionStatusResponse.status.PROCESSING) return "Processing swap";
-    if (status === GetExecutionStatusResponse.status.SUCCESS) return "Swap successful";
-    if (status === GetExecutionStatusResponse.status.FAILED) return "Swap failed";
-    if (status === GetExecutionStatusResponse.status.REFUNDED) return "Swap refunded";
-    return null;
-  }
-
-  async checkStatus(review: BridgeReview) {
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return;
-    const status = await OneClickService.getExecutionStatus(review.qoute.depositAddress!, review.qoute.depositMemo);
-    const message = this.getMessage(status.status);
-
-    let state: "pending" | "success" | "failed" = "pending";
-    if (status.status === GetExecutionStatusResponse.status.SUCCESS) state = "success";
-    if (status.status === GetExecutionStatusResponse.status.FAILED) state = "failed";
-    if (status.status === GetExecutionStatusResponse.status.REFUNDED) state = "failed";
-
-    if (status.swapDetails.amountOut) review.amountOut = BigInt(status.swapDetails.amountOut);
-    review.statusMessage = message;
-    review.status = state;
-    return review;
-  }
-
-  async processing(review: BridgeReview, interval = 3000) {
-    while (review.status === "pending") {
-      await this.checkStatus(review);
-      await new Promise((resolve) => setTimeout(resolve, interval));
-    }
-
-    if (review.status === "success") return review;
-    if (review.status === "failed") throw review.statusMessage || "Bridge failed";
-    throw new Error("Unknown status");
+    return new BridgePending(review, this.kit);
   }
 }

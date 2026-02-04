@@ -3,7 +3,7 @@ import { Transaction, PublicKey, VersionedTransaction, Connection } from "@solan
 import { base58 } from "@scure/base";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
@@ -23,8 +23,8 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
   name = "Solana Wallet";
   id = "solana";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
 
     wallets.get().forEach((t) => {
       if (this.options.find((w) => w.name === t.name)) return;
