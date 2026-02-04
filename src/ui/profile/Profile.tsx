@@ -51,6 +51,7 @@ export const Profile = observer(({ kit, onClose }: { kit: HotKit; onClose: (wall
   const nonOmniTokens = tokensList.filter((t) => t.chain !== Network.Omni && t.chain !== Network.HotCraft);
   const socialConnector = kit.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
   const connectors = kit.connectors.filter((connector) => connector.type !== ConnectorType.HOTCRAFT);
+  const pendings = kit.activity.activityList.filter((t) => t.status === "pending");
 
   useEffect(() => {
     if (kit.wallets.length > 0) return;
@@ -109,10 +110,10 @@ export const Profile = observer(({ kit, onClose }: { kit: HotKit; onClose: (wall
         </div>
       </Card>
 
-      {kit.activity.activityList.length > 0 && (
+      {pendings.length > 0 && (
         <TokenCards>
           <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Pendings</PSmall>
-          {kit.activity.activityList.map((activity) => {
+          {pendings.map((activity) => {
             return (
               <Card key={activity.id} onClick={() => activity.action()} style={{ flexDirection: "row", gap: 12 }}>
                 {activity.preview instanceof Token && <TokenIcon token={activity.preview} />}

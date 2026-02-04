@@ -9,6 +9,7 @@ import { wait } from "../hot-wallet/iframe";
 import { OmniWallet } from "../core/OmniWallet";
 import { BridgeReview } from "../core/exchange";
 import { Token } from "./token";
+import { tokens } from "./tokens";
 
 export abstract class ActivityController {
   status: "pending" | "success" | "failed" = "pending";
@@ -48,11 +49,40 @@ export class BridgePending extends ActivityController {
     this.title = this.getTitle();
 
     this.toast = this.kit?.toast.pending(this.title);
+    this.subtitle = this.review.statusMessage;
     this.preview = this.review.to;
   }
 
+  static deserialize(data: any, kit?: HotKit) {
+    return new BridgePending(
+      {
+        amountIn: BigInt(data.amountIn),
+        amountOut: BigInt(data.amountOut),
+        minAmountOut: BigInt(data.minAmountOut),
+        statusMessage: data.statusMessage,
+        from: tokens.list.find((t) => t.id === data.from)!,
+        to: tokens.list.find((t) => t.id === data.to)!,
+        slippage: data.slippage,
+        status: data.status,
+        qoute: data.qoute,
+        fee: null,
+      },
+      kit
+    );
+  }
+
   serialize() {
-    return {};
+    return {
+      amountIn: String(this.review.amountIn),
+      amountOut: String(this.review.amountOut),
+      minAmountOut: String(this.review.minAmountOut),
+      statusMessage: this.review.statusMessage,
+      slippage: this.review.slippage,
+      qoute: this.review.qoute,
+      status: this.review.status,
+      from: this.review.from.id,
+      to: this.review.to.id,
+    };
   }
 
   getTitle() {
@@ -64,16 +94,15 @@ export class BridgePending extends ActivityController {
       if (this.review.to.isOmni) return `Deposit ${to}`;
     }
 
-    const fromChain = this.review.from.chainName.toLowerCase();
-    const toChain = this.review.to.chainName.toLowerCase();
-    return `${from} (${fromChain}) → ${to} (${toChain})`;
+    // const fromChain = this.review.from.chainName.toLowerCase();
+    // const toChain = this.review.to.chainName.toLowerCase();
+    return `${from} → ${to}`;
   }
 
   updateStatus(status: "pending" | "success" | "failed", statusMessage: string | null) {
     runInAction(() => {
       this.status = status;
       this.subtitle = statusMessage;
-      this.toast?.update({ type: status, progressText: statusMessage || "Processing..." });
       this.review.statusMessage = "Swap successful";
       this.review.status = "success";
     });
@@ -91,24 +120,24 @@ export class BridgePending extends ActivityController {
     if (!beforeBalance) return await this.waitStatus();
 
     return await Promise.race([
-      this.waitBalance(this.review.to, this.review.recipient, beforeBalance, this.review), //
+      this.waitBalance(this.review.to, this.review.recipient, beforeBalance), //
       this.waitStatus(),
     ]);
   }
 
-  async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint, review: BridgeReview): Promise<BridgeReview> {
+  async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint): Promise<BridgeReview> {
     const afterBalance = await wallet.fetchBalance(to.chain, to.address).catch(() => beforeBalance);
     if (afterBalance > beforeBalance) {
       return runInAction(() => {
         this.review.amountOut = afterBalance - beforeBalance;
         this.updateStatus("success", "Swap successful");
-        this.toast?.update({ duration: 2000 });
+        this.toast?.update({ message: "Swap successful", progressText: undefined, type: "success", duration: 3000 });
         return this.review;
       });
     }
 
     await wait(2000);
-    return await this.waitBalance(to, wallet, beforeBalance, review);
+    return await this.waitBalance(to, wallet, beforeBalance);
   }
 
   getMessage(status: GetExecutionStatusResponse.status): string | null {
@@ -134,6 +163,7 @@ export class BridgePending extends ActivityController {
 
     runInAction(() => {
       if (status.swapDetails.amountOut) this.review.amountOut = BigInt(status.swapDetails.amountOut);
+      this.toast?.update({ progressText: message || "Processing..." });
       this.updateStatus(state, message);
     });
   }

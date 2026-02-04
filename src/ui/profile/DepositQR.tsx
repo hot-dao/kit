@@ -3,13 +3,13 @@ import QRCodeStyling from "qr-code-styling";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
+import { WarningIcon } from "../icons/warning";
+import CopyIcon from "../icons/copy";
+
 import { HotKit } from "../../HotKit";
 import { BridgeReview } from "../../core/exchange";
-import { WarningIcon } from "../icons/warning";
-
 import { ActionButton, Button } from "../uikit/button";
 import { PMedium, PSmall } from "../uikit/text";
-import CopyIcon from "../icons/copy";
 
 const DepositQR = observer(({ kit, review, onConfirm, onCancel }: { kit: HotKit; review: BridgeReview; onConfirm: () => void; onCancel?: () => void }) => {
   const qrCodeRef = useRef<HTMLDivElement>(null);
@@ -58,10 +58,10 @@ const DepositQR = observer(({ kit, review, onConfirm, onCancel }: { kit: HotKit;
         Send <Pre>{review.qoute.amountInFormatted}</Pre> <Pre>{review.from.symbol}</Pre> on <Pre>{review.from.chainName}</Pre> chain to:
       </PMedium>
 
-      <div style={{ width: "100%", justifyContent: "center", display: "flex", gap: 4 }}>
-        <Pre style={{ fontSize: 14, fontWeight: "bold", padding: 0, background: "transparent", border: "none" }}>{depositAddress}</Pre>
-        <Button onClick={handleCopy}>
-          <CopyIcon width={16} height={16} color="#ababab" />
+      <div style={{ width: "100%", display: "flex", gap: 4, marginBottom: "auto" }}>
+        <Pre style={{ textAlign: "center", fontSize: 14, fontWeight: "bold", padding: 0, background: "transparent", border: "none" }}>{depositAddress}</Pre>
+        <Button style={{ height: 20 }} onClick={handleCopy}>
+          <CopyIcon width={20} height={20} color="#ababab" />
         </Button>
       </div>
 

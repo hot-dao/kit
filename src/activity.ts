@@ -6,10 +6,13 @@ import { OmniWallet } from "./core/OmniWallet";
 
 import type { HotKit } from "./HotKit";
 import { HotBridgeWithdrawal } from "./HotBridgeWithdrawal";
+import { IndexedDBStorage } from "./storage";
+import { tokens } from "./core";
 
 export class Activity {
   withdrawals: Record<number, HotBridgeWithdrawal[]> = {};
   bridgePending: BridgePending[] = [];
+  storage = new IndexedDBStorage();
 
   constructor(private readonly kit: HotKit) {
     makeObservable(this, {
@@ -20,6 +23,15 @@ export class Activity {
     });
 
     kit.onConnect(({ wallet }) => this.fetchPendingWithdrawalsByWallet(wallet));
+
+    this.storage
+      .get(`activity:bridgePendings`)
+      .then(async (data) => {
+        if (!data) return;
+        const pendings = JSON.parse(data);
+        this.bridgePending = pendings.map((t: any) => BridgePending.deserialize(t, this.kit));
+      })
+      .catch(() => {});
   }
 
   get activityList() {
@@ -28,7 +40,7 @@ export class Activity {
 
   addBridgePending(bridgePending: BridgePending) {
     this.bridgePending.push(bridgePending);
-    // this.kit.storage.set(`activity:bridgePendings`, JSON.stringify(this.bridgePending.map((t) => t.serialize())));
+    this.storage.set(`activity:bridgePendings`, JSON.stringify(this.bridgePending.map((t) => t.serialize())));
   }
 
   async fetchPendingWithdrawalsByWallet(wallet: OmniWallet) {
