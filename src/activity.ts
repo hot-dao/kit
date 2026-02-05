@@ -8,6 +8,7 @@ import type { HotKit } from "./HotKit";
 import { HotBridgeWithdrawal } from "./HotBridgeWithdrawal";
 import { IndexedDBStorage } from "./storage";
 import { tokens } from "./core";
+import { defuseApi } from "./core/defuse";
 
 export class Activity {
   withdrawals: Record<number, HotBridgeWithdrawal[]> = {};
@@ -38,9 +39,17 @@ export class Activity {
     return [...this.bridgePending, ...Object.values(this.withdrawals).flat()];
   }
 
+  sync() {
+    this.storage.set(`activity:bridgePendings`, JSON.stringify(this.bridgePending.map((t) => t.serialize())));
+  }
+
   addBridgePending(bridgePending: BridgePending) {
     this.bridgePending.push(bridgePending);
-    this.storage.set(`activity:bridgePendings`, JSON.stringify(this.bridgePending.map((t) => t.serialize())));
+    this.sync();
+  }
+
+  async fetchPendingPassiveDeposits(wallet: OmniWallet) {
+    defuseApi.getRecentDeposits(wallet.address, "defuse:mainnet");
   }
 
   async fetchPendingWithdrawalsByWallet(wallet: OmniWallet) {

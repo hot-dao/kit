@@ -177,6 +177,7 @@ const Root = styled.div`
   flex-direction: column;
   gap: 12px;
   z-index: 1000000000;
+  pointer-events: none;
 `;
 
 const ToastContent = styled.div`
@@ -202,6 +203,7 @@ const Container = styled.div<{ $type: "success" | "failed" | "pending" }>`
   box-shadow: -6px 6px 16px 0 rgba(0, 0, 0, 0.6);
   overflow: hidden;
   position: relative;
+  pointer-events: all;
 
   cursor: pointer;
   width: 320px;

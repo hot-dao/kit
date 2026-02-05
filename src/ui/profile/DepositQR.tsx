@@ -7,103 +7,211 @@ import { WarningIcon } from "../icons/warning";
 import CopyIcon from "../icons/copy";
 
 import { HotKit } from "../../HotKit";
-import { BridgeReview } from "../../core/exchange";
 import { ActionButton, Button } from "../uikit/button";
-import { PMedium, PSmall } from "../uikit/text";
+import { PLarge, PMedium, PSmall, PTiny } from "../uikit/text";
+import { Token } from "../../core/token";
+import { WarningBox } from "../uikit/badge";
+import uuid4 from "uuid4";
 
-const DepositQR = observer(({ kit, review, onConfirm, onCancel }: { kit: HotKit; review: BridgeReview; onConfirm: () => void; onCancel?: () => void }) => {
+export const QRAnimation = ({ size = 180 }: { size?: number }) => {
   const qrCodeRef = useRef<HTMLDivElement>(null);
   const [qrCode] = useState<QRCodeStyling | null>(() => {
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
     return new QRCodeStyling({
-      data: review.qoute.depositAddress,
-      dotsOptions: { color: "#eeeeee", type: "dots" },
+      data: uuid4().slice(0, 6),
+      dotsOptions: { color: "#eeeeee73", type: "dots" },
       backgroundOptions: { color: "transparent" },
       shape: "square",
-      width: 180,
-      height: 180,
+      width: window.innerWidth < 760 ? size * 0.7 : size,
+      height: window.innerWidth < 760 ? size * 0.7 : size,
       type: "svg",
     });
   });
 
   useEffect(() => {
     if (!qrCodeRef.current) return;
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return;
     qrCode?.append(qrCodeRef.current);
+
+    const interval = setInterval(() => {
+      qrCode?.update({ data: uuid4().slice(0, 6) });
+    }, 600);
+
+    return () => clearInterval(interval);
   }, []);
 
-  if (review.qoute === "deposit" || review.qoute === "withdraw") return null;
-  const depositAddress = review.qoute.depositAddress as string;
+  return <div ref={qrCodeRef} style={{ borderRadius: 12, padding: "4px 4px 0 4px", border: "1px solid #2d2d2d", background: "#1c1c1c" }}></div>;
+};
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(depositAddress);
-      kit.toast.success("Address copied to clipboard");
-    } catch (error) {
-      kit.toast.failed("Failed to copy address");
-    }
-  };
+const DepositQR = observer(
+  ({
+    kit,
+    token,
+    depositAmount,
+    minimumAmount,
+    depositAddress,
+    memo,
+    onConfirm,
+    onCancel,
+  }: {
+    kit: HotKit;
+    token: Token;
+    memo?: string;
+    depositAmount?: string;
+    minimumAmount?: number;
+    depositAddress: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }) => {
+    const qrCodeRef = useRef<HTMLDivElement>(null);
+    const [qrCode] = useState<QRCodeStyling | null>(() => {
+      return new QRCodeStyling({
+        data: depositAddress,
+        dotsOptions: { color: "#eeeeee", type: "dots" },
+        backgroundOptions: { color: "transparent" },
+        shape: "square",
+        width: 140,
+        height: 140,
+        type: "svg",
+      });
+    });
 
-  return (
-    <div style={{ position: "relative", width: "100%", height: "100%", gap: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-      {onCancel != null && (
-        <CloseButton onClick={onCancel}>
-          <PSmall>Back</PSmall>
-        </CloseButton>
-      )}
+    useEffect(() => {
+      if (!qrCodeRef.current) return;
+      qrCode?.append(qrCodeRef.current);
+    }, []);
 
-      <div ref={qrCodeRef} style={{ marginTop: "auto", borderRadius: 12, padding: "4px 4px 0 4px", border: "1px solid #2d2d2d", background: "#1c1c1c", textAlign: "left" }}></div>
+    const handleCopy = async (value: string, label?: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        kit.toast.success(label != null ? `${label} copied to clipboard` : "Value copied to clipboard");
+      } catch (error) {
+        kit.toast.failed(label != null ? `Failed to copy ${label}` : "Failed to copy value");
+      }
+    };
 
-      <PMedium style={{ textAlign: "center", marginTop: 16, color: "#ababab", width: "100%" }}>
-        Send <Pre>{review.qoute.amountInFormatted}</Pre> <Pre>{review.from.symbol}</Pre> on <Pre>{review.from.chainName}</Pre> chain to:
-      </PMedium>
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", gap: 4, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
+        {onCancel != null && (
+          <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", height: 32 }}>
+            <CloseButton onClick={onCancel}>
+              <PSmall>Back</PSmall>
+            </CloseButton>
+            <PLarge>Exchange via QR</PLarge>
+          </div>
+        )}
 
-      <div style={{ width: "100%", display: "flex", gap: 4, marginBottom: "auto" }}>
-        <Pre style={{ textAlign: "center", fontSize: 14, fontWeight: "bold", padding: 0, background: "transparent", border: "none" }}>{depositAddress}</Pre>
-        <Button style={{ height: 20 }} onClick={handleCopy}>
-          <CopyIcon width={20} height={20} color="#ababab" />
-        </Button>
+        <div style={{ width: "100%", display: "flex", gap: 4 }}>
+          <div>
+            <QRContainer ref={qrCodeRef} />
+          </div>
+
+          <Card>
+            <Row style={{ background: "#1c1c1c", flexDirection: "column", textAlign: "left", alignItems: "flex-start" }}>
+              <PSmall style={{ color: "#d4d4d4" }}>Deposit address</PSmall>
+              <PSmall style={{ marginTop: 4, fontWeight: 600, fontFamily: "monospace", textAlign: "left" }}>
+                {depositAddress}
+                <Button style={{ marginLeft: 4, display: "inline-block", verticalAlign: "bottom", flexShrink: 0, width: 20, height: 20 }} onClick={() => handleCopy(depositAddress, "Address")}>
+                  <CopyIcon width={20} height={20} color="#ababab" />
+                </Button>
+              </PSmall>
+            </Row>
+
+            {minimumAmount != null && (
+              <Row>
+                <PSmall>Minimum deposit</PSmall>
+                <PMedium>
+                  {token.readable(minimumAmount)} {token.symbol}
+                </PMedium>
+              </Row>
+            )}
+
+            {depositAmount != null && (
+              <>
+                <Row>
+                  <PSmall>Network</PSmall>
+                  <PMedium>{token.chainName}</PMedium>
+                </Row>
+
+                <Row>
+                  <PSmall>Token</PSmall>
+                  <PMedium>{token.symbol}</PMedium>
+                </Row>
+
+                <Row>
+                  <PSmall>Required transfer</PSmall>
+                  <PMedium>
+                    {depositAmount}
+                    <Button style={{ marginLeft: 4, display: "inline-block", verticalAlign: "bottom", flexShrink: 0, width: 20, height: 20 }} onClick={() => handleCopy(depositAmount, "Amount")}>
+                      <CopyIcon width={20} height={20} color="#ababab" />
+                    </Button>
+                  </PMedium>
+                </Row>
+              </>
+            )}
+
+            {memo != null && (
+              <Row>
+                <PSmall style={{ fontWeight: 600 }}>Required memo</PSmall>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <PMedium style={{ fontWeight: 600, color: "#f3ae47" }}>{memo}</PMedium>
+                  <Button style={{ flexShrink: 0, marginTop: 2 }} onClick={() => handleCopy(memo, "Memo")}>
+                    <CopyIcon width={20} height={20} color="#ababab" />
+                  </Button>
+                </div>
+              </Row>
+            )}
+          </Card>
+        </div>
+
+        <WarningBox type="warning" style={{ marginTop: "auto" }}>
+          Only deposit {token.symbol} from {token.chainName} network{memo != null ? ` with memo "${memo}"` : ""}, otherwise funds will be lost!
+        </WarningBox>
+
+        <ActionButton style={{ marginTop: 8 }} onClick={onConfirm}>
+          I sent the funds
+        </ActionButton>
       </div>
+    );
+  }
+);
 
-      <WarningBadge>
-        <WarningIcon color="#F3AE47" style={{ marginTop: 4, flexShrink: 0 }} />
-        <PSmall style={{ color: "#F3AE47", fontWeight: "bold" }}>
-          Only deposit {review.from.symbol} from {review.from.chainName} network.
-          <br />
-          Depositing other assets or using a different network will result in loss of funds
-        </PSmall>
-      </WarningBadge>
-
-      <ActionButton style={{ marginTop: 12 }} onClick={onConfirm}>
-        I sent the funds
-      </ActionButton>
-    </div>
-  );
-});
-
-const WarningBadge = styled.div`
+const Card = styled.div`
   border-radius: 8px;
-  border: 1px solid var(--border-border-orange, #f3ae47);
-  background: var(--surface-warning, #3f311d);
-  padding: 8px;
+  border: 1px solid #323232;
+  background: #1f1f1f;
+  overflow: hidden;
+  height: fit-content;
+
+  width: 100%;
   display: flex;
-  gap: 8px;
-  text-align: left;
+  flex-direction: column;
   margin-top: 12px;
+
+  p {
+    text-align: left;
+    word-break: break-all;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    color: #fff;
+  }
 `;
 
-const Pre = styled.code`
-  display: inline;
-  background: #2d2d2d;
-  padding: 0 2px;
-  border-radius: 4px;
-  border: 1px solid #ffffff14;
-  word-break: break-all;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  text-align: left;
-  margin: 0;
+const Row = styled.div`
+  padding: 8px 12px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  position: relative;
+
+  > *:first-child {
+    margin-right: 12px;
+  }
+
+  & + & {
+    border-top: 1px solid #323232;
+  }
 `;
 
 const CloseButton = styled(Button)`
@@ -120,6 +228,18 @@ const CloseButton = styled(Button)`
   justify-content: center;
   border: 1px solid #ffffff14;
   background: #2d2d2d;
+`;
+
+const QRContainer = styled.div`
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px solid #2d2d2d;
+  background: #1c1c1c;
+  text-align: left;
+
+  @media (max-width: 760px) {
+    display: none;
+  }
 `;
 
 export default DepositQR;

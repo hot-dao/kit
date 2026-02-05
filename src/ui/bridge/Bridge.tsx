@@ -5,7 +5,6 @@ import uuid4 from "uuid4";
 
 import { ArrowRightIcon } from "../icons/arrow-right";
 import ExchangeIcon from "../icons/exchange";
-import RefreshIcon from "../icons/refresh";
 
 import { HotKit } from "../../HotKit";
 import { chains, Network, WalletType } from "../../core/chains";
@@ -16,21 +15,15 @@ import { formatter } from "../../core/utils";
 import { tokens } from "../../core/tokens";
 import { Token } from "../../core/token";
 
-import { ActionButton, Button } from "../uikit/button";
-import { H5, PLarge, PSmall, PTiny } from "../uikit/text";
+import { useAnimations } from "../uikit/animationts";
+import { H5, PSmall, PTiny } from "../uikit/text";
+import { ActionButton } from "../uikit/button";
 import { Skeleton } from "../uikit/loader";
 import { ImageView } from "../uikit/image";
 
 import Popup from "../Popup";
-import { openConnector, openSelectRecipient, openSelectSender, openSelectTokenPopup } from "../router";
 import DepositQR from "../profile/DepositQR";
-import { TokenIcon } from "./TokenCard";
-
-const animations = {
-  success: "https://hex.exchange/success.json",
-  failed: "https://hex.exchange/error.json",
-  loading: "https://hex.exchange/loading.json",
-};
+import { BadgeButton, Card, CardBody, CardHeader, ChainButton, TokenAmountCard, TokenPreview, Tooltip } from "./TokenAmountCard";
 
 export interface ProcessingState {
   status: "qr" | "processing" | "success" | "error";
@@ -74,13 +67,8 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
   const [isError, setIsError] = useState<string | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
 
-  useState(() => {
-    fetch(animations.loading);
-    fetch(animations.success);
-    fetch(animations.failed);
-  });
-
   const [processing, setProcessing] = useState<ProcessingState | null>(null);
+  const animations = useAnimations();
 
   useEffect(() => {
     onStateUpdate?.(processing);
@@ -243,14 +231,16 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
     }
   };
 
-  if (processing?.status === "qr") {
+  if (processing?.status === "qr" && typeof processing.review.qoute === "object") {
     return (
       <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen}>
         <DepositQR //
-          kit={kit}
-          review={processing.review}
+          depositAmount={processing.review.qoute.amountInFormatted}
+          depositAddress={processing.review.qoute.depositAddress!}
           onConfirm={() => onProcess(process(processing.review))}
           onCancel={cancelReview}
+          token={from}
+          kit={kit}
         />
       </Popup>
     );
@@ -302,9 +292,9 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
   }
 
   const button = () => {
-    if (refundWallet == null) return <ActionButton onClick={() => openConnector(kit)}>Sign in to HEX</ActionButton>;
     if (sender == null) return <ActionButton disabled>Confirm</ActionButton>;
     if (recipient == null) return <ActionButton disabled>Confirm</ActionButton>;
+    if (refundWallet == null) return <ActionButton onClick={() => kit.router.openConnector(kit)}>Sign in to HEX</ActionButton>;
     if (sender !== "qr" && +from.float(kit.balance(sender, from)).toFixed(FIXED) < +amountFrom.toFixed(FIXED)) return <ActionButton disabled>Insufficient balance</ActionButton>;
     return (
       <ActionButton style={{ width: "100%", marginTop: 40 }} disabled={isReviewing || isError != null} onClick={handleConfirm}>
@@ -316,118 +306,22 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
   return (
     <Popup widget={widget} onClose={onClose} header={<p>{title}</p>} mobileFullscreen={setup?.mobileFullscreen} style={{ background: "#191919" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", height: "100%" }}>
-        <Card style={{ borderRadius: "20px 20px 2px 2px" }}>
-          <CardHeader>
-            <ChainButton onClick={() => openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setFrom(token), setSender(wallet)) })}>
-              <PSmall>From</PSmall>
-              <ImageView src={chains.get(from.chain)?.logo || ""} alt={from.symbol} size={16} />
-              <PSmall>{chains.get(from.chain)?.name}</PSmall>
-              <ArrowRightIcon style={{ marginLeft: -8, transform: "rotate(-270deg)" }} color="#ababab" />
-            </ChainButton>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <PSmall>Sender:</PSmall>
-              <BadgeButton onClick={() => openSelectSender({ kit, type: from.type, onSelect: (sender) => setSender(sender) })}>
-                <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
-                <Tooltip id="sender-tooltip">
-                  <PSmall>Select sender wallet</PSmall>
-                </Tooltip>
-              </BadgeButton>
-            </div>
-          </CardHeader>
-
-          <CardBody>
-            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-              <TokenPreview
-                token={from}
-                onSelect={() =>
-                  openSelectTokenPopup({
-                    onSelect: (token, wallet) => (setFrom(token), setSender(wallet)),
-                    initialChain: from.chain,
-                    kit,
-                  })
-                }
-              />
-
-              {isReviewing && type === "exactOut" ? (
-                <Skeleton />
-              ) : (
-                <input //
-                  name="from"
-                  type="text"
-                  className="input"
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  readOnly={setup?.readonlyAmount}
-                  value={isFiat ? `$${showAmountFrom}` : showAmountFrom}
-                  onChange={(e) => (setType("exactIn"), setValue(e.target.value))}
-                  placeholder="0"
-                  autoFocus
-                />
-              )}
-            </div>
-
-            {isFiat && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                {sender !== "qr" && (
-                  <AvailableBalance>
-                    <PSmall>Balance: ${from.readable(availableBalance, from.usd)}</PSmall>
-                    <Button onClick={() => sender && kit.fetchToken(from, sender)}>
-                      <RefreshIcon color="#fff" />
-                    </Button>
-                  </AvailableBalance>
-                )}
-
-                {sender === "qr" && <div />}
-
-                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                  {from.usd !== 0 && <PSmall style={{ marginRight: 8 }}>{`${from.readable(amountFrom / from.usd)} ${from.symbol}`}</PSmall>}
-
-                  {from.usd !== 0 && (
-                    <BadgeButton style={{ border: `1px solid #fff` }} onClick={() => setIsFiat(!isFiat)}>
-                      <PTiny>USD</PTiny>
-                    </BadgeButton>
-                  )}
-
-                  {sender !== "qr" && (
-                    <BadgeButton onClick={handleMax}>
-                      <PTiny>MAX</PTiny>
-                    </BadgeButton>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!isFiat && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                {sender !== "qr" && (
-                  <AvailableBalance>
-                    <PSmall>Balance: {`${from.readable(availableBalance)} ${from.symbol}`}</PSmall>
-                    <Button style={{ marginTop: 2 }} onClick={() => sender && kit.fetchToken(from, sender)}>
-                      <RefreshIcon color="#fff" />
-                    </Button>
-                  </AvailableBalance>
-                )}
-
-                {sender === "qr" && <div />}
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {from.usd !== 0 && <PSmall style={{ marginRight: 8 }}>${from.readable(amountFrom, from.usd)}</PSmall>}
-                  {from.usd !== 0 && (
-                    <BadgeButton onClick={() => setIsFiat(!isFiat)}>
-                      <PTiny>USD</PTiny>
-                    </BadgeButton>
-                  )}
-                  {sender !== "qr" && (
-                    <BadgeButton onClick={handleMax}>
-                      <PTiny>MAX</PTiny>
-                    </BadgeButton>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <TokenAmountCard
+          token={from}
+          isFiat={isFiat}
+          sender={sender}
+          amount={amountFrom}
+          readableAmount={String(showAmountFrom)}
+          readonlyAmount={setup?.readonlyAmount}
+          availableBalance={availableBalance}
+          isReviewing={isReviewing && type === "exactOut"}
+          setValue={setValue}
+          setIsFiat={setIsFiat}
+          setSender={setSender}
+          handleMax={handleMax}
+          setToken={setFrom}
+          kit={kit}
+        />
 
         <div style={{ position: "relative", height: 1, width: "100%" }}>
           <SwitchButton
@@ -446,7 +340,7 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
 
         <Card style={{ borderRadius: "2px 2px 20px 20px" }}>
           <CardHeader>
-            <ChainButton onClick={() => openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
+            <ChainButton onClick={() => kit.router.openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
               <PSmall>To</PSmall>
               <ImageView src={chains.get(to.chain)?.logo || ""} alt={to.symbol} size={16} />
               <PSmall>{chains.get(to.chain)?.name}</PSmall>
@@ -455,7 +349,7 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <PSmall>Recipient:</PSmall>
-              <BadgeButton onClick={() => openSelectRecipient({ kit, chain: to.chain, onSelect: (recipient) => setRecipient(recipient) })}>
+              <BadgeButton onClick={() => kit.router.openSelectRecipient({ kit, chain: to.chain, onSelect: (recipient) => setRecipient(recipient) })}>
                 <PSmall>{recipient == null ? "Select" : formatter.truncateAddress(recipient.address, 8)}</PSmall>
                 <Tooltip id="recipient-tooltip">
                   <PSmall>Select recipient wallet</PSmall>
@@ -469,7 +363,7 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
               <TokenPreview
                 token={to}
                 onSelect={() =>
-                  openSelectTokenPopup({
+                  kit.router.openSelectTokenPopup({
                     kit,
                     initialChain: to.chain,
                     onSelect: (token, wallet) => {
@@ -511,16 +405,6 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
   );
 });
 
-const TokenPreview = ({ style, token, onSelect }: { style?: React.CSSProperties; token: Token; onSelect: (token: Token) => void }) => {
-  return (
-    <SelectTokenButton style={style} onClick={() => onSelect(token)}>
-      <TokenIcon withoutChain token={token} size={32} />
-      <PLarge>{token.symbol}</PLarge>
-      <ArrowRightIcon style={{ flexShrink: 0, position: "absolute", right: 4 }} />
-    </SelectTokenButton>
-  );
-};
-
 const TextField = styled(PTiny)`
   max-width: 100%;
   min-width: 300px;
@@ -534,172 +418,6 @@ const TextField = styled(PTiny)`
   margin-bottom: 12px;
   white-space: pre-wrap;
   line-break: anywhere;
-`;
-
-const Tooltip = styled.div`
-  transition: 0.2s transform, 0.2s opacity;
-  transform: translateY(8px);
-  opacity: 0;
-  position: absolute;
-  top: -48px;
-  right: 0;
-  z-index: 100000000;
-  border-radius: 16px;
-  background: var(--surface-white, #fff);
-  padding: 4px 12px;
-  justify-content: center;
-  pointer-events: none;
-  align-items: center;
-  gap: 4px;
-
-  p {
-    white-space: nowrap;
-    color: #000;
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    right: 8px;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid #fff;
-  }
-`;
-
-const BadgeButton = styled.button`
-  display: flex;
-  border-radius: 8px;
-  border: 1px solid #323232;
-  padding: 4px 8px;
-  background: transparent;
-  transition: 0.2s border-color;
-  position: relative;
-  cursor: pointer;
-  outline: none;
-  gap: 4px;
-
-  &:hover {
-    border-color: #4e4e4e;
-  }
-`;
-
-const ChainButton = styled.button`
-  display: flex;
-  align-items: center;
-  padding: 0;
-  gap: 8px;
-  flex-shrink: 0;
-  cursor: pointer;
-  outline: none;
-  border: none;
-  background: transparent;
-  transition: 0.2s opacity;
-
-  &:hover {
-    opacity: 0.8;
-  }
-`;
-
-const SelectTokenButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  cursor: pointer;
-  outline: none;
-  border: none;
-  position: relative;
-  background: transparent;
-  border-radius: 24px;
-  padding: 4px;
-  padding-right: 28px;
-  margin: -4px;
-  max-width: 160px;
-  transition: 0.2s background-color;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  p {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-`;
-
-const AvailableBalance = styled.div`
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  max-width: 200px;
-  white-space: nowrap;
-  gap: 4px;
-
-  p {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-`;
-
-const Card = styled.div`
-  text-align: left;
-  align-items: flex-start;
-  justify-content: center;
-  flex-direction: column;
-
-  display: flex;
-  width: 100%;
-
-  border-radius: 20px 20px 2px 2px;
-  border: 1px solid #323232;
-  background: #1f1f1f;
-
-  input {
-    outline: none;
-    border: none;
-    background: none;
-    color: #fff;
-    font-size: 32px;
-    font-weight: bold;
-    width: 100%;
-    line-height: 40px;
-    text-align: left;
-    align-items: flex-start;
-    justify-content: center;
-    background: transparent;
-    text-align: right;
-    border: none;
-    padding: 0;
-    margin: 0;
-  }
-`;
-
-const CardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  width: 100%;
-  gap: 8px;
-`;
-
-const CardBody = styled.div`
-  padding: 16px;
-  width: 100%;
-  flex-direction: column;
-  align-items: flex-start;
-  border-radius: 20px 20px 0 0;
-  border-top: 1px solid #323232;
-  background: #272727;
-  display: flex;
-  gap: 8px;
 `;
 
 const SwitchButton = styled.button`

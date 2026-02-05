@@ -22,7 +22,6 @@ import { HotKit } from "../../HotKit";
 import { PopupOption, PopupOptionInfo } from "../styles";
 import { TokenCard } from "../bridge/TokenCard";
 import Popup from "../Popup";
-import DepositQR from "./DepositQR";
 
 interface PaymentProps {
   onReject: (message: string) => void;
@@ -63,7 +62,7 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
 
   const [flow, setFlow] = useState<{
     token?: Token;
-    wallet?: OmniWallet | "qr";
+    wallet?: OmniWallet;
     commitment?: Commitment;
     review?: BridgeReview;
     success?: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> };
@@ -75,7 +74,7 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
   const paymentTitle = title || `Pay ${payableToken.readable(needAmount)} ${payableToken.symbol}`;
   const showPrepaidToken = payableToken.float(prepaidAmount) >= 0.001;
 
-  const selectToken = async (from: Token, wallet?: OmniWallet | "qr") => {
+  const selectToken = async (from: Token, wallet?: OmniWallet) => {
     if (!wallet) return;
 
     setFlow({ token: from, wallet, review: undefined, step: "sign" });
@@ -85,7 +84,7 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
     const isStable = isStableFrom && isStableTo;
 
     let tasks: Promise<BridgeReview>[] = [];
-    if (isStable && !isDirectDeposit && wallet !== "qr") {
+    if (isStable && !isDirectDeposit) {
       const slippages = [0.0005, 0.001, 0.0015];
       tasks = slippages.map((slippage) => {
         const extra = (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000);
@@ -105,7 +104,7 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
     const exectOutReview = await kit.exchange
       .reviewSwap({
         slippage: isStable ? STABLE_SLIPPAGE : PAY_SLIPPAGE,
-        refund: wallet === "qr" ? kit.priorityWallet : wallet,
+        refund: wallet,
         recipient: intents.signer!,
         amount: needAmount,
         sender: wallet,
@@ -214,15 +213,6 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
   }
 
   if (flow?.step === "transfer") {
-    if (flow.wallet === "qr") {
-      return (
-        <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
-          <HorizontalStepper steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
-          <DepositQR kit={kit} review={flow.review!} onConfirm={confirmPaymentStep} />
-        </Popup>
-      );
-    }
-
     return (
       <Popup onClose={() => onReject("closed")} header={<p>{paymentTitle}</p>}>
         <HorizontalStepper style={{ marginBottom: 24 }} steps={[{ label: "Select" }, { label: "Review" }, { label: "Confirm" }]} currentStep={2} />
@@ -370,19 +360,6 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
 
       {recommendedTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
       {otherTokens.map(({ token, wallet, balance }) => renderToken(token, wallet, balance))}
-
-      {kit.connectors.every((t) => !t.walletTypes.includes(payableToken.originalChain)) && (
-        <PopupOption style={{ marginTop: 8 }} onClick={() => selectToken(tokens.get(payableToken.originalAddress, payableToken.originalChain), "qr")}>
-          <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <QRIcon />
-          </div>
-
-          <PopupOptionInfo>
-            <p>Send via QR code</p>
-            <span className="wallet-address">Transfer from CEX or external wallet</span>
-          </PopupOptionInfo>
-        </PopupOption>
-      )}
 
       <PopupOption style={{ marginTop: 8 }} onClick={() => kit.router.openConnector(kit)}>
         <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>

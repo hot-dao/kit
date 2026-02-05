@@ -17,18 +17,27 @@ import { TokenCard } from "./TokenCard";
 
 interface SelectTokenPopupProps {
   kit: HotKit;
+  disableChains?: number[];
   initialChain?: number;
   onClose: () => void;
   onSelect: (token: Token, wallet?: OmniWallet) => void;
 }
 
-export const SelectTokenPopup = observer(({ kit, initialChain, onClose, onSelect }: SelectTokenPopupProps) => {
+export const SelectTokenPopup = observer(({ kit, disableChains, initialChain, onClose, onSelect }: SelectTokenPopupProps) => {
   const [chain, setChain] = useState<number | null>(initialChain || null);
   const [search, setSearch] = useState<string>("");
 
+  const availableTokens = tokens.list.filter((token) => !disableChains || !disableChains.includes(token.chain));
+  const selectChain = (chain: number) => {
+    setChain(chain);
+    setSearch("");
+    const tokens = availableTokens.filter((t) => t.chain === chain);
+    if (tokens.length === 1) onSelect(tokens[0]);
+  };
+
   if (chain == null) {
     const chains: Record<number, { chain: number; balance: number; name: string; icon: string }> = {};
-    tokens.list.forEach((token) => {
+    availableTokens.forEach((token) => {
       if (!chains[token.chain])
         chains[token.chain] = {
           chain: token.chain,
@@ -56,7 +65,7 @@ export const SelectTokenPopup = observer(({ kit, initialChain, onClose, onSelect
           if (search && !name.toLowerCase().includes(search.toLowerCase())) return;
 
           return (
-            <PopupOption onClick={() => (setChain(chain), setSearch(""))}>
+            <PopupOption onClick={() => selectChain(chain)}>
               <ImageView src={icon} alt={name} size={24} />
               <p style={{ fontSize: 24, fontWeight: "bold" }}>{name}</p>
               {balance > 0 && <p style={{ marginLeft: "auto", fontSize: 20, color: "#c6c6c6" }}>${formatter.amount(balance)}</p>}
@@ -67,12 +76,12 @@ export const SelectTokenPopup = observer(({ kit, initialChain, onClose, onSelect
     );
   }
 
-  if (chain !== -4) {
+  if (chain !== Network.Omni && chain !== Network.HotCraft) {
     return (
       <Popup onClose={onClose} header={<p>Select token</p>} style={{ minHeight: 300 }}>
         <SearchInput type="text" placeholder="Search token" onChange={(e) => setSearch(e.target.value)} />
 
-        {tokens.list
+        {availableTokens
           .filter((token) => token.chain === chain && token.symbol.toLowerCase().includes(search.toLowerCase()))
           .sort((a, b) => {
             const wallet = kit.wallets.find((w) => w.type === a.type)!;
@@ -95,7 +104,7 @@ export const SelectTokenPopup = observer(({ kit, initialChain, onClose, onSelect
       <SearchInput type="text" placeholder="Search token" onChange={(e) => setSearch(e.target.value)} />
       {kit.walletsTokens
         .filter(({ token, balance }) => {
-          if (token.chain !== Network.Omni) return false;
+          if (token.chain !== chain) return false;
           if (token.float(balance) < 0.0001) return false;
           if (!token.symbol.toLowerCase().includes(search.toLowerCase())) return false;
           used.add(token.address);

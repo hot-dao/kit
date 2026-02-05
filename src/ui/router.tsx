@@ -132,10 +132,8 @@ export const openConnector = async (kit: HotKit) => {
   });
 };
 
-export const openDeposit = (kit: HotKit) => {
-  return new Promise<void>((resolve, reject) => {
-    present((close) => <DepositFlow kit={kit} onClose={() => (close(), resolve())} />);
-  });
+export const openDepositFlow = (kit: HotKit, token?: Token) => {
+  present((close) => <DepositFlow kit={kit} initialToken={token} onClose={close} />);
 };
 
 export const openConnectPrimaryWallet = (kit: HotKit) => {
@@ -148,8 +146,8 @@ export const openProfile = (kit: HotKit) => {
   present((close) => <Profile kit={kit} onClose={close} />);
 };
 
-export const openSelectTokenPopup = ({ kit, initialChain, onSelect }: { kit: HotKit; initialChain?: number; onSelect: (token: Token, wallet?: OmniWallet) => void }) => {
-  present((close) => <SelectTokenPopup kit={kit} initialChain={initialChain} onClose={close} onSelect={(t, w) => (onSelect(t, w), close())} />);
+export const openSelectTokenPopup = ({ kit, disableChains, initialChain, onSelect }: { kit: HotKit; disableChains?: number[]; initialChain?: number; onSelect: (token: Token, wallet?: OmniWallet) => void }) => {
+  present((close) => <SelectTokenPopup kit={kit} disableChains={disableChains} initialChain={initialChain} onClose={close} onSelect={(t, w) => (onSelect(t, w), close())} />);
 };
 
 export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: OmniWallet) => void) => {
@@ -164,7 +162,7 @@ export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: O
   });
 };
 
-export const openSelectSender = (props: { kit: HotKit; type: WalletType; onSelect: (wallet?: OmniWallet | "qr") => void }) => {
+export const openSelectSender = (props: { kit: HotKit; type: WalletType; disableQR?: boolean; onSelect: (wallet?: OmniWallet | "qr") => void }) => {
   present((close) => <SelectSender {...props} onClose={close} />);
 };
 

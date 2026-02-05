@@ -16,6 +16,7 @@ import { Token } from "./token";
 
 import StellarWallet from "../stellar/wallet";
 import NearWallet from "../near/wallet";
+import { defuseApi } from "./defuse";
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {
@@ -36,11 +37,9 @@ export type BridgeReview = {
   slippage: number;
   fee: ReviewFee | null;
   qoute: QuoteResponse["quote"] | "withdraw" | "deposit";
-  status: "pending" | "success" | "failed";
-  statusMessage: string | null;
+  recipient?: OmniWallet | Recipient;
   sender?: OmniWallet | "qr";
   refund?: OmniWallet;
-  recipient?: OmniWallet | Recipient;
   logger?: ILogger;
   from: Token;
   to: Token;
@@ -59,8 +58,9 @@ export interface BridgeRequest {
 }
 
 export class Exchange {
-  constructor(readonly kit?: HotKit) {}
   readonly bridge = createHotBridge();
+
+  constructor(readonly kit?: HotKit) {}
 
   async getToken(chain: number, address: string): Promise<string | null> {
     if (chain === Network.Omni || chain === Network.HotCraft) return address;
@@ -74,6 +74,40 @@ export class Exchange {
     });
 
     return token?.omniAddress || null;
+  }
+
+  async getDepositQoute(token: Token, recipient: Recipient): Promise<{ depositAddress?: string; memo?: string; minAmount: number; execute: (sender: OmniWallet, amount: bigint) => Promise<void> }> {
+    if (token.chain === Network.Gonka) {
+      return {
+        minAmount: 0,
+        execute: async (sender: OmniWallet, amount: bigint) => {
+          await this.deposit({ sender, token, amount, recipient, logger: undefined });
+        },
+      };
+    }
+
+    const assets = await defuseApi.getSupportedTokens();
+    const defuseAsset = assets.find((a) => a.intents_token_id === token.omniAddress);
+    if (!defuseAsset) throw new Error("Token not supported to passive deposit");
+
+    const [chainType, chainId] = defuseAsset.defuse_asset_identifier.split(":");
+    const config = await defuseApi.getDepositAddress(recipient.omniAddress, `${chainType}:${chainId}`);
+
+    return {
+      memo: config.memo,
+      depositAddress: config.address,
+      minAmount: Number(defuseAsset.min_deposit_amount),
+      execute: async (sender: OmniWallet, amount: bigint) => {
+        if (this.isDirectDeposit(token, tokens.get(token.omniAddress))) {
+          await this.deposit({ sender, token, amount, recipient, logger: undefined });
+          return;
+        }
+
+        if (amount < BigInt(defuseAsset.min_deposit_amount)) throw new Error("Amount is too low");
+        const hash = await sender.transfer({ amount: amount, token: token, receiver: config.address, comment: config.memo });
+        await OneClickService.submitDepositTx({ txHash: hash, depositAddress: config.address });
+      },
+    };
   }
 
   async deposit(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient; logger?: ILogger }) {
@@ -232,8 +266,6 @@ export class Exchange {
         amountIn: amount,
         amountOut: amount,
         slippage: slippage,
-        statusMessage: null,
-        status: "pending",
         qoute: "deposit",
         logger,
         fee,
@@ -253,8 +285,6 @@ export class Exchange {
         minAmountOut: amount - fee,
         slippage: slippage,
         recipient: recipient,
-        statusMessage: null,
-        status: "pending",
         qoute: "withdraw",
         refund: refund,
         logger,
@@ -333,9 +363,7 @@ export class Exchange {
       amountOut: BigInt(qoute.quote.amountOut),
       slippage: request.slippage,
       recipient: request.recipient,
-      statusMessage: null,
       qoute: qoute.quote,
-      status: "pending",
       refund: refund,
       sender: sender,
       fee: fee,

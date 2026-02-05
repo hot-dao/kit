@@ -1,4 +1,4 @@
-import { makeObservable, observable, runInAction } from "mobx";
+import { action, makeObservable, observable, runInAction } from "mobx";
 import { GetExecutionStatusResponse, OneClickService } from "@defuse-protocol/one-click-sdk-typescript";
 import { v4 as uuidv4 } from "uuid";
 
@@ -8,22 +8,41 @@ import type { HotKit } from "../HotKit";
 import { wait } from "../hot-wallet/iframe";
 import { OmniWallet } from "../core/OmniWallet";
 import { BridgeReview } from "../core/exchange";
-import { Token } from "./token";
 import { tokens } from "./tokens";
+import { Token } from "./token";
 
 export abstract class ActivityController {
-  status: "pending" | "success" | "failed" = "pending";
   id = uuidv4();
 
-  title: string | null = null;
-  subtitle: string | null = null;
+  title = "";
+  subtitle = "";
+  status: "pending" | "success" | "failed" = "pending";
+  preview: Token | string = "";
 
-  preview: Token | string | null = null;
-  actionLoading: boolean = false;
-  actionText: string | null = null;
+  actionLoading = false;
+  actionText = "";
 
+  toast?: ToastController;
   action(): Promise<void> {
     throw new Error("Not implemented");
+  }
+
+  update({ title, subtitle, status }: { title?: string; subtitle?: string; status?: "pending" | "success" | "failed" }) {
+    this.title = title || this.title;
+    this.subtitle = subtitle || this.subtitle;
+    this.status = status || this.status;
+
+    if (this.status === "pending") {
+      this.toast?.update({ progressText: this.subtitle || undefined });
+      return;
+    }
+
+    this.toast?.update({
+      message: this.title,
+      progressText: this.subtitle,
+      type: this.status,
+      duration: 3000,
+    });
   }
 
   constructor() {
@@ -34,23 +53,27 @@ export abstract class ActivityController {
       actionLoading: observable,
       preview: observable,
       title: observable,
+      update: action,
     });
   }
 }
 
 export class BridgePending extends ActivityController {
   readonly processingTask: Promise<BridgeReview>;
-  private toast?: ToastController;
 
-  constructor(readonly review: BridgeReview, readonly kit?: HotKit) {
+  constructor(readonly review: BridgeReview & { status?: "pending" | "success" | "failed"; statusMessage?: string | null }, readonly kit?: HotKit) {
     super();
 
     this.processingTask = this._processing();
     this.title = this.getTitle();
 
-    this.toast = this.kit?.toast.pending(this.title);
-    this.subtitle = this.review.statusMessage;
+    this.subtitle = this.review.statusMessage || "Swap processing";
+    this.status = this.review.status || "pending";
     this.preview = this.review.to;
+
+    if (this.status === "pending") {
+      this.toast = this.kit?.toast.pending(this.title);
+    }
   }
 
   static deserialize(data: any, kit?: HotKit) {
@@ -59,9 +82,9 @@ export class BridgePending extends ActivityController {
         amountIn: BigInt(data.amountIn),
         amountOut: BigInt(data.amountOut),
         minAmountOut: BigInt(data.minAmountOut),
-        statusMessage: data.statusMessage,
         from: tokens.list.find((t) => t.id === data.from)!,
         to: tokens.list.find((t) => t.id === data.to)!,
+        statusMessage: data.statusMessage,
         slippage: data.slippage,
         status: data.status,
         qoute: data.qoute,
@@ -73,13 +96,13 @@ export class BridgePending extends ActivityController {
 
   serialize() {
     return {
+      status: this.status,
+      statusMessage: this.subtitle,
       amountIn: String(this.review.amountIn),
       amountOut: String(this.review.amountOut),
       minAmountOut: String(this.review.minAmountOut),
-      statusMessage: this.review.statusMessage,
       slippage: this.review.slippage,
       qoute: this.review.qoute,
-      status: this.review.status,
       from: this.review.from.id,
       to: this.review.to.id,
     };
@@ -94,18 +117,7 @@ export class BridgePending extends ActivityController {
       if (this.review.to.isOmni) return `Deposit ${to}`;
     }
 
-    // const fromChain = this.review.from.chainName.toLowerCase();
-    // const toChain = this.review.to.chainName.toLowerCase();
     return `${from} → ${to}`;
-  }
-
-  updateStatus(status: "pending" | "success" | "failed", statusMessage: string | null) {
-    runInAction(() => {
-      this.status = status;
-      this.subtitle = statusMessage;
-      this.review.statusMessage = "Swap successful";
-      this.review.status = "success";
-    });
   }
 
   processing() {
@@ -128,12 +140,10 @@ export class BridgePending extends ActivityController {
   async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint): Promise<BridgeReview> {
     const afterBalance = await wallet.fetchBalance(to.chain, to.address).catch(() => beforeBalance);
     if (afterBalance > beforeBalance) {
-      return runInAction(() => {
-        this.review.amountOut = afterBalance - beforeBalance;
-        this.updateStatus("success", "Swap successful");
-        this.toast?.update({ message: "Swap successful", progressText: undefined, type: "success", duration: 3000 });
-        return this.review;
-      });
+      this.review.amountOut = afterBalance - beforeBalance;
+      this.update({ status: "success", subtitle: "Swap successful" });
+      this.kit?.activity.sync();
+      return this.review;
     }
 
     await wait(2000);
@@ -154,18 +164,21 @@ export class BridgePending extends ActivityController {
   async checkStatus() {
     if (this.review.qoute === "deposit" || this.review.qoute === "withdraw") return;
     const status = await OneClickService.getExecutionStatus(this.review.qoute.depositAddress!, this.review.qoute.depositMemo);
-    const message = this.getMessage(status.status);
 
+    if (Date.now() - +new Date(status.updatedAt) > 30_000 * 60) {
+      this.update({ status: "failed", subtitle: "Transaction timed out" });
+      this.kit?.activity.sync();
+      return;
+    }
+
+    const message = this.getMessage(status.status);
     let state: "pending" | "success" | "failed" = "pending";
     if (status.status === GetExecutionStatusResponse.status.SUCCESS) state = "success";
     if (status.status === GetExecutionStatusResponse.status.FAILED) state = "failed";
     if (status.status === GetExecutionStatusResponse.status.REFUNDED) state = "failed";
 
-    runInAction(() => {
-      if (status.swapDetails.amountOut) this.review.amountOut = BigInt(status.swapDetails.amountOut);
-      this.toast?.update({ progressText: message || "Processing..." });
-      this.updateStatus(state, message);
-    });
+    if (status.swapDetails.amountOut) this.review.amountOut = BigInt(status.swapDetails.amountOut);
+    this.update({ subtitle: message || undefined });
   }
 
   async waitStatus(interval = 3000) {

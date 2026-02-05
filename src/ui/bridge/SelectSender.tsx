@@ -13,15 +13,19 @@ import { ConnectorType, OmniConnector } from "../../core/OmniConnector";
 import { OmniWallet } from "../../core/OmniWallet";
 import { WalletType } from "../../core/chains";
 import { formatter } from "../../core/utils";
+import { PMedium, PSmall } from "../uikit/text";
+import { WalletPicker } from "../connect/WalletPicker";
+import { QRAnimation } from "../profile/DepositQR";
 
 interface SelectSenderProps {
   type: WalletType;
   kit: HotKit;
+  disableQR?: boolean;
   onClose: () => void;
   onSelect: (wallet?: OmniWallet | "qr") => void;
 }
 
-export const SelectSender = observer(({ kit, type, onSelect, onClose }: SelectSenderProps) => {
+export const SelectSender = observer(({ kit, type, disableQR, onSelect, onClose }: SelectSenderProps) => {
   const connectors = kit.connectors.filter((t) => t.walletTypes.includes(type) && t.type !== ConnectorType.SOCIAL);
   const noExternal = type === WalletType.OMNI || type === WalletType.COSMOS;
 
@@ -31,9 +35,27 @@ export const SelectSender = observer(({ kit, type, onSelect, onClose }: SelectSe
     onClose();
   };
 
+  if (connectors.length === 0 && (noExternal || disableQR)) {
+    return (
+      <Popup onClose={onClose} header={<p>Select sender</p>}>
+        <div style={{ width: "100%", height: 200, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: 12 }}>
+          <PSmall>
+            No compatible wallets found,
+            <br />
+            try using flow for external wallets
+          </PSmall>
+        </div>
+      </Popup>
+    );
+  }
+
+  if (connectors.length === 1 && (noExternal || disableQR)) {
+    return <WalletPicker initialConnector={connectors[0]} onSelect={onSelect} onClose={onClose} />;
+  }
+
   return (
     <Popup header={<p>Select sender</p>} onClose={onClose}>
-      {!noExternal && (
+      {!noExternal && !disableQR && (
         <PopupOption onClick={() => (onSelect("qr"), onClose())}>
           <div style={{ width: 44, height: 44, borderRadius: 16, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <QRIcon />

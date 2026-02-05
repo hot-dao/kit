@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import PlusIcon from "../icons/plus";
 import { LogoutIcon } from "../icons/logout";
@@ -21,10 +21,18 @@ import { HotKit } from "../../HotKit";
 import { openBridge, openConnector } from "../router";
 import { TokenCard, TokenIcon } from "../bridge/TokenCard";
 import Popup from "../Popup";
+import SegmentedControl from "../uikit/tabs";
 
-export const Profile = observer(({ kit, onClose }: { kit: HotKit; onClose: (wallet?: OmniWallet) => void }) => {
+interface ProfileProps {
+  kit: HotKit;
+  widget?: boolean;
+  onClose?: (wallet?: OmniWallet) => void;
+  onDeposit?: () => void;
+  onExchange?: () => void;
+}
+
+export const Profile = observer(({ kit, widget, onClose, onExchange, onDeposit }: ProfileProps) => {
   let totalBalance = 0;
-
   const tokensList = kit.walletsTokens
     .map(({ token, wallet, balance }) => {
       if (token.float(balance) < 0.000001) return null;
@@ -51,108 +59,108 @@ export const Profile = observer(({ kit, onClose }: { kit: HotKit; onClose: (wall
   const nonOmniTokens = tokensList.filter((t) => t.chain !== Network.Omni && t.chain !== Network.HotCraft);
   const socialConnector = kit.connectors.find((connector) => connector.type === ConnectorType.SOCIAL && connector.wallets.length > 0);
   const connectors = kit.connectors.filter((connector) => connector.type !== ConnectorType.HOTCRAFT);
-  const pendings = kit.activity.activityList.filter((t) => t.status === "pending");
+
+  const [selectedTab, setSelectedTab] = useState<"pendings" | "withdraw" | "portfolio">("portfolio");
 
   useEffect(() => {
     if (kit.wallets.length > 0) return;
-    onClose();
+    onClose?.();
   }, [kit.wallets.length]);
 
   return (
-    <Popup onClose={onClose} style={{ gap: 16 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", width: "100%", gap: 8 }}>
-        {connectors.flatMap((connector) => {
-          return connector.wallets.map((wallet) => (
-            <WalletCard key={wallet.type} onClick={() => connector.disconnect()}>
-              <ImageView src={connector.icon} alt={connector.name} size={20} />
-              {connector.icon !== wallet.icon && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={wallet.icon} alt={connector.name} size={12} />}
-              <div>{formatter.truncateAddress(wallet.address, 8)}</div>
-              <LogoutIcon />
-            </WalletCard>
-          ));
-        })}
-
-        {connectors.some((t) => t.wallets.length === 0) && (
-          <WalletCard
-            style={{ paddingRight: 12 }}
-            onClick={() =>
-              openConnector(kit)
-                .then((wallet) => onClose(wallet))
-                .catch(() => onClose())
-            }
-          >
-            <PlusIcon />
-            Add wallet
-          </WalletCard>
-        )}
-      </div>
-
-      <Card>
-        <PSmall>YOUR BALANCE</PSmall>
-        <BalanceCard>${formatter.amount(totalBalance)}</BalanceCard>
-
-        <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-          <ActionButton onClick={() => (onClose(), openBridge(kit, { title: "Exchange" }))}>
-            <ExchangeIcon />
-            Exchange
-          </ActionButton>
-
-          {socialConnector != null && (
-            <ActionButton onClick={() => socialConnector.openWallet()}>
-              <ImageView src={socialConnector.icon} alt={socialConnector.name} size={20} />
-              Open wallet
-            </ActionButton>
-          )}
-
-          <ActionButton disabled onClick={() => (onClose(), openBridge(kit, { title: "Deposit" }))}>
-            Deposit
-          </ActionButton>
-        </div>
-      </Card>
-
-      {pendings.length > 0 && (
-        <TokenCards>
-          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Pendings</PSmall>
-          {pendings.map((activity) => {
-            return (
-              <Card key={activity.id} onClick={() => activity.action()} style={{ flexDirection: "row", gap: 12 }}>
-                {activity.preview instanceof Token && <TokenIcon token={activity.preview} />}
-
-                <div>
-                  <PMedium style={{ textAlign: "left" }}>{activity.title}</PMedium>
-                  <PSmall style={{ textAlign: "left" }}>{activity.subtitle}</PSmall>
-                </div>
-
-                {activity.status === "pending" && (
-                  <div style={{ marginLeft: "auto", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Loader />
-                  </div>
-                )}
-
-                {activity.actionText && !activity.actionLoading && (
-                  <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
-                    <PSmall style={{ color: "#d6d6d6" }}>{activity.actionText}</PSmall>
-                  </div>
-                )}
-              </Card>
-            );
+    <Popup onClose={onClose} style={{ gap: 16 }} widget={widget}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", width: "100%", gap: 8 }}>
+          {connectors.flatMap((connector) => {
+            return connector.wallets.map((wallet) => (
+              <WalletCard key={wallet.type} onClick={() => connector.disconnect()}>
+                <ImageView src={connector.icon} alt={connector.name} size={20} />
+                {connector.icon !== wallet.icon && <ImageView style={{ position: "absolute", bottom: 4, left: 20 }} src={wallet.icon} alt={connector.name} size={12} />}
+                <div>{formatter.truncateAddress(wallet.address, 8)}</div>
+                <LogoutIcon />
+              </WalletCard>
+            ));
           })}
-        </TokenCards>
-      )}
 
-      {omniTokens.length > 0 && (
-        <TokenCards>
-          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Tokens to withdraw</PSmall>
-          {omniTokens.map((t) => t.component)}
-        </TokenCards>
-      )}
+          {connectors.some((t) => t.wallets.length === 0) && (
+            <WalletCard
+              style={{ paddingRight: 12 }}
+              onClick={() =>
+                openConnector(kit)
+                  .then((wallet) => onClose?.(wallet))
+                  .catch(() => onClose?.())
+              }
+            >
+              <PlusIcon />
+              Add wallet
+            </WalletCard>
+          )}
+        </div>
 
-      {nonOmniTokens.length > 0 && (
-        <TokenCards>
-          <PSmall style={{ fontSize: 16, fontWeight: 600, color: "#d2d2d2", textAlign: "left" }}>Portfolio</PSmall>
-          {nonOmniTokens.map((t) => t.component)}
-        </TokenCards>
-      )}
+        <Card>
+          <PSmall>YOUR BALANCE</PSmall>
+          <BalanceCard>${formatter.amount(totalBalance)}</BalanceCard>
+
+          <div style={{ width: "100%", display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <ActionButton onClick={() => (onClose?.(), onExchange ? onExchange() : openBridge(kit, { title: "Exchange" }))}>
+              <ExchangeIcon />
+              Exchange
+            </ActionButton>
+
+            {socialConnector != null && (
+              <ActionButton onClick={() => socialConnector.openWallet()}>
+                <ImageView src={socialConnector.icon} alt={socialConnector.name} size={20} />
+                Open wallet
+              </ActionButton>
+            )}
+
+            <ActionButton onClick={() => (onClose?.(), onDeposit ? onDeposit() : kit.router.openDepositFlow(kit))}>Deposit</ActionButton>
+          </div>
+        </Card>
+
+        <SegmentedControl
+          value={selectedTab}
+          onChange={(value) => setSelectedTab(value as "pendings" | "withdraw" | "portfolio")}
+          options={[
+            { label: "Portfolio", value: "portfolio", background: "#141414", badge: nonOmniTokens.length.toString() },
+            { label: "HEX Balance", value: "withdraw", background: "#141414", badge: omniTokens.length.toString() },
+            { label: "Activity", value: "pendings", background: "#141414", badge: kit.activity.activityList.length.toString() },
+          ]}
+        />
+
+        {selectedTab === "pendings" && (
+          <TokenCards>
+            {kit.activity.activityList.map((activity) => {
+              return (
+                <Card key={activity.id} onClick={() => activity.action()} style={{ flexDirection: "row", gap: 12 }}>
+                  {activity.preview instanceof Token && <TokenIcon token={activity.preview} />}
+
+                  <div>
+                    <PMedium style={{ textAlign: "left" }}>{activity.title}</PMedium>
+                    <PSmall style={{ textAlign: "left" }}>{activity.subtitle}</PSmall>
+                  </div>
+
+                  {activity.status === "pending" && (
+                    <div style={{ marginLeft: "auto", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Loader />
+                    </div>
+                  )}
+
+                  {activity.actionText && !activity.actionLoading && (
+                    <div style={{ marginLeft: "auto", padding: "8px 12px", borderRadius: 16, background: "#1a1a1a", color: "#fff" }}>
+                      <PSmall style={{ color: "#d6d6d6" }}>{activity.actionText}</PSmall>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </TokenCards>
+        )}
+
+        {selectedTab === "withdraw" && <TokenCards>{omniTokens.map((t) => t.component)}</TokenCards>}
+
+        {selectedTab === "portfolio" && <TokenCards>{nonOmniTokens.map((t) => t.component)}</TokenCards>}
+      </div>
     </Popup>
   );
 });
