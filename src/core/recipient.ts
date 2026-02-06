@@ -9,6 +9,15 @@ import { isValidAddress } from "./address";
 export class Recipient {
   constructor(readonly type: WalletType, readonly address: string, readonly omniAddress: string) {}
 
+  get chainName() {
+    return chains.get(this.type)?.name || "Unknown";
+  }
+
+  fetchBalance(chain: number, address: string): Promise<bigint> {
+    // TODO: implement
+    throw new Error("Not implemented");
+  }
+
   static fromWallet(wallet?: OmniWallet) {
     if (!wallet) return undefined;
     return new Recipient(wallet.type, wallet.address, wallet.omniAddress);

@@ -6,7 +6,7 @@ import { HelpIcon } from "../icons/help";
 import { WalletIcon } from "../icons/wallet";
 import { QRIcon } from "../icons/qr";
 
-import { Commitment, Intents, tokens } from "../../core";
+import { Commitment, Intents, Recipient, tokens } from "../../core";
 import { BridgeReview } from "../../core/exchange";
 import { BridgePending } from "../../core/pendings";
 import { OmniWallet } from "../../core/OmniWallet";
@@ -90,7 +90,7 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
         const extra = (needAmount * BigInt(Math.floor(slippage * 1000))) / BigInt(1000);
         return kit.exchange.reviewSwap({
           amount: from.int(payableToken.float(needAmount + extra)),
-          recipient: intents.signer!,
+          recipient: Recipient.fromWallet(intents.signer!),
           slippage: slippage,
           sender: wallet,
           type: "exactIn",
@@ -104,12 +104,12 @@ export const Payment = observer(({ kit, intents, title = "Payment", allowedToken
     const exectOutReview = await kit.exchange
       .reviewSwap({
         slippage: isStable ? STABLE_SLIPPAGE : PAY_SLIPPAGE,
-        refund: wallet,
-        recipient: intents.signer!,
+        recipient: Recipient.fromWallet(intents.signer!),
         amount: needAmount,
         sender: wallet,
         type: "exactOut",
         to: payableToken,
+        refund: wallet,
         from,
       })
       .catch((e) => {

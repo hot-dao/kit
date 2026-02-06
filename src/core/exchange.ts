@@ -37,7 +37,7 @@ export type BridgeReview = {
   slippage: number;
   fee: ReviewFee | null;
   qoute: QuoteResponse["quote"] | "withdraw" | "deposit";
-  recipient?: OmniWallet | Recipient;
+  recipient?: Recipient;
   sender?: OmniWallet | "qr";
   refund?: OmniWallet;
   logger?: ILogger;
@@ -380,16 +380,16 @@ export class Exchange {
     if (review.qoute === "withdraw") {
       if (sender === "qr") throw new Error("Sender is QR");
       await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient, logger });
-      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
+      recipient.fetchBalance(review.to.chain, review.to.address);
+      sender.fetchBalance(review.from.chain, review.from.address);
       return new BridgePending(review, this.kit);
     }
 
     if (review.qoute === "deposit") {
       if (sender === "qr") throw new Error("Sender is QR");
       await this.deposit({ sender, token: review.from, amount: review.amountIn, recipient, logger });
-      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
+      recipient.fetchBalance(review.to.chain, review.to.address);
+      sender.fetchBalance(review.from.chain, review.from.address);
       return new BridgePending(review, this.kit);
     }
 

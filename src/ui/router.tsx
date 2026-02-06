@@ -162,7 +162,7 @@ export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: O
   });
 };
 
-export const openSelectSender = (props: { kit: HotKit; type: WalletType; disableQR?: boolean; onSelect: (wallet?: OmniWallet | "qr") => void }) => {
+export const openSelectSender = (props: { kit: HotKit; type: WalletType; disableQR?: boolean; depositFlow?: boolean; onSelect: (wallet?: OmniWallet | "qr") => void; onDeposit?: () => void }) => {
   present((close) => <SelectSender {...props} onClose={close} />);
 };
 

@@ -30,14 +30,17 @@ interface DepositFlowProps {
 }
 
 export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialToken, onClose, widget }) => {
-  const [type, setType] = useState<"external" | "connected">("external");
+  const availableChainsToConnect = Array.from(new Set(kit.connectors.flatMap((c) => c.walletTypes)));
+  const animations = useAnimations();
 
   const [token, setToken] = useState<Token | null>(initialToken ?? null);
   const [state, setState] = useState<"loading" | "success" | "error" | null>(null);
   const [sender, setSender] = useState<OmniWallet | undefined>(kit.wallets.find((w) => w.type === token?.type));
-  const animations = useAnimations();
 
-  const availableChainsToConnect = Array.from(new Set(kit.connectors.flatMap((c) => c.walletTypes)));
+  const [type, setType] = useState<"external" | "connected">(() => {
+    if (token == null) return "connected";
+    return availableChainsToConnect.includes(token.type) ? "connected" : "external";
+  });
 
   const [depositQoute, setDepositQoute] = useState<{
     execute: (sender: OmniWallet, amount: bigint) => Promise<void>;
@@ -55,6 +58,11 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
     return Recipient.fromWallet(kit.priorityWallet);
   });
 
+  const selectToken = (token: Token) => {
+    if (token.type !== sender?.type) setSender(undefined);
+    setToken(token);
+  };
+
   useEffect(() => {
     setError(null);
     setDepositQoute(null);
@@ -70,14 +78,14 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
   }, [token, recipient]);
 
   useEffect(() => {
-    if (token?.omniAddress === OmniToken.GONKA) setType("connected");
+    const availableChainsToConnect = Array.from(new Set(kit.connectors.flatMap((c) => c.walletTypes)));
+    if (!availableChainsToConnect) setType("external");
   }, [token]);
 
   if (type === "connected") {
     const amountInTokens = isFiat ? +formatter.fromInput(amount) / (token?.usd || 0) : +formatter.fromInput(amount);
     const availableBalance = token != null ? +Math.max(0, token.float(kit.balance(sender, token)) - token.reserve).toFixed(4) : 0;
     const minimumAmount = token?.float(depositQoute?.minAmount ?? 0) ?? 0;
-    const isDisabled = amountInTokens <= 0 || amountInTokens > availableBalance || depositQoute == null || minimumAmount > amountInTokens;
 
     const handleDeposit = async () => {
       setState("loading");
@@ -155,7 +163,7 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
           {recipient == null && <PSmall>Choose receiver</PSmall>}
           {recipient != null && (
             <PSmall>
-              Deposit to <b style={{ color: "#b4b4b4" }}>{formatter.truncateAddress(recipient.address)}</b>
+              Deposit to your <b style={{ color: "#b4b4b4" }}>{recipient.chainName}</b> wallet
             </PSmall>
           )}
 
@@ -164,7 +172,6 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
 
         <TokenAmountCard
           kit={kit}
-          disableQR
           sender={sender}
           isFiat={isFiat}
           isReviewing={false}
@@ -172,13 +179,26 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
           token={token ?? undefined}
           availableBalance={availableBalance}
           readableAmount={formatter.fromInput(amount)}
-          disableChains={[Network.Omni, Network.HotCraft].concat(tokens.list.filter((t) => !availableChainsToConnect.includes(t.type)).map((t) => t.chain))}
           style={{ marginTop: 12, borderRadius: "20px 20px", overflow: "hidden", marginBottom: 8 }}
-          setSender={(sender) => setSender(sender as OmniWallet)}
           handleMax={() => setAmount(String(isFiat ? availableBalance * (token?.usd || 0) : availableBalance))}
+          handleSelectSender={(token) =>
+            kit.router.openSelectSender({
+              onSelect: (sender) => setSender(sender as OmniWallet),
+              type: token?.type,
+              depositFlow: false,
+              disableQR: true,
+              kit,
+            })
+          }
+          handleSelectToken={() =>
+            kit.router.openSelectTokenPopup({
+              kit,
+              disableChains: [Network.Omni, Network.HotCraft],
+              onSelect: selectToken,
+            })
+          }
           setValue={setAmount}
           setIsFiat={setIsFiat}
-          setToken={setToken}
         />
 
         {minimumAmount > 0 && (
@@ -190,9 +210,38 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
           </div>
         )}
 
-        <ActionButton style={{ marginTop: "auto" }} disabled={isDisabled} onClick={handleDeposit}>
-          Deposit
-        </ActionButton>
+        {(() => {
+          if (token == null) {
+            return (
+              <ActionButton style={{ marginTop: "auto" }} disabled>
+                Deposit
+              </ActionButton>
+            );
+          }
+
+          if (!availableChainsToConnect.includes(token?.type)) {
+            return (
+              <ActionButton style={{ marginTop: "auto" }} onClick={() => setType("external")}>
+                Deposit from external wallet
+              </ActionButton>
+            );
+          }
+
+          if (sender == null) {
+            return (
+              <ActionButton style={{ marginTop: "auto" }} onClick={() => kit.router.openSelectSender({ kit, type: token.type, onSelect: (sender) => setSender(sender as OmniWallet) })}>
+                Connect {token.chainName} wallet
+              </ActionButton>
+            );
+          }
+
+          const isDisabled = amountInTokens <= 0 || amountInTokens > availableBalance || depositQoute == null || minimumAmount > amountInTokens;
+          return (
+            <ActionButton style={{ marginTop: "auto" }} disabled={isDisabled} onClick={handleDeposit}>
+              Deposit
+            </ActionButton>
+          );
+        })()}
       </Popup>
     );
   }
@@ -221,12 +270,14 @@ export const DepositFlow: React.FC<DepositFlowProps> = observer(({ kit, initialT
 
       <Card onClick={() => kit.router.openSelectRecipient({ kit, chain: Network.Omni, onSelect: (r) => setRecipient(r) })}>
         <ImageView src={chains.get(Network.Omni)?.logo || ""} alt="HEX Wallet" size={24} />
+
         {recipient == null && <PSmall>Choose receiver</PSmall>}
         {recipient != null && (
           <PSmall>
-            Deposit to <b style={{ color: "#b4b4b4" }}>{formatter.truncateAddress(recipient.address)}</b>
+            Deposit to your <b style={{ color: "#b4b4b4" }}>{recipient.chainName}</b> wallet
           </PSmall>
         )}
+
         <ArrowRightIcon style={{ transform: "rotate(90deg)", marginLeft: "auto" }} />
       </Card>
 

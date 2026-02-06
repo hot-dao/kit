@@ -159,8 +159,7 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
       try {
         if (currentReviewId !== reviewId.current) return;
         const amount = type === "exactIn" ? from.int(valueInTokens) : to.int(valueInTokens);
-        const recipientWallet = kit.wallets.find((w) => w.address === recipient?.address && w.type === recipient?.type) || recipient;
-        const review = await kit.exchange.reviewSwap({ recipient: recipientWallet, slippage: 0.005, sender, refund: refundWallet, amount, type, from, to });
+        const review = await kit.exchange.reviewSwap({ recipient, slippage: 0.005, sender, refund: refundWallet, amount, type, from, to });
         if (currentReviewId !== reviewId.current) return;
 
         if (amount > 0) {
@@ -315,11 +314,32 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
           readonlyAmount={setup?.readonlyAmount}
           availableBalance={availableBalance}
           isReviewing={isReviewing && type === "exactOut"}
-          setValue={setValue}
+          handleSelectSender={(token) =>
+            kit.router.openSelectSender({
+              kit,
+              disableQR: true,
+              depositFlow: !token.isOmni,
+              type: token.type,
+              onSelect: (sender) => setSender(sender as OmniWallet),
+              onDeposit: () => {
+                kit.router.openDepositFlow(kit, from);
+                setFrom(tokens.get(from.omniAddress));
+              },
+            })
+          }
+          handleSelectToken={() =>
+            kit.router.openSelectTokenPopup({
+              kit,
+              onSelect: (token) => {
+                if (sender == null || sender === "qr") setSender(undefined);
+                else setSender(kit.wallets.find((w) => w.type === token.type));
+                setFrom(token);
+              },
+            })
+          }
+          setValue={(v) => (setValue(v), setType("exactIn"))}
           setIsFiat={setIsFiat}
-          setSender={setSender}
           handleMax={handleMax}
-          setToken={setFrom}
           kit={kit}
         />
 
@@ -340,7 +360,7 @@ export const Bridge = observer(({ kit, widget, setup, onClose, onProcess, onStat
 
         <Card style={{ borderRadius: "2px 2px 20px 20px" }}>
           <CardHeader>
-            <ChainButton onClick={() => kit.router.openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setTo(token), setRecipient(wallet)) })}>
+            <ChainButton onClick={() => kit.router.openSelectTokenPopup({ kit, onSelect: (token, wallet) => (setTo(token), setRecipient(Recipient.fromWallet(wallet))) })}>
               <PSmall>To</PSmall>
               <ImageView src={chains.get(to.chain)?.logo || ""} alt={to.symbol} size={16} />
               <PSmall>{chains.get(to.chain)?.name}</PSmall>

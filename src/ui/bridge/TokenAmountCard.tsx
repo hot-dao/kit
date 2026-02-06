@@ -20,15 +20,13 @@ import { TokenIcon } from "./TokenCard";
 interface TokenAmountCardProps {
   setValue: (value: string) => void;
   setIsFiat: (isFiat: boolean) => void;
-  setToken: (token: Token) => void;
-  setSender: (sender: OmniWallet | "qr" | undefined) => void;
+  handleSelectSender: (token: Token) => void;
+  handleSelectToken: () => void;
   handleMax: () => void;
 
   kit: HotKit;
   style?: React.CSSProperties;
-  disableChains?: number[];
 
-  disableQR?: boolean;
   sender: OmniWallet | "qr" | undefined;
   isReviewing: boolean;
   readonlyAmount?: boolean;
@@ -40,43 +38,35 @@ interface TokenAmountCardProps {
 }
 
 export const TokenAmountCard = observer((props: TokenAmountCardProps) => {
-  const { style, token, sender, kit, isReviewing, isFiat, amount, disableChains, readableAmount, availableBalance, readonlyAmount, disableQR } = props;
-  const { setValue, setIsFiat, setToken, setSender, handleMax } = props;
+  const { style, token, sender, kit, isReviewing, isFiat, amount, readableAmount, availableBalance, readonlyAmount } = props;
+  const { setValue, setIsFiat, handleSelectToken, handleSelectSender, handleMax } = props;
 
   return (
     <Card style={{ borderRadius: "20px 20px 2px 2px", ...style }}>
       <CardHeader>
-        <ChainButton onClick={() => kit.router.openSelectTokenPopup({ kit, disableChains, onSelect: (token, wallet) => (setToken(token), setSender(wallet)) })}>
+        <ChainButton onClick={() => handleSelectToken()}>
           <PSmall>From:</PSmall>
           {token != null && <ImageView src={chains.get(token.chain)?.logo || ""} alt={token.symbol} size={16} />}
           <PSmall>{token != null ? chains.get(token.chain)?.name : "Select chain"}</PSmall>
           <ArrowRightIcon style={{ marginLeft: -8, transform: "rotate(-270deg)" }} color="#ababab" />
         </ChainButton>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <PSmall>Sender:</PSmall>
-          <BadgeButton onClick={() => (token ? kit.router.openSelectSender({ disableQR, kit, type: token.type, onSelect: (sender) => setSender(sender) }) : {})}>
-            <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
-            <Tooltip id="sender-tooltip">
-              <PSmall>Select sender wallet</PSmall>
-            </Tooltip>
-          </BadgeButton>
-        </div>
+        {token != null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <PSmall>Sender:</PSmall>
+            <BadgeButton onClick={() => handleSelectSender(token)}>
+              <PSmall>{sender == null ? "Select" : sender !== "qr" ? formatter.truncateAddress(sender.address, 8) : "QR"}</PSmall>
+              <Tooltip id="sender-tooltip">
+                <PSmall>Select sender wallet</PSmall>
+              </Tooltip>
+            </BadgeButton>
+          </div>
+        )}
       </CardHeader>
 
       <CardBody>
         <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-          <TokenPreview
-            token={token}
-            onSelect={() =>
-              kit.router.openSelectTokenPopup({
-                onSelect: (token, wallet) => (setToken(token), setSender(wallet)),
-                disableChains: disableChains,
-                initialChain: token?.chain,
-                kit,
-              })
-            }
-          />
+          <TokenPreview token={token} onSelect={handleSelectToken} />
 
           {isReviewing ? (
             <Skeleton />
