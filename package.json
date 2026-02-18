@@ -5,6 +5,12 @@
   "license": "ISC",
   "author": "",
   "type": "commonjs",
+  "sideEffects": [
+    "./build/evm/injected.js",
+    "./build/solana/injected/index.js",
+    "./build/ton/injected.js",
+    "./build/ui/router.js"
+  ],
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "exports": {
