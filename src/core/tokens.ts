@@ -6,7 +6,8 @@ import { chains, Network, OmniToken } from "./chains";
 import { Token } from "./token";
 
 class TokensStorage {
-  private initialTokensLoader = this.refreshTokens().catch(() => {});
+  private initialTokensLoader: Promise<void> | null = null;
+  private pollingStarted = false;
   public repository: Record<string, Token> = Object.fromEntries(
     defaultTokens.flatMap((t: any) => {
       const onchain = new Token(t);
@@ -40,8 +41,22 @@ class TokensStorage {
     return tokens.find((t) => t.chain === chain && t.address === address)!;
   }
 
+  ensurePolling() {
+    if (this.pollingStarted) return;
+    this.pollingStarted = true;
+    this.ensureInitialLoad();
+    this.startTokenPolling();
+  }
+
+  private ensureInitialLoad() {
+    if (!this.initialTokensLoader) {
+      this.initialTokensLoader = this.refreshTokens().then(() => {}).catch(() => {});
+    }
+    return this.initialTokensLoader;
+  }
+
   async startTokenPolling(interval = 120_000) {
-    await this.initialTokensLoader;
+    await this.ensureInitialLoad();
     await new Promise((resolve) => setTimeout(resolve, interval));
     await this.refreshTokens().catch(() => {});
     await this.startTokenPolling();
@@ -82,7 +97,7 @@ class TokensStorage {
   }
 
   async getTokens(): Promise<Token[]> {
-    await this.initialTokensLoader;
+    await this.ensureInitialLoad();
     return this.list;
   }
 }
