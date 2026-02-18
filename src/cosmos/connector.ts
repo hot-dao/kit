@@ -49,6 +49,65 @@ const wallets: Record<string, OmniConnectorOption> = {
   },
 };
 
+function getHotExtensionProvider(): Keplr | null {
+  const ext = (window as any).hotExtension;
+  if (!ext?.request) return null;
+
+  const provider: any = {
+    __isHotWallet: true,
+
+    enable: async (chainIds: string | string[]) => {
+      await ext.request("cosmos:enable", { chainIds: Array.isArray(chainIds) ? chainIds : [chainIds] });
+    },
+
+    disable: async () => {
+      await ext.request("cosmos:disable", {});
+    },
+
+    getKey: async (chainId: string) => {
+      const key = await ext.request("cosmos:getKey", { chainId });
+      if (key.pubKey && typeof key.pubKey === "string") {
+        key.pubKey = base64.decode(key.pubKey);
+      } else if (key.pubKey && !(key.pubKey instanceof Uint8Array)) {
+        key.pubKey = new Uint8Array(Object.values(key.pubKey));
+      }
+
+      return key;
+    },
+
+    signAmino: async (chainId: string, signer: string, signDoc: any) => {
+      return await ext.request("cosmos:signAmino", { chainId, signer, signDoc });
+    },
+
+    signArbitrary: async (chainId: string, signer: string, data: string) => {
+      return await ext.request("cosmos:signArbitrary", { chainId, signer, data });
+    },
+
+    experimentalSuggestChain: async (chainInfo: any) => {
+      return await ext.request("cosmos:suggestChain", { chainInfo });
+    },
+
+    getOfflineSignerAuto: async (chainId: string) => ({
+      getAccounts: async () => {
+        const key = await provider.getKey(chainId);
+        return [{ address: key.bech32Address, algo: "secp256k1" as const, pubkey: key.pubKey }];
+      },
+      signAmino: (addr: string, doc: any) => ext.request("cosmos:signAmino", { chainId, signer: addr, signDoc: doc }),
+      signDirect: async (addr: string, doc: any) => {
+        const s = { ...doc, bodyBytes: doc.bodyBytes ? Buffer.from(doc.bodyBytes).toString("base64") : null, authInfoBytes: doc.authInfoBytes ? Buffer.from(doc.authInfoBytes).toString("base64") : null };
+        const result = await ext.request("cosmos:signDirect", { chainId, signer: addr, signDoc: s });
+        if (result.signed) {
+          if (typeof result.signed.bodyBytes === "string") result.signed.bodyBytes = base64.decode(result.signed.bodyBytes);
+          if (typeof result.signed.authInfoBytes === "string") result.signed.authInfoBytes = base64.decode(result.signed.authInfoBytes);
+        }
+        return result;
+      },
+    }),
+  };
+
+  return provider as Keplr;
+}
+
 export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.COSMOS];
@@ -60,11 +119,24 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     super(kit);
 
     this.options = Object.values(wallets);
+
     Keplr.getKeplr().then((keplr) => {
-      const option = this.options.find((option) => option.id === "keplr")!;
+      const isHotWallet = (keplr as any)?.__isHotWallet || (window as any).hotExtension;
+      const isRealKeplr = keplr && !isHotWallet;
+
+      const keplrOption = this.options.find((option) => option.id === "keplr")!;
       runInAction(() => {
-        option.type = keplr ? "extension" : "external";
-        option.name = keplr ? "Keplr Wallet" : "Keplr Mobile";
+        keplrOption.type = isRealKeplr ? "extension" : "external";
+        keplrOption.name = isRealKeplr ? "Keplr Wallet" : "Keplr Mobile";
+
+        if (isHotWallet && !this.options.find((o) => o.id === "hot-cosmos")) {
+          this.options.unshift({
+            name: "HOT Wallet",
+            icon: "https://storage.herewallet.app/logo.png",
+            type: "extension",
+            id: "hot-cosmos",
+          });
+        }
       });
     });
 
@@ -83,6 +155,15 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
           account: data[this.chainId],
           isNew: false,
         });
+      }
+
+      if (data.type === "hot-cosmos") {
+        const hotProvider = window.keplr || getHotExtensionProvider();
+        if (hotProvider) {
+          await this.createKeplrWallet({ wallet: hotProvider, account: data[this.chainId], isNew: false });
+        } else {
+          await this.disconnect();
+        }
       }
     });
 
@@ -266,11 +347,11 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return result;
   }
 
-  async connectKeplr(type: "keplr" | "leap" | "gonkaWallet", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
+  async connectKeplr(type: "keplr" | "leap" | "gonkaWallet" | "hot-cosmos", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     if (!extension) {
       return await this.connectWalletConnect({
-        onConnect: async () => await this.createWalletConnect({ id: type, isNew: true }),
-        deeplink: wallets[type].deeplink,
+        onConnect: async () => await this.createWalletConnect({ id: type as "keplr" | "leap" | "gonkaWallet", isNew: true }),
+        deeplink: wallets[type]?.deeplink,
         namespaces: {
           cosmos: {
             chains: [...new Set([`cosmos:${this.chainId}`, "cosmos:cosmoshub-4"])],
@@ -331,6 +412,12 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
     if (id === "leap") {
       return await this.connectKeplr("leap", window.leap);
+    }
+
+    if (id === "hot-cosmos") {
+      const hotProvider = window.keplr || getHotExtensionProvider();
+      if (!hotProvider) throw new Error("HOT Wallet not found");
+      return await this.connectKeplr("hot-cosmos", hotProvider);
     }
 
     throw new Error("Wallet not found");
