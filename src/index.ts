@@ -1,5 +1,3 @@
-import "@lottiefiles/dotlottie-wc";
-
 export * from "./core";
 import { HotKit } from "./HotKit";
 
