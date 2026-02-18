@@ -1,7 +1,7 @@
 import { Keplr } from "@keplr-wallet/provider-extension";
 import { StdSignature } from "@keplr-wallet/types";
 import { TxRaw } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
-import UniversalProvider from "@walletconnect/universal-provider";
+import type UniversalProvider from "@walletconnect/universal-provider";
 import { StargateClient } from "@cosmjs/stargate";
 import { base64, hex } from "@scure/base";
 import { runInAction } from "mobx";

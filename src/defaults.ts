@@ -1,8 +1,10 @@
-import stellar from "./stellar";
-import solana from "./solana";
-import near from "./near";
-import evm from "./evm";
-import ton from "./ton";
-import tron from "./tron";
+import type { HotKit } from "./HotKit";
 
-export const defaultConnectors = [evm(), near(), solana(), ton(), stellar(), tron()];
+export const defaultConnectors = [
+  async (kit: HotKit) => (await import("./evm")).default()(kit),
+  async (kit: HotKit) => (await import("./near")).default()(kit),
+  async (kit: HotKit) => (await import("./solana")).default()(kit),
+  async (kit: HotKit) => (await import("./ton")).default()(kit),
+  async (kit: HotKit) => (await import("./stellar")).default()(kit),
+  async (kit: HotKit) => (await import("./tron")).default()(kit),
+];
