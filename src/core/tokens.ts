@@ -75,12 +75,26 @@ class TokensStorage {
       price: 0,
     });
 
+    const stellarContractIds = new Map<string, string>();
+    const stellarWithContract = list.filter((t) => chains.getByKey(t.blockchain)?.id === Network.Stellar && t.contractAddress);
+    for (const t of stellarWithContract) {
+      stellarContractIds.set(t.assetId, await Token.resolveStellarContractId(t.symbol, t.contractAddress!));
+    }
+
     runInAction(() => {
       list.forEach((t) => {
         if (!chains.getByKey(t.blockchain)) return;
         const onchain = new Token(t);
         const omni = new Token({ ...t, omni: Network.Omni });
         const hotCraft = new Token({ ...t, omni: Network.HotCraft });
+
+        const contractId = stellarContractIds.get(t.assetId);
+        if (contractId) {
+          onchain.address = contractId;
+          onchain.originalAddress = contractId;
+          omni.originalAddress = contractId;
+          hotCraft.originalAddress = contractId;
+        }
 
         if (this.repository[onchain.id]) this.repository[onchain.id].update(t);
         else this.repository[onchain.id] = onchain;

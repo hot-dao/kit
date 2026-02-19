@@ -1,6 +1,5 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { action, computed, makeObservable, observable } from "mobx";
-import { Asset, Networks } from "@stellar/stellar-base";
 
 import { Network, OmniToken, WalletType, chains } from "./chains";
 import { formatter } from "./utils";
@@ -37,7 +36,7 @@ export class Token {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
       this.originalAddress = this.address;
     } else if (this.originalChain === Network.Stellar) {
-      this.address = info.contractAddress ? new Asset(info.symbol, info.contractAddress).contractId(Networks.PUBLIC) : "native";
+      this.address = info.contractAddress || "native";
       this.originalAddress = this.address;
     } else {
       this.address = info.contractAddress || "native";
@@ -134,5 +133,10 @@ export class Token {
     const n = typeof t === "number" ? t : formatter.formatAmount(t ?? 0, this.decimals);
     if (n * rate < min) return "0";
     return formatter.amount(n * rate);
+  }
+
+  static async resolveStellarContractId(symbol: string, issuer: string): Promise<string> {
+    const { Asset, Networks } = await import("@stellar/stellar-base");
+    return new Asset(symbol, issuer).contractId(Networks.PUBLIC);
   }
 }

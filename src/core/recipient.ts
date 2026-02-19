@@ -1,8 +1,6 @@
-import { Address } from "@ton/core";
 import { hex, base32, base58 } from "@scure/base";
 
 import { type OmniWallet } from "./OmniWallet";
-import { tonApi } from "../ton/utils";
 import { chains, Network, WalletType } from "./chains";
 import { isValidAddress } from "./address";
 
@@ -31,6 +29,9 @@ export class Recipient {
     if (!isValidAddress(chain, address)) throw new Error("Invalid address");
 
     if (chain === Network.Ton) {
+      const { Address } = await import("@ton/core");
+      const { TonApiClient } = await import("@ton-api/client");
+      const tonApi = new TonApiClient({ baseUrl: "https://tonapi.io" });
       const data = await tonApi.accounts.getAccountPublicKey(Address.parse(address));
       return new Recipient(WalletType.TON, address, data.publicKey.toLowerCase());
     }
