@@ -24,7 +24,7 @@ import type StellarWallet from "./stellar/wallet";
 import type TonWallet from "./ton/wallet";
 import type TronWallet from "./tron/wallet";
 
-import * as Router from "./ui/router";
+import * as Router from "./ui/lazy-router";
 import { ToastManager } from "./ui/toast";
 
 import { DataStorage, LocalStorage } from "./storage";
@@ -117,11 +117,10 @@ export class HotKit {
     });
 
     this.onConnect((payload) => {
+      tokens.ensurePolling();
       payload.wallet.fetchBalances(Network.Omni);
       this.fetchTokens(payload.wallet);
     });
-
-    tokens.startTokenPolling();
   }
 
   setOmniChainBranding(branding: { name: string; icon: string }) {

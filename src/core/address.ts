@@ -1,8 +1,6 @@
-import { Address } from "@ton/core";
-import { Address as StellarAddress } from "@stellar/stellar-sdk";
-import { base32, base58, bech32, hex } from "@scure/base";
+import { base32, base58, base64, base64url, bech32, hex } from "@scure/base";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import * as ethers from "ethers";
 
 import { chains, Network, WalletType } from "./chains";
 
@@ -101,33 +99,60 @@ export const isValidTronAddress = (base58Sting: string) => {
   return false;
 };
 
+const isEvmHexAddress = (address: string) => /^0x[0-9a-fA-F]{40}$/.test(address);
+
+const isEip55Checksum = (address: string): boolean => {
+  const addr = address.slice(2);
+  const hashHex = hex.encode(keccak_256(new TextEncoder().encode(addr.toLowerCase())));
+  for (let i = 0; i < 40; i++) {
+    const c = addr[i];
+    if (/[a-fA-F]/.test(c)) {
+      if (parseInt(hashHex[i], 16) >= 8 ? c !== c.toUpperCase() : c !== c.toLowerCase()) return false;
+    }
+  }
+  return true;
+};
+
+const isEvmAddress = (address: string): boolean => {
+  if (!isEvmHexAddress(address)) return false;
+  const addr = address.slice(2);
+  if (addr === addr.toLowerCase() || addr === addr.toUpperCase()) return true;
+  return isEip55Checksum(address);
+};
+
 export const isValidSolanaAddress = (address: string) => {
   if (address.startsWith("0x")) return false;
-  if (ethers.isAddress(address) as boolean) return false;
+  if (isEvmHexAddress(address)) return false;
   if (isBase58(address) && [32, 44].includes(address.length)) return true;
   return !!isValidNearAccountId(address) && address.endsWith(".sol");
 };
 
 export const EVM_DOMAINS = [".eth", ".cb.id"];
 export const isValidEvmAddress = (address: string) => {
-  return EVM_DOMAINS.some((t) => address.endsWith(t)) || ethers.isAddress(address);
+  return EVM_DOMAINS.some((t) => address.endsWith(t)) || isEvmAddress(address);
 };
 
 export const isValidStellarAddress = (address: string) => {
+  if (!address.startsWith("G") || address.length !== 56) return false;
   try {
-    new StellarAddress(address);
-    return true;
-  } catch (e) {
+    const decoded = base32.decode(address);
+    return decoded.length === 35;
+  } catch {
     return false;
   }
 };
 
 export const isValidTonAddress = (address: string) => {
+  if (/^-?\d+:[0-9a-fA-F]{64}$/.test(address)) return true;
+  if (address.length !== 48) return false;
   try {
-    Address.parse(address);
-    return true;
-  } catch (e) {
-    return false;
+    return base64url.decode(address).length === 36;
+  } catch {
+    try {
+      return base64.decode(address).length === 36;
+    } catch {
+      return false;
+    }
   }
 };
 

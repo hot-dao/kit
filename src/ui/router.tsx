@@ -1,3 +1,4 @@
+import "@lottiefiles/dotlottie-wc";
 import { HotKit } from "../HotKit";
 import { OmniConnector } from "../core/OmniConnector";
 import { OmniWallet } from "../core/OmniWallet";

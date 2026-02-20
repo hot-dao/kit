@@ -1,5 +1,6 @@
 import { action, makeObservable, observable, runInAction } from "mobx";
-import UniversalProvider, { NamespaceConfig } from "@walletconnect/universal-provider";
+import type UniversalProvider from "@walletconnect/universal-provider";
+import type { NamespaceConfig } from "@walletconnect/universal-provider";
 
 import type { HotKit } from "../HotKit";
 import { EventEmitter } from "./events";
@@ -54,7 +55,8 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   async initWalletConnect() {
     if (!this.kit.settings?.projectId) throw new Error("Project ID is required");
     if (this.wc) return this.wc;
-    this.wc = UniversalProvider.init({
+    const { default: UP } = await import("@walletconnect/universal-provider");
+    this.wc = UP.init({
       relayUrl: "wss://relay.walletconnect.org",
       projectId: this.kit.settings?.projectId,
       metadata: this.kit.settings?.metadata,

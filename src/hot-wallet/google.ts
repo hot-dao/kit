@@ -1,5 +1,5 @@
 import { WalletManifest, SignAndSendTransactionParams, SignAndSendTransactionsParams, SignMessageParams } from "@hot-labs/near-connect";
-import { Transaction } from "@stellar/stellar-base";
+import type { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 import uuid4 from "uuid4";
 
