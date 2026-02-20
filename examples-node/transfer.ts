@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { base58 } from "@scure/base";
-import { Recipient, WalletType, tokens, OmniToken, Network } from "../src/core";
+import { Recipient, tokens, OmniToken, Network } from "../src/core";
 import { NearWallet } from "../src/near";
 
 if (!process.env.ED25519_PRIVATE_KEY_BASE58) {

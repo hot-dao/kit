@@ -1,19 +1,22 @@
-import { GetExecutionStatusResponse, OneClickService, ApiError, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
+import { OneClickService, ApiError, QuoteRequest, QuoteResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { utils } from "@hot-labs/omni-sdk";
 import { hex } from "@scure/base";
 
-import { chains, Network, OmniToken, WalletType } from "./chains";
+import type { HotKit } from "../HotKit";
+
+import { chains, Network, WalletType } from "./chains";
 import { createHotBridge, ReviewFee } from "./bridge";
+import { BridgePending } from "./pendings";
 import { OmniWallet } from "./OmniWallet";
 import { Recipient } from "./recipient";
 import { ILogger } from "./telemetry";
 import { formatter } from "./utils";
-import { Intents } from "./Intents";
 import { tokens } from "./tokens";
 import { Token } from "./token";
 
 import StellarWallet from "../stellar/wallet";
 import NearWallet from "../near/wallet";
+import { defuseApi } from "./defuse";
 
 export class UnsupportedDexError extends Error {
   constructor(message: string) {
@@ -34,11 +37,9 @@ export type BridgeReview = {
   slippage: number;
   fee: ReviewFee | null;
   qoute: QuoteResponse["quote"] | "withdraw" | "deposit";
-  status: "pending" | "success" | "failed";
-  statusMessage: string | null;
+  recipient?: Recipient;
   sender?: OmniWallet | "qr";
   refund?: OmniWallet;
-  recipient?: OmniWallet | Recipient;
   logger?: ILogger;
   from: Token;
   to: Token;
@@ -56,13 +57,13 @@ export interface BridgeRequest {
   to: Token;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export class Exchange {
   readonly bridge = createHotBridge();
 
+  constructor(readonly kit?: HotKit) {}
+
   async getToken(chain: number, address: string): Promise<string | null> {
-    if (chain === Network.Omni) return address;
+    if (chain === Network.Omni || chain === Network.HotCraft) return address;
     const tokensList = await tokens.getTokens();
     const token = tokensList.find((t) => {
       if (t.chain !== chain) return false;
@@ -75,12 +76,50 @@ export class Exchange {
     return token?.omniAddress || null;
   }
 
+  async getDepositQoute(token: Token, recipient: Recipient): Promise<{ depositAddress?: string; memo?: string; minAmount: number; execute: (sender: OmniWallet, amount: bigint) => Promise<void> }> {
+    if (token.chain === Network.Gonka) {
+      return {
+        minAmount: 0,
+        execute: async (sender: OmniWallet, amount: bigint) => {
+          await this.deposit({ sender, token, amount, recipient, logger: undefined });
+        },
+      };
+    }
+
+    const assets = await defuseApi.getSupportedTokens();
+    const defuseAsset = assets.find((a) => a.intents_token_id === token.omniAddress);
+    if (!defuseAsset) throw new Error("Token not supported to passive deposit");
+
+    const [chainType, chainId] = defuseAsset.defuse_asset_identifier.split(":");
+    const config = await defuseApi.getDepositAddress(recipient.omniAddress, `${chainType}:${chainId}`);
+
+    return {
+      memo: config.memo,
+      depositAddress: config.address,
+      minAmount: Number(defuseAsset.min_deposit_amount),
+      execute: async (sender: OmniWallet, amount: bigint) => {
+        if (this.isDirectDeposit(token, tokens.get(token.omniAddress))) {
+          await this.deposit({ sender, token, amount, recipient, logger: undefined });
+          return;
+        }
+
+        if (amount < BigInt(defuseAsset.min_deposit_amount)) throw new Error("Amount is too low");
+        const hash = await sender.transfer({ amount: amount, token: token, receiver: config.address, comment: config.memo });
+        await OneClickService.submitDepositTx({ txHash: hash, depositAddress: config.address });
+      },
+    };
+  }
+
   async deposit(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: Recipient; logger?: ILogger }) {
     let { sender, token, amount, recipient, logger } = args;
     logger?.log("Sending deposit transaction");
 
     const balance = await sender.fetchBalance(token.chain, token.address);
     amount = formatter.bigIntMin(amount, balance);
+
+    if (token.isOmni) {
+      return await sender.transfer({ amount: amount, token: token, receiver: recipient.omniAddress });
+    }
 
     if (token.type === WalletType.COSMOS && sender.type === WalletType.COSMOS) {
       const cosmosBridge = await this.bridge.cosmos();
@@ -135,12 +174,15 @@ export class Exchange {
   }
 
   async withdraw(args: { sender: OmniWallet; token: Token; amount: bigint; recipient: OmniWallet | Recipient; logger?: ILogger }) {
-    const { sender, token, amount, recipient, logger } = args;
+    const { sender, token, recipient, logger } = args;
 
     if (recipient.type === WalletType.NEAR && token.type === WalletType.NEAR && recipient instanceof NearWallet) {
       logger?.log("Registering NEAR token");
       await recipient.registerToken(token.originalAddress);
     }
+
+    const balance = await sender.fetchBalance(token.chain, token.address);
+    const amount = formatter.bigIntMin(args.amount, balance);
 
     logger?.log("Withdrawing token");
     await this.bridge.withdrawToken({
@@ -158,7 +200,7 @@ export class Exchange {
   async withdrawFee(request: BridgeRequest) {
     if (request.recipient == null) return 0n;
     if (request.sender === "qr") throw new Error("Sender is QR");
-    if (request.to.chain === Network.Near || request.to.chain === Network.Omni) return 0n;
+    if (request.to.chain === Network.Near || request.to.isOmni) return 0n;
     const gaslessFee = await this.bridge.getGaslessWithdrawFee({
       receiver: request.recipient.address,
       token: request.to.address,
@@ -180,21 +222,27 @@ export class Exchange {
   }
 
   isDirectDeposit(from: Token, to: Token) {
-    const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(from.chain) && to.chain === Network.Omni && from.omniAddress === to.omniAddress;
+    const directChains = [Network.Near, Network.Omni, Network.HotCraft, Network.Juno, Network.Gonka, Network.ADI];
+    return directChains.includes(from.chain) && to.isOmni && from.omniAddress === to.omniAddress;
   }
 
   isDirectWithdraw(from: Token, to: Token) {
-    const directChains = [Network.Near, Network.Juno, Network.Gonka, Network.ADI];
-    return directChains.includes(to.chain) && from.chain === Network.Omni && from.omniAddress === to.omniAddress;
+    const directChains = [Network.Near, Network.Omni, Network.HotCraft, Network.Juno, Network.Gonka, Network.ADI];
+    return directChains.includes(to.chain) && from.isOmni && from.omniAddress === to.omniAddress;
   }
 
   async reviewSwap(request: BridgeRequest): Promise<BridgeReview> {
-    const { sender, refund, from, to, amount, recipient, slippage, type, logger } = request;
+    const { sender, refund, from, to, amount, recipient, type, logger } = request;
 
     const deadlineTime = 5 * 60 * 1000;
     const deadline = new Date(Date.now() + deadlineTime).toISOString();
-    const noFee = from.symbol === to.symbol || (from.symbol.toLowerCase().includes("usd") && to.symbol.toLowerCase().includes("usd"));
+
+    const stables = ["usdt", "usdc", "dai", "frax"];
+    const isFromStable = stables.some((stable) => from.symbol.toLowerCase().includes(stable));
+    const isToStable = stables.some((stable) => to.symbol.toLowerCase().includes(stable));
+    const isDirect = from.originalId === to.originalId;
+    const noFee = from.symbol === to.symbol || (isFromStable && isToStable) || isDirect;
+    const slippage = isDirect ? 0 : request.slippage;
 
     if (sender !== "qr" && this.isDirectDeposit(from, to)) {
       let fee: ReviewFee | null = null;
@@ -218,8 +266,6 @@ export class Exchange {
         amountIn: amount,
         amountOut: amount,
         slippage: slippage,
-        statusMessage: null,
-        status: "pending",
         qoute: "deposit",
         logger,
         fee,
@@ -234,21 +280,24 @@ export class Exchange {
         to: to,
         amountIn: amount,
         sender: sender,
-        fee: new ReviewFee({ chain: -4 }),
+        fee: new ReviewFee({ chain: from.chain }),
         amountOut: amount - fee,
         minAmountOut: amount - fee,
         slippage: slippage,
         recipient: recipient,
-        statusMessage: null,
-        status: "pending",
         qoute: "withdraw",
         refund: refund,
         logger,
       };
     }
 
-    const refundParams = { refundType: QuoteRequest.refundType.ORIGIN_CHAIN, refundTo: refund?.address || chains.get(from.chain)?.testAddress };
-    if (refund?.type !== from.type && refund != null) {
+    const refundParams = {
+      refundType: QuoteRequest.refundType.ORIGIN_CHAIN,
+      refundTo: refund?.address || chains.get(from.chain)?.testAddress,
+    };
+
+    // Refund to omni wallet if token is not 1-1 mapping or if this token is omni
+    if ((refund?.type !== from.type || from.isOmni) && refund != null) {
       if (!refund.omniAddress) throw "Setup refund address";
       refundParams.refundType = QuoteRequest.refundType.INTENTS;
       refundParams.refundTo = refund.omniAddress;
@@ -273,10 +322,10 @@ export class Exchange {
         quoteWaitingTimeMs: 3000,
         slippageTolerance: Math.round(slippage * 10_000),
         swapType: type === "exactOut" ? QuoteRequest.swapType.EXACT_OUTPUT : QuoteRequest.swapType.EXACT_INPUT,
-        depositType: from.chain === Network.Omni ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
+        depositType: from.isOmni ? QuoteRequest.depositType.INTENTS : QuoteRequest.depositType.ORIGIN_CHAIN,
         depositMode: from.chain === Network.Stellar ? QuoteRequest.depositMode.MEMO : QuoteRequest.depositMode.SIMPLE,
-        recipientType: to.chain === Network.Omni ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
-        recipient: (to.chain === Network.Omni ? recipient?.omniAddress : recipient?.address) || chains.get(to.chain)?.testAddress,
+        recipientType: to.isOmni ? QuoteRequest.recipientType.INTENTS : QuoteRequest.recipientType.DESTINATION_CHAIN,
+        recipient: (to.isOmni ? recipient?.omniAddress : recipient?.address) || chains.get(to.chain)?.testAddress,
         appFees: noFee ? [] : [{ recipient: "intents.tg", fee: 25 }],
         amount: request.amount.toString(),
         referral: "intents.tg",
@@ -300,7 +349,7 @@ export class Exchange {
     }
 
     let fee: ReviewFee | null = null;
-    if (request.from.chain !== Network.Omni && sender !== "qr" && sender != null) {
+    if (!request.from.isOmni && sender !== "qr" && sender != null) {
       const amount = BigInt(qoute.quote.amountIn);
       const depositAddress = qoute.quote.depositAddress!;
       fee = await sender.transferFee(request.from, depositAddress, amount).catch(() => null);
@@ -314,9 +363,7 @@ export class Exchange {
       amountOut: BigInt(qoute.quote.amountOut),
       slippage: request.slippage,
       recipient: request.recipient,
-      statusMessage: null,
       qoute: qoute.quote,
-      status: "pending",
       refund: refund,
       sender: sender,
       fee: fee,
@@ -324,7 +371,7 @@ export class Exchange {
     };
   }
 
-  async makeSwap(review: BridgeReview): Promise<{ review: BridgeReview; processing?: () => Promise<BridgeReview> }> {
+  async makeSwap(review: BridgeReview): Promise<BridgePending> {
     const { sender, recipient, logger, refund } = review;
     if (sender == null) throw new Error("Sender is required");
     if (recipient == null) throw new Error("Recipient is required");
@@ -333,113 +380,40 @@ export class Exchange {
     if (review.qoute === "withdraw") {
       if (sender === "qr") throw new Error("Sender is QR");
       await this.withdraw({ sender, token: review.to, amount: review.amountIn, recipient, logger });
-      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      return { review };
+      recipient.fetchBalance(review.to.chain, review.to.address);
+      sender.fetchBalance(review.from.chain, review.from.address);
+      return new BridgePending(review, this.kit);
     }
 
     if (review.qoute === "deposit") {
       if (sender === "qr") throw new Error("Sender is QR");
       await this.deposit({ sender, token: review.from, amount: review.amountIn, recipient, logger });
-      if (recipient instanceof OmniWallet) recipient.fetchBalance(review.to.chain, review.to.address);
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      return { review };
+      recipient.fetchBalance(review.to.chain, review.to.address);
+      sender.fetchBalance(review.from.chain, review.from.address);
+      return new BridgePending(review, this.kit);
     }
 
-    if (sender !== "qr") {
-      if (recipient.type === WalletType.STELLAR) {
-        const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
-        if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
-        if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
-      }
-
-      const depositAddress = review.qoute.depositAddress!;
-      let hash = "";
-
-      if (review.from.chain === Network.Omni) {
-        hash = await Intents.builder(sender)
-          .transfer({ amount: review.amountIn, token: review.from.address as OmniToken, recipient: depositAddress })
-          .execute();
-      } else {
-        hash = await sender.transfer({
-          receiver: depositAddress,
-          amount: review.amountIn,
-          comment: review.qoute.depositMemo,
-          gasFee: review.fee ?? undefined,
-          token: review.from,
-        });
-      }
-
-      if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
-      OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
+    if (recipient.type === WalletType.STELLAR) {
+      const isTokenActivated = await StellarWallet.isTokenActivated(recipient.address, review.to.address);
+      if (!isTokenActivated && !(recipient instanceof StellarWallet)) throw "Token not activated for recipient";
+      if (!isTokenActivated && recipient instanceof StellarWallet) await recipient.changeTrustline(review.to.address);
     }
 
-    return {
-      review,
-      processing: async () => {
-        if (!(recipient instanceof OmniWallet)) return await this.processing(review);
-
-        const beforeBalance = await recipient.fetchBalance(review.to.chain, review.to.address).catch(() => null);
-        if (!beforeBalance) return await this.processing(review);
-
-        return await Promise.race([
-          this.waitBalance(review.to, recipient, beforeBalance, review),
-          this.processing(review), //
-        ]);
-      },
-    };
-  }
-
-  async waitBalance(to: Token, wallet: OmniWallet, beforeBalance: bigint, review: BridgeReview): Promise<BridgeReview> {
-    const afterBalance = await wallet.fetchBalance(to.chain, to.address).catch(() => beforeBalance);
-    if (afterBalance > beforeBalance) {
-      return {
-        ...review,
-        amountOut: afterBalance - beforeBalance,
-        statusMessage: "Swap successful",
-        status: "success",
-      };
+    if (sender === "qr") {
+      return new BridgePending(review, this.kit);
     }
 
-    await wait(2000);
-    return await this.waitBalance(to, wallet, beforeBalance, review);
-  }
+    const depositAddress = review.qoute.depositAddress!;
+    const hash = await sender.transfer({
+      comment: review.qoute.depositMemo,
+      gasFee: review.fee ?? undefined,
+      receiver: depositAddress,
+      amount: review.amountIn,
+      token: review.from,
+    });
 
-  getMessage(status: GetExecutionStatusResponse.status): string | null {
-    if (status === GetExecutionStatusResponse.status.PENDING_DEPOSIT) return "Waiting for deposit";
-    if (status === GetExecutionStatusResponse.status.INCOMPLETE_DEPOSIT) return "Incomplete deposit";
-    if (status === GetExecutionStatusResponse.status.KNOWN_DEPOSIT_TX) return "Known deposit tx";
-    if (status === GetExecutionStatusResponse.status.PROCESSING) return "Processing swap";
-    if (status === GetExecutionStatusResponse.status.SUCCESS) return "Swap successful";
-    if (status === GetExecutionStatusResponse.status.FAILED) return "Swap failed";
-    if (status === GetExecutionStatusResponse.status.REFUNDED) return "Swap refunded";
-    return null;
-  }
-
-  async checkStatus(review: BridgeReview) {
-    if (review.qoute === "deposit" || review.qoute === "withdraw") return;
-    const status = await OneClickService.getExecutionStatus(review.qoute.depositAddress!, review.qoute.depositMemo);
-    const message = this.getMessage(status.status);
-
-    let state: "pending" | "success" | "failed" = "pending";
-    if (status.status === GetExecutionStatusResponse.status.SUCCESS) state = "success";
-    if (status.status === GetExecutionStatusResponse.status.FAILED) state = "failed";
-    if (status.status === GetExecutionStatusResponse.status.REFUNDED) state = "failed";
-
-    if (status.swapDetails.amountOut) review.amountOut = BigInt(status.swapDetails.amountOut);
-    review.statusMessage = message;
-    review.status = state;
-    return review;
-  }
-
-  async processing(review: BridgeReview, interval = 3000) {
-    while (review.status === "pending") {
-      await this.checkStatus(review);
-      await new Promise((resolve) => setTimeout(resolve, interval));
-    }
-
-    if (review.status === "success") return review;
-    if (review.status === "failed") throw review.statusMessage || "Bridge failed";
-    throw new Error("Unknown status");
+    if (sender instanceof OmniWallet) sender.fetchBalance(review.from.chain, review.from.address);
+    OneClickService.submitDepositTx({ txHash: hash, depositAddress }).catch(() => {});
+    return new BridgePending(review, this.kit);
   }
 }

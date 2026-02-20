@@ -1,12 +1,11 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import type { OmniWallet } from "./OmniWallet";
 import { rpc } from "../near/rpc";
 
 import type { Intent, Commitment, TokenDiffIntent, MtWithdrawIntent, FtWithdrawIntent, NftWithdrawIntent, TransferIntent } from "./types";
-import type { BridgeReview } from "./exchange";
-
+import { BridgePending } from "./pendings";
 import { OmniToken } from "./chains";
 import { formatter } from "./utils";
 import { tokens } from "./tokens";
@@ -15,7 +14,7 @@ import { api } from "./api";
 export const TGAS = 1000000000000n;
 
 export class Intents {
-  constructor(readonly wibe3?: HotConnector) {}
+  constructor(readonly kit?: HotKit) {}
 
   static builder(signer?: OmniWallet) {
     return new Intents().attachWallet(signer);
@@ -68,7 +67,7 @@ export class Intents {
       amount,
       token,
     }).depositAndExecute({
-      title: `Pay ${this.wibe3?.omni(token).readable(amount)} ${this.wibe3?.omni(token).symbol}`,
+      title: `Pay ${this.kit?.omni(token).readable(amount)} ${this.kit?.omni(token).symbol}`,
       serverSideProcessing: true,
       payload: { email },
     });
@@ -372,7 +371,7 @@ export class Intents {
 
     this.unsignedCommitment = undefined;
     this.commitments.push(commitment);
-    return this;
+    return commitment;
   }
 
   async simulate() {
@@ -383,46 +382,34 @@ export class Intents {
 
   async setupSigner() {
     if (typeof window === "undefined") throw "Setup signer is only available in browser";
-    if (!this.wibe3) throw new Error("No wibe3 attached");
+    if (!this.kit) throw new Error("No kit attached");
     if (this.signer) return this.signer;
 
-    if (this.wibe3.priorityWallet) {
-      this.signer = this.wibe3.priorityWallet;
+    if (this.kit.priorityWallet) {
+      this.signer = this.kit.priorityWallet;
       return this.signer;
     }
 
-    const { openConnectPrimaryWallet, openConnector } = await import("../ui/router");
-    if (this.wibe3.wallets.length > 0) await openConnectPrimaryWallet(this.wibe3);
-    else await openConnector(this.wibe3);
+    if (this.kit.wallets.length > 0) await this.kit.router.openConnectPrimaryWallet(this.kit);
+    else await this.kit.router.openConnector(this.kit);
 
-    if (this.wibe3.priorityWallet == undefined) throw new Error("No signer attached");
-    this.signer = this.wibe3.priorityWallet;
+    if (this.kit.priorityWallet == undefined) throw new Error("No signer attached");
+    this.signer = this.kit.priorityWallet;
     return this.signer;
   }
 
-  async openSignFlow({
-    title,
-    allowedTokens,
-    excludedTokens,
-    onConfirm,
-  }: {
-    title?: string;
-    allowedTokens?: string[];
-    excludedTokens?: string[];
-    onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void>;
-  }) {
+  async openSignFlow({ title, allowedTokens, excludedTokens, onConfirm }: { title?: string; allowedTokens?: string[]; excludedTokens?: string[]; onConfirm: (pending?: BridgePending) => Promise<void> }) {
     if (typeof window === "undefined") throw "Open sign flow is only available in browser";
-    if (!this.wibe3) throw "Attach wibe3";
+    if (!this.kit) throw "Attach kit";
     if (!this.signer) throw "Attach signer";
 
     // TODO: Handle multiple payables
     const payableToken = tokens.get(Array.from(this.need.keys())[0]);
     const payableAmount = this.need.get(payableToken.omniAddress as OmniToken) || 0n;
-    const balance = await this.wibe3.fetchToken(payableToken!, this.signer);
+    const balance = await this.kit.fetchToken(payableToken!, this.signer);
     const prepaidAmount = formatter.bigIntMin(payableAmount, balance);
 
-    const { openPayment } = await import("../ui/router");
-    return await openPayment(this.wibe3, {
+    return await this.kit.router.openPayment(this.kit, {
       onConfirm,
       needAmount: payableAmount - prepaidAmount,
       allowedTokens,
@@ -458,13 +445,14 @@ export class Intents {
       title,
       allowedTokens,
       excludedTokens,
-      onConfirm: async ({ depositQoute, processing }: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => {
+      onConfirm: async (pending?: BridgePending) => {
+        if (pending) this.kit?.activity.addBridgePending(pending);
         if (!serverSideProcessing) return;
 
         let depositAddress: string | undefined;
-        if (depositQoute?.qoute === "deposit") await processing?.();
-        else if (depositQoute?.qoute === "withdraw") await processing?.();
-        else depositAddress = depositQoute?.qoute?.depositAddress;
+        if (pending?.review?.qoute === "deposit") await pending?.processing?.();
+        else if (pending?.review?.qoute === "withdraw") await pending?.processing?.();
+        else depositAddress = pending?.review?.qoute?.depositAddress;
 
         await api.yieldIntentCall({
           depositAddress: depositAddress,
@@ -475,14 +463,12 @@ export class Intents {
     });
 
     if (serverSideProcessing) return;
-    const { openToast } = await import("../ui/router");
-    const close = openToast(message || "Executing payment");
-
+    const close = this.kit?.toast.pending(message || "Executing payment");
     const payableToken = tokens.get(Array.from(this.need.keys())[0]);
     const payableAmount = this.need.get(payableToken.omniAddress as OmniToken) || 0n;
     await this.signer?.waitUntilOmniBalance({ [payableToken.omniAddress]: payableAmount });
 
-    await this.execute().finally(() => close());
+    await this.execute().finally(() => close?.dismiss());
   }
 
   async execute() {

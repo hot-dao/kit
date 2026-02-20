@@ -140,6 +140,8 @@ export default class NearWallet extends OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }) {
+    if (args.token.isOmni) return await super.transfer(args);
+
     if (args.token.address === "native") {
       return await this.sendTransaction({
         actions: [{ type: "Transfer", params: { deposit: String(args.amount) } }],

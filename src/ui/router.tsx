@@ -1,8 +1,10 @@
-import { HotConnector } from "../HotConnector";
+import "@lottiefiles/dotlottie-wc";
+import { HotKit } from "../HotKit";
 import { OmniConnector } from "../core/OmniConnector";
 import { OmniWallet } from "../core/OmniWallet";
 
 import { BridgeReview } from "../core/exchange";
+import { BridgePending } from "../core/pendings";
 import { WalletType } from "../core/chains";
 import { Recipient } from "../core/recipient";
 import { Intents } from "../core/Intents";
@@ -22,10 +24,11 @@ import { LogoutPopup } from "./connect/LogoutPopup";
 import { WalletPicker } from "./connect/WalletPicker";
 import { Connector } from "./connect/ConnectWallet";
 import { WCRequest } from "./connect/WCRequest";
-import Toast from "./uikit/Toast";
+import { DepositFlow } from "./profile/DepositFlow";
+import { AuthPopup } from "./connect/AuthPopup";
 
 export const openPayment = (
-  connector: HotConnector,
+  kit: HotKit,
   {
     intents,
     title,
@@ -43,7 +46,7 @@ export const openPayment = (
     prepaidAmount: bigint;
     payableToken: Token;
     needAmount: bigint;
-    onConfirm: (args: { depositQoute?: BridgeReview; processing?: () => Promise<BridgeReview> }) => Promise<void>;
+    onConfirm: (pending?: BridgePending) => Promise<void>;
   }
 ) => {
   return new Promise<void>((resolve, reject) => {
@@ -51,7 +54,7 @@ export const openPayment = (
       <Payment //
         title={title}
         intents={intents}
-        connector={connector}
+        kit={kit}
         needAmount={needAmount}
         prepaidAmount={prepaidAmount}
         allowedTokens={allowedTokens}
@@ -79,11 +82,11 @@ export const openLogoutPopup = (connector: OmniConnector) => {
   });
 };
 
-export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
+export const openBridge = (kit: HotKit, setup?: BridgeProps["setup"]) => {
   return new Promise<BridgeReview>((resolve, reject) => {
     present((close) => (
       <Bridge //
-        hot={hot}
+        kit={kit}
         setup={setup}
         onProcess={resolve}
         onClose={() => (close(), reject(new Error("User rejected")))}
@@ -92,33 +95,60 @@ export const openBridge = (hot: HotConnector, setup?: BridgeProps["setup"]) => {
   });
 };
 
-export const openConnector = (hot: HotConnector) => {
+export const openAuthPopup = <T,>(wallet: OmniWallet, then: () => Promise<T>) => {
+  return new Promise<T>((resolve, reject) => {
+    present((close) => {
+      return (
+        <AuthPopup
+          wallet={wallet}
+          onReject={() => (close(), reject())}
+          onApprove={async () => {
+            try {
+              const result = await then();
+              resolve(result);
+            } catch (e) {
+              reject(e);
+            } finally {
+              close();
+            }
+          }}
+        />
+      );
+    });
+  });
+};
+
+export const openConnector = async (kit: HotKit) => {
   return new Promise<OmniWallet>((resolve, reject) => {
     present((close) => (
       <Connector
-        hot={hot}
+        kit={kit}
         onClose={(wallet) => {
-          close();
           if (wallet) resolve(wallet);
           else reject(new Error("User rejected"));
+          close();
         }}
       />
     ));
   });
 };
 
-export const openConnectPrimaryWallet = (hot: HotConnector) => {
+export const openDepositFlow = (kit: HotKit, token?: Token) => {
+  present((close) => <DepositFlow kit={kit} initialToken={token} onClose={close} />);
+};
+
+export const openConnectPrimaryWallet = (kit: HotKit) => {
   return new Promise<void>((resolve) => {
-    present((close) => <ConnectPrimaryWallet hot={hot} onClose={() => (close(), resolve())} />);
+    present((close) => <ConnectPrimaryWallet kit={kit} onClose={() => (close(), resolve())} />);
   });
 };
 
-export const openProfile = (hot: HotConnector) => {
-  present((close) => <Profile hot={hot} onClose={close} />);
+export const openProfile = (kit: HotKit) => {
+  present((close) => <Profile kit={kit} onClose={close} />);
 };
 
-export const openSelectTokenPopup = ({ hot, initialChain, onSelect }: { hot: HotConnector; initialChain?: number; onSelect: (token: Token, wallet?: OmniWallet) => void }) => {
-  present((close) => <SelectTokenPopup hot={hot} initialChain={initialChain} onClose={close} onSelect={(t, w) => (onSelect(t, w), close())} />);
+export const openSelectTokenPopup = ({ kit, disableChains, initialChain, onSelect }: { kit: HotKit; disableChains?: number[]; initialChain?: number; onSelect: (token: Token, wallet?: OmniWallet) => void }) => {
+  present((close) => <SelectTokenPopup kit={kit} disableChains={disableChains} initialChain={initialChain} onClose={close} onSelect={(t, w) => (onSelect(t, w), close())} />);
 };
 
 export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: OmniWallet) => void) => {
@@ -133,11 +163,11 @@ export const openWalletPicker = (connector: OmniConnector, onSelect?: (wallet: O
   });
 };
 
-export const openSelectSender = (props: { hot: HotConnector; type: WalletType; onSelect: (wallet?: OmniWallet | "qr") => void }) => {
+export const openSelectSender = (props: { kit: HotKit; type: WalletType; disableQR?: boolean; depositFlow?: boolean; onSelect: (wallet?: OmniWallet | "qr") => void; onDeposit?: () => void }) => {
   present((close) => <SelectSender {...props} onClose={close} />);
 };
 
-export const openSelectRecipient = (props: { hot: HotConnector; recipient?: Recipient; chain: number; onSelect: (wallet?: Recipient) => void }) => {
+export const openSelectRecipient = (props: { kit: HotKit; recipient?: Recipient; chain: number; onSelect: (wallet?: Recipient) => void }) => {
   present((close) => <SelectRecipient {...props} onClose={close} />);
 };
 
@@ -145,8 +175,4 @@ export const openWCRequest = <T,>(args: { task: () => Promise<T>; deeplink?: str
   const taskPromise = args.task();
   present((close) => <WCRequest deeplink={args.deeplink} name={args.name} icon={args.icon} onClose={close} task={taskPromise} />);
   return taskPromise;
-};
-
-export const openToast = (message: string) => {
-  return present(() => <Toast message={message} />);
 };

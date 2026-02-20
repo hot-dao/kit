@@ -1,13 +1,20 @@
-import { Address } from "@ton/core";
 import { hex, base32, base58 } from "@scure/base";
 
 import { type OmniWallet } from "./OmniWallet";
-import { tonApi } from "../ton/utils";
 import { chains, Network, WalletType } from "./chains";
 import { isValidAddress } from "./address";
 
 export class Recipient {
   constructor(readonly type: WalletType, readonly address: string, readonly omniAddress: string) {}
+
+  get chainName() {
+    return chains.get(this.type)?.name || "Unknown";
+  }
+
+  fetchBalance(chain: number, address: string): Promise<bigint> {
+    // TODO: implement
+    throw new Error("Not implemented");
+  }
 
   static fromWallet(wallet?: OmniWallet) {
     if (!wallet) return undefined;
@@ -22,6 +29,9 @@ export class Recipient {
     if (!isValidAddress(chain, address)) throw new Error("Invalid address");
 
     if (chain === Network.Ton) {
+      const { Address } = await import("@ton/core");
+      const { TonApiClient } = await import("@ton-api/client");
+      const tonApi = new TonApiClient({ baseUrl: "https://tonapi.io" });
       const data = await tonApi.accounts.getAccountPublicKey(Address.parse(address));
       return new Recipient(WalletType.TON, address, data.publicKey.toLowerCase());
     }

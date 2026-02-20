@@ -1,91 +1,66 @@
-import { WithdrawArgsWithPending } from "@hot-labs/omni-sdk";
-import { computed, makeObservable, observable, runInAction } from "mobx";
-import { hex } from "@scure/base";
+import { action, computed, makeObservable, observable, runInAction } from "mobx";
 
-import { chains, Network, WalletType } from "./core";
+import { chains, WalletType } from "./core/chains";
+import { BridgePending } from "./core/pendings";
 import { OmniWallet } from "./core/OmniWallet";
-import { HotConnector } from "./HotConnector";
+
+import type { HotKit } from "./HotKit";
+import { HotBridgeWithdrawal } from "./HotBridgeWithdrawal";
+import { IndexedDBStorage } from "./storage";
+import { tokens } from "./core";
+import { defuseApi } from "./core/defuse";
 
 export class Activity {
-  withdrawals: Record<number, (WithdrawArgsWithPending & { loading?: boolean })[]> = {};
+  withdrawals: Record<number, HotBridgeWithdrawal[]> = {};
+  bridgePending: BridgePending[] = [];
+  storage = new IndexedDBStorage();
 
-  constructor(private readonly kit: HotConnector) {
-    makeObservable(this, { withdrawals: observable, withdrawalsList: computed });
+  constructor(private readonly kit: HotKit) {
+    makeObservable(this, {
+      withdrawals: observable,
+      bridgePending: observable,
+      activityList: computed,
+      addBridgePending: action,
+    });
+
     kit.onConnect(({ wallet }) => this.fetchPendingWithdrawalsByWallet(wallet));
+
+    this.storage
+      .get(`activity:bridgePendings`)
+      .then(async (data) => {
+        if (!data) return;
+        const pendings = JSON.parse(data);
+        this.bridgePending = pendings.map((t: any) => BridgePending.deserialize(t, this.kit));
+      })
+      .catch(() => {});
   }
 
-  get withdrawalsList() {
-    return Object.values(this.withdrawals).flat();
+  get activityList() {
+    return [...this.bridgePending, ...Object.values(this.withdrawals).flat()];
   }
 
-  async finishWithdrawal(withdrawal: WithdrawArgsWithPending & { loading?: boolean }) {
-    try {
-      if (withdrawal.loading) return;
-      runInAction(() => (withdrawal.loading = true));
+  sync() {
+    this.storage.set(`activity:bridgePendings`, JSON.stringify(this.bridgePending.map((t) => t.serialize())));
+  }
 
-      if (withdrawal.chain === Network.Stellar) {
-        if (!this.kit.stellar) throw new Error("Stellar wallet not connected");
-        await this.kit.exchange.bridge.stellar.withdraw({
-          sendTransaction: (tx: any) => this.kit.stellar!.sendTransaction(tx),
-          sender: this.kit.stellar.address,
-          ...withdrawal,
-        });
-      }
+  addBridgePending(bridgePending: BridgePending) {
+    this.bridgePending.push(bridgePending);
+    this.sync();
+  }
 
-      if (withdrawal.chain === Network.Solana) {
-        if (!this.kit.solana) throw new Error("Solana wallet not connected");
-        const solana = await this.kit.exchange.bridge.solana();
-        await solana.withdraw({
-          sendTransaction: (tx: any) => this.kit.solana!.sendTransaction(tx),
-          sender: this.kit.solana.address,
-          ...withdrawal,
-        });
-      }
-
-      if (withdrawal.chain === Network.Ton || withdrawal.chain === Network.OmniTon) {
-        if (!this.kit.ton) throw new Error("Ton wallet not connected");
-        await this.kit.exchange.bridge.ton.withdraw({
-          sendTransaction: (tx: any) => this.kit.ton!.sendTransaction(tx),
-          refundAddress: this.kit.ton.address,
-          ...withdrawal,
-        });
-      }
-
-      if (chains.get(withdrawal.chain).type === WalletType.EVM) {
-        if (!this.kit.evm) throw new Error("EVM wallet not connected");
-        await this.kit.exchange.bridge.evm.withdraw({
-          sendTransaction: (tx: any) => this.kit.evm!.sendTransaction(tx),
-          ...withdrawal,
-        });
-      }
-
-      if (withdrawal.chain === Network.Gonka) {
-        if (!this.kit.cosmos) throw new Error("Gonka wallet not connected");
-        const cosmos = await this.kit.exchange.bridge.cosmos();
-        await cosmos.withdraw({
-          sendTransaction: (tx: any) => this.kit.cosmos!.sendTransaction(tx),
-          senderPublicKey: hex.decode(this.kit.cosmos.publicKey!),
-          sender: this.kit.cosmos.address,
-          ...withdrawal,
-        });
-      }
-
-      await this.kit.exchange.bridge.clearPendingWithdrawals([withdrawal]).catch(() => {});
-    } finally {
-      runInAction(() => (withdrawal.loading = false));
-      const wallet = this.kit.wallets.find((w) => w.type === chains.get(withdrawal.chain).type);
-      if (wallet) this.fetchPendingWithdrawalsByChain(withdrawal.chain, wallet);
-    }
+  async fetchPendingPassiveDeposits(wallet: OmniWallet) {
+    defuseApi.getRecentDeposits(wallet.address, "defuse:mainnet");
   }
 
   async fetchPendingWithdrawalsByWallet(wallet: OmniWallet) {
     if (wallet.type === WalletType.NEAR) return;
+    if (wallet.type === WalletType.HotCraft) return;
     const tasks = chains.getByType(wallet.type).map((t) => this.fetchPendingWithdrawalsByChain(t.id, wallet));
     await Promise.all(tasks);
   }
 
   async fetchPendingWithdrawalsByChain(chain: number, wallet: OmniWallet) {
     const pendings = await this.kit.exchange.bridge.getPendingWithdrawalsWithStatus(chain, wallet.address);
-    runInAction(() => (this.withdrawals[chain] = pendings.filter((t) => !t.completed)));
+    runInAction(() => (this.withdrawals[chain] = pendings.filter((t) => !t.completed).map((t) => new HotBridgeWithdrawal(t, this.kit))));
   }
 }

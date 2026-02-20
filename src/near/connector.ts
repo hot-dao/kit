@@ -1,7 +1,7 @@
 import { NearConnector } from "@hot-labs/near-connect";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { ConnectorType, OmniConnector } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
 import NearWallet from "./wallet";
@@ -14,8 +14,8 @@ class Connector extends OmniConnector<NearWallet> {
   name = "NEAR Wallet";
   id = "near";
 
-  constructor(readonly wibe3: HotConnector, connector?: NearConnector) {
-    super(wibe3);
+  constructor(readonly kit: HotKit, connector?: NearConnector) {
+    super(kit);
 
     if (connector) this.connector = connector;
     else {
@@ -25,19 +25,19 @@ class Connector extends OmniConnector<NearWallet> {
       });
     }
 
+    this.connector.getConnectedWallet().then(async ({ wallet }) => {
+      const [account] = await wallet.getAccounts();
+      if (!account) return;
+      if (this.wallets.find((t) => t.address === account.accountId)) return;
+      this.setWallet({ wallet: new NearWallet(account.accountId, account.publicKey, wallet), isNew: false });
+    });
+
     this.connector.on("wallet:signOut", () => this.removeWallet());
     this.connector.on("wallet:signIn", async ({ wallet, accounts }) => {
       if (accounts.length === 0) return;
       const { accountId, publicKey } = accounts[0];
       if (this.wallets.find((t) => t.address === accountId)) return;
-      this.setWallet(new NearWallet(accountId, publicKey, wallet));
-    });
-
-    this.connector.getConnectedWallet().then(async ({ wallet }) => {
-      const [account] = await wallet.getAccounts();
-      if (!account) return;
-      if (this.wallets.find((t) => t.address === account.accountId)) return;
-      this.setWallet(new NearWallet(account.accountId, account.publicKey, wallet));
+      this.setWallet({ wallet: new NearWallet(accountId, publicKey, wallet), isNew: true });
     });
 
     this.connector.whenManifestLoaded.then(() => {

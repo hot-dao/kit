@@ -1,4 +1,4 @@
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
 import TronWallet from "./wallet";
@@ -41,8 +41,8 @@ class TronConnector extends OmniConnector<TronConnectorWallet> {
   name = "TRON Wallet";
   id = "tron";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
     this.options = [TRONLINK];
 
     this.syncFromProvider().catch(() => this.removeStorage());
@@ -71,7 +71,7 @@ class TronConnector extends OmniConnector<TronConnectorWallet> {
 
           this.removeAllWallets();
           await this.setStorage({ type: "walletconnect", chainId });
-          this.setWallet(new TronWalletConnect(this, address, chainId));
+          this.setWallet({ wallet: new TronWalletConnect(this, address, chainId), isNew: false });
         });
 
         this.options.unshift({
@@ -102,7 +102,7 @@ class TronConnector extends OmniConnector<TronConnectorWallet> {
 
     if (this.wallets.length > 0) this.removeWallet();
     await this.setStorage({ type: "wallet", id: TRONLINK.id, address });
-    this.setWallet(new TronWallet(this, address, tronWeb as any));
+    this.setWallet({ wallet: new TronWallet(this, address, tronWeb as any), isNew: false });
   }
 
   private async setupWalletConnect(): Promise<TronWalletConnect> {
@@ -118,7 +118,7 @@ class TronConnector extends OmniConnector<TronConnectorWallet> {
     this.removeAllWallets();
     await this.setStorage({ type: "walletconnect", chainId });
     const wallet = new TronWalletConnect(this, address, chainId);
-    this.setWallet(wallet);
+    this.setWallet({ wallet, isNew: false });
     return wallet;
   }
 
@@ -150,7 +150,7 @@ class TronConnector extends OmniConnector<TronConnectorWallet> {
       if (!address) throw new Error("No account found");
 
       await this.setStorage({ type: "wallet", id: TRONLINK.id, address });
-      return this.setWallet(new TronWallet(this, address, window.tronLink.tronWeb));
+      return this.setWallet({ wallet: new TronWallet(this, address, window.tronLink.tronWeb), isNew: true });
     } catch (e) {
       await this.removeStorage();
       throw e;

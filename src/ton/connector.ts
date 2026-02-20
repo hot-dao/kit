@@ -1,7 +1,7 @@
 import { TonConnectUI, TonConnect, Feature } from "@tonconnect/ui";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import HOT from "../hot-wallet/iframe";
 
 import { WalletType } from "../core/chains";
@@ -34,6 +34,8 @@ const hotWallet = {
 const isSignDataFeature = (feature: Feature) => typeof feature === "object" && feature.name === "SignData" && feature.types.includes("text");
 
 class TonConnector extends OmniConnector<TonWallet> {
+  private _isManualConnect = false;
+
   type = ConnectorType.WALLET;
   walletTypes = [WalletType.TON, WalletType.OMNI];
   icon = "https://storage.herewallet.app/upload/3ffa61e237f8e38d390abd60200db8edff3ec2b20aad0cc0a8c7a8ba9c318124.png";
@@ -41,8 +43,8 @@ class TonConnector extends OmniConnector<TonWallet> {
   id = "ton";
 
   private tonConnect = this.initializeConnector();
-  constructor(wibe3: HotConnector, readonly args?: TonConnectorOptions) {
-    super(wibe3);
+  constructor(kit: HotKit, readonly args?: TonConnectorOptions) {
+    super(kit);
   }
 
   async initializeConnector() {
@@ -69,13 +71,13 @@ class TonConnector extends OmniConnector<TonWallet> {
 
     tonConnect.onStatusChange(async (wallet) => {
       if (!wallet) return this.removeWallet();
-      this.setWallet(
-        new TonWallet({
-          sendTransaction: (params) => tonConnect.sendTransaction(params),
-          signData: (params) => tonConnect.signData(params),
-          account: wallet.account,
-        })
-      );
+      const instance = new TonWallet({
+        sendTransaction: (params) => tonConnect.sendTransaction(params),
+        signData: (params) => tonConnect.signData(params),
+        account: wallet.account,
+      });
+
+      this.setWallet({ wallet: instance, isNew: this._isManualConnect });
     });
 
     tonConnect.connector.restoreConnection();
@@ -102,7 +104,7 @@ class TonConnector extends OmniConnector<TonWallet> {
     if (HOT.isInjected) {
       tonConnect.getWallets().then((wallets) => {
         const wallet = wallets.find((w) => w.appName === "hot");
-        if (wallet) tonConnect.connector.connect(wallet, { tonProof: "wibe3" });
+        if (wallet) tonConnect.connector.connect(wallet, { tonProof: "kit" });
       });
     }
 
@@ -110,6 +112,7 @@ class TonConnector extends OmniConnector<TonWallet> {
   }
 
   async connect(id: string) {
+    this._isManualConnect = true;
     const connector = await this.tonConnect;
     connector.openSingleWalletModal(id);
     return new Promise<TonWallet>((resolve) => {
@@ -125,6 +128,7 @@ class TonConnector extends OmniConnector<TonWallet> {
     super.disconnect();
     const connector = await this.tonConnect;
     connector.disconnect();
+    this._isManualConnect = false;
   }
 }
 

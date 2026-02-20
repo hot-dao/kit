@@ -3,8 +3,8 @@ import TonConnector from "./connector";
 import TonWallet from "./wallet";
 import "./injected";
 
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
-export default (options?: TonConnectorOptions) => async (wibe3: HotConnector) => new TonConnector(wibe3, options);
+export default (options?: TonConnectorOptions) => async (kit: HotKit) => new TonConnector(kit, options);
 
 export { TonConnector, TonConnectorOptions, TonWallet };

@@ -157,6 +157,7 @@ class StellarWallet extends OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }) {
+    if (args.token.isOmni) return await super.transfer(args);
     const { tx } = await this.emulateTransfer(args.token.address, args.receiver, args.amount, args.comment);
     return this.sendTransaction(tx);
   }

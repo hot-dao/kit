@@ -49,7 +49,8 @@ export const ModalContent = styled.div<{ $mobileFullscreen?: boolean }>`
   @media (max-width: 600px) {
     max-width: 100%;
     width: 100%;
-    max-height: 90%;
+    height: auto !important;
+    max-height: 95% !important;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     border: none;
@@ -258,6 +259,9 @@ export const PopupRoot = styled.div`
   @import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap");
   height: 100%;
   width: 100%;
+
+  display: flex;
+  flex-direction: column;
 
   h1,
   h2,

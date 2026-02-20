@@ -21,8 +21,6 @@ export const createNearWallet = async (privateKeyBuf: Buffer, address?: string) 
   const addr = address || hex.encode(publicKeyBuffer);
   const publicKey = `ed25519:${base58.encode(publicKeyBuffer)}`;
 
-  console.log({ publicKey });
-
   return new NearWallet(addr, publicKey, {
     manifest: {} as unknown as WalletManifest,
     signAndSendTransaction: async (params: SignAndSendTransactionParams) => {

@@ -1,7 +1,7 @@
 import GoogleConnector, { GoogleConnectorOptions } from "./google";
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
 export type { GoogleConnectorOptions };
 export { GoogleConnector };
 
-export default (options?: GoogleConnectorOptions) => async (wibe3: HotConnector) => new GoogleConnector(wibe3, options);
+export default (options?: GoogleConnectorOptions) => async (kit: HotKit) => new GoogleConnector(kit, options);

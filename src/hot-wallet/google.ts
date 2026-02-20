@@ -1,5 +1,5 @@
 import { WalletManifest, SignAndSendTransactionParams, SignAndSendTransactionsParams, SignMessageParams } from "@hot-labs/near-connect";
-import { Transaction } from "@stellar/stellar-base";
+import type { Transaction } from "@stellar/stellar-base";
 import { action, makeObservable } from "mobx";
 import uuid4 from "uuid4";
 
@@ -12,7 +12,7 @@ import TonWallet from "../ton/wallet";
 import NearWallet from "../near/wallet";
 import SolanaWallet from "../solana/wallet";
 import StellarWallet from "../stellar/wallet";
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
 export interface GoogleConnectorOptions {
   webWallet?: string;
@@ -26,13 +26,14 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
   id = "google";
   webWallet: string;
 
-  constructor(wibe3: HotConnector, options?: GoogleConnectorOptions) {
-    super(wibe3);
+  constructor(kit: HotKit, options?: GoogleConnectorOptions) {
+    super(kit);
 
     this.webWallet = options?.webWallet ?? "https://app.hot-labs.org";
     makeObservable(this, { connectWallet: action });
     this.getStorage().then((accounts: any) => {
-      accounts.forEach((account: any) => this.connectWallet(account));
+      if (!Array.isArray(accounts)) return;
+      accounts.forEach((account: any) => this.connectWallet({ account, isNew: false }));
     });
   }
 
@@ -41,72 +42,65 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
     const height = 640;
     const x = (window.screen.width - width) / 2;
     const y = (window.screen.height - height) / 2;
-    return window.open(`${this.wibe3.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
+    return window.open(`${this.kit.settings.webWallet}`, "_blank", `popup=1,width=${width},height=${height},top=${y},left=${x}`);
   }
 
-  connectWallet(account: { type: number; address: string; publicKey: string }) {
+  connectWallet({ account, isNew }: { account: { type: number; address: string; publicKey: string }; isNew: boolean }) {
     const request = this.requestWebWallet(account.type, account.address);
 
     if (account.type === WalletType.EVM) {
-      this.setWallet(
-        new EvmWallet(this, account.address, {
-          request: (args: any) => request("evm:request", args),
-        })
-      );
+      const wallet = new EvmWallet(this, account.address, { request: (args: any) => request("evm:request", args) });
+      this.setWallet({ wallet, isNew });
     }
 
     if (account.type === WalletType.STELLAR) {
       const signMessage = async (message: string) => request("stellar:signMessage", { message });
       const signTransaction = async (transaction: Transaction) => request("stellar:signTransaction", { transaction: transaction.toXDR() });
-      this.wallets.push(
-        new StellarWallet({
-          rpc: this.wibe3.exchange.bridge.stellar,
-          address: account.address,
-          signTransaction,
-          signMessage,
-        })
-      );
+      const wallet = new StellarWallet({
+        rpc: this.kit.exchange.bridge.stellar,
+        address: account.address,
+        signTransaction,
+        signMessage,
+      });
+      this.setWallet({ wallet, isNew });
     }
 
     if (account.type === WalletType.TON) {
-      this.setWallet(
-        new TonWallet({
-          sendTransaction: (params) => request("ton:sendTransaction", params),
-          signData: (params) => request("ton:signData", params),
-          account: { address: account.address, publicKey: account.publicKey },
-        })
-      );
+      const wallet = new TonWallet({
+        sendTransaction: (params) => request("ton:sendTransaction", params),
+        signData: (params) => request("ton:signData", params),
+        account: { address: account.address, publicKey: account.publicKey },
+      });
+      this.setWallet({ wallet, isNew });
     }
 
     if (account.type === WalletType.NEAR) {
-      this.setWallet(
-        new NearWallet(account.address, account.publicKey, {
-          signAndSendTransaction: (params: SignAndSendTransactionParams) => request("near:signAndSendTransaction", params),
-          signAndSendTransactions: (params: SignAndSendTransactionsParams) => request("near:signAndSendTransactions", params),
-          signMessage: (params: SignMessageParams) => request("near:signMessage", params),
-          getAccounts: async () => [{ accountId: account.address, publicKey: account.publicKey }],
-          signIn: () => request("near:signIn", {}),
-          manifest: {} as unknown as WalletManifest,
-          signOut: async () => {},
-        }) as NearWallet
-      );
+      const wallet = new NearWallet(account.address, account.publicKey, {
+        signAndSendTransaction: (params: SignAndSendTransactionParams) => request("near:signAndSendTransaction", params),
+        signAndSendTransactions: (params: SignAndSendTransactionsParams) => request("near:signAndSendTransactions", params),
+        signMessage: (params: SignMessageParams) => request("near:signMessage", params),
+        getAccounts: async () => [{ accountId: account.address, publicKey: account.publicKey }],
+        signIn: () => request("near:signIn", {}),
+        manifest: {} as unknown as WalletManifest,
+        signOut: async () => {},
+      }) as NearWallet;
+      this.setWallet({ wallet, isNew });
     }
 
     if (account.type === WalletType.SOLANA) {
-      this.setWallet(
-        new SolanaWallet({
-          sendTransaction: async (transaction: unknown, _: unknown, options?: unknown) => await request("solana:sendTransaction", { transaction, options }),
-          signMessage: async (message: string) => await request("solana:signMessage", { message }),
-          disconnect: async () => {},
-          address: account.address,
-        })
-      );
+      const wallet = new SolanaWallet({
+        sendTransaction: async (transaction: unknown, _: unknown, options?: unknown) => await request("solana:sendTransaction", { transaction, options }),
+        signMessage: async (message: string) => await request("solana:signMessage", { message }),
+        disconnect: async () => {},
+        address: account.address,
+      });
+      this.setWallet({ wallet, isNew });
     }
   }
 
   async connect() {
     const accounts = await this.requestWebWallet()("connect:google", {});
-    accounts.forEach((account: { type: number; address: string; publicKey: string }) => this.connectWallet(account));
+    accounts.forEach((account: { type: number; address: string; publicKey: string }) => this.connectWallet({ account, isNew: true }));
     this.setStorage(accounts);
     return this.wallets[0];
   }
@@ -128,7 +122,7 @@ class GoogleConnector extends OmniConnector<OmniWallet> {
 
       const id = uuid4();
       const handler = (event: MessageEvent) => {
-        if (event.origin !== this.wibe3.settings.webWallet) return;
+        if (event.origin !== this.kit.settings.webWallet) return;
 
         if (event.data === "hot:ready") {
           popup?.postMessage({ chain, address, method, request, id }, "*");

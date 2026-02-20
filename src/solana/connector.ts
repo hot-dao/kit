@@ -3,7 +3,7 @@ import { Transaction, PublicKey, VersionedTransaction, Connection } from "@solan
 import { base58 } from "@scure/base";
 import { runInAction } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
 import { WalletType } from "../core/chains";
@@ -23,8 +23,8 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
   name = "Solana Wallet";
   id = "solana";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
 
     wallets.get().forEach((t) => {
       if (this.options.find((w) => w.name === t.name)) return;
@@ -36,7 +36,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
         const wallet = this.options.find((w) => w.id === id);
         if (!wallet) return;
         const protocolWallet = await SolanaProtocolWallet.connect(wallet.wallet, { silent: true });
-        this.setWallet(new SolanaWallet(protocolWallet));
+        this.setWallet({ wallet: new SolanaWallet(protocolWallet), isNew: false });
       } catch {
         this.removeStorage();
       }
@@ -46,12 +46,12 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
       if (this.options.find((w) => w.id === wallet.name)) return;
       runInAction(() => {
         this.options.push({
-          wallet: wallet,
+          type: "extension",
+          download: wallet.url,
           name: wallet.name,
           icon: wallet.icon,
           id: wallet.name,
-          download: wallet.url,
-          type: "extension",
+          wallet: wallet,
         });
       });
 
@@ -59,7 +59,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
         const connected = await this.getConnectedWallet();
         if (connected.id !== wallet.name) return;
         const protocolWallet = await SolanaProtocolWallet.connect(wallet, { silent: true });
-        this.setWallet(new SolanaWallet(protocolWallet));
+        this.setWallet({ wallet: new SolanaWallet(protocolWallet), isNew: false });
       } catch {
         this.removeStorage();
       }
@@ -82,12 +82,12 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
 
         const selected = await this.getConnectedWallet();
         if (selected.type !== "walletconnect") return;
-        this.setupWalletConnect();
+        this.setupWalletConnect({ isNew: false });
       })
       .catch(() => {});
   }
 
-  async setupWalletConnect(): Promise<SolanaWallet> {
+  async setupWalletConnect({ isNew }: { isNew: boolean }): Promise<SolanaWallet> {
     const wc = await this.wc;
     if (!wc) throw new Error("WalletConnect not found");
 
@@ -95,29 +95,30 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
     if (!account) throw new Error("Account not found");
 
     this.setStorage({ type: "walletconnect" });
-    return this.setWallet(
-      new SolanaWallet({
-        address: account,
-        sendTransaction: async (tx: Transaction | VersionedTransaction, connection: Connection, options?: any) => {
-          const transaction = Buffer.from(tx.serialize()).toString("base64");
-          const { signature } = await this.requestWalletConnect<{ signature: string }>({
-            request: { params: { transaction, options }, method: "solana_signTransaction" },
-          });
-          tx.addSignature(new PublicKey(account), Buffer.from(base58.decode(signature)));
-          return await connection.sendRawTransaction(tx.serialize(), options);
-        },
+    const wallet = new SolanaWallet({
+      address: account,
+      disconnect: () => this.disconnectWalletConnect(),
+      sendTransaction: async (tx: Transaction | VersionedTransaction, connection: Connection, options?: any) => {
+        const transaction = Buffer.from(tx.serialize()).toString("base64");
+        const { signature } = await this.requestWalletConnect<{ signature: string }>({
+          request: { params: { transaction, options }, method: "solana_signTransaction" },
+        });
 
-        signMessage: async (msg: string) => {
-          const message = base58.encode(Buffer.from(msg, "utf8"));
-          const { signature } = await this.requestWalletConnect<{ signature: string }>({
-            request: { method: "solana_signMessage", params: { message, pubkey: account } },
-          });
-          return base58.decode(signature);
-        },
+        tx.addSignature(new PublicKey(account), Buffer.from(base58.decode(signature)));
+        return await connection.sendRawTransaction(tx.serialize(), options);
+      },
 
-        disconnect: () => this.disconnectWalletConnect(),
-      })
-    );
+      signMessage: async (msg: string) => {
+        const message = base58.encode(Buffer.from(msg, "utf8"));
+        const { signature } = await this.requestWalletConnect<{ signature: string }>({
+          request: { method: "solana_signMessage", params: { message, pubkey: account } },
+        });
+
+        return base58.decode(signature);
+      },
+    });
+
+    return this.setWallet({ wallet, isNew });
   }
 
   async disconnect() {
@@ -133,7 +134,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
   async connect(id: string) {
     if (id === "walletconnect") {
       return await this.connectWalletConnect({
-        onConnect: () => this.setupWalletConnect(),
+        onConnect: () => this.setupWalletConnect({ isNew: true }),
         namespaces: {
           solana: {
             methods: ["solana_signTransaction", "solana_signMessage"],
@@ -151,7 +152,7 @@ class SolanaConnector extends OmniConnector<SolanaWallet, { wallet: Wallet }> {
     try {
       this.setStorage({ type: "wallet", id });
       const protocolWallet = await SolanaProtocolWallet.connect(wallet.wallet, { silent: false });
-      return this.setWallet(new SolanaWallet(protocolWallet));
+      return this.setWallet({ wallet: new SolanaWallet(protocolWallet), isNew: true });
     } catch (e) {
       this.removeStorage();
       throw e;

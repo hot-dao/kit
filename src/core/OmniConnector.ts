@@ -1,7 +1,8 @@
-import { makeObservable, observable, runInAction } from "mobx";
-import UniversalProvider, { NamespaceConfig } from "@walletconnect/universal-provider";
+import { action, makeObservable, observable, runInAction } from "mobx";
+import type UniversalProvider from "@walletconnect/universal-provider";
+import type { NamespaceConfig } from "@walletconnect/universal-provider";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { EventEmitter } from "./events";
 import { OmniWallet } from "./OmniWallet";
 import { WalletType } from "./chains";
@@ -9,6 +10,7 @@ import { WalletType } from "./chains";
 export enum ConnectorType {
   WALLET = "wallet",
   SOCIAL = "social",
+  HOTCRAFT = "hotcraft",
 }
 
 export interface OmniConnectorOption {
@@ -28,33 +30,37 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   description?: string;
 
   protected events = new EventEmitter<{
-    connect: { wallet: T; connector: OmniConnector<T, O> };
+    restore_connect: { wallet: T; connector: OmniConnector<T, O> };
+    new_connect: { wallet: T; connector: OmniConnector<T, O> };
     disconnect: { wallet: T; connector: OmniConnector<T, O> };
   }>();
 
   protected wc: Promise<UniversalProvider> | null = null;
 
-  constructor(readonly wibe3: HotConnector) {
+  constructor(readonly kit: HotKit) {
     makeObservable(this, {
       wallets: observable,
       options: observable,
+      removeWallet: action,
+      removeAllWallets: action,
     });
   }
 
   get storage() {
-    return this.wibe3.storage;
+    return this.kit.storage;
   }
 
   openWallet() {}
 
   async initWalletConnect() {
-    if (!this.wibe3.settings?.projectId) throw new Error("Project ID is required");
+    if (!this.kit.settings?.projectId) throw new Error("Project ID is required");
     if (this.wc) return this.wc;
-    this.wc = UniversalProvider.init({
+    const { default: UP } = await import("@walletconnect/universal-provider");
+    this.wc = UP.init({
       relayUrl: "wss://relay.walletconnect.org",
-      projectId: this.wibe3.settings?.projectId,
-      metadata: this.wibe3.settings?.metadata,
-      customStoragePrefix: `wibe3:${this.id}`,
+      projectId: this.kit.settings?.projectId,
+      metadata: this.kit.settings?.metadata,
+      customStoragePrefix: `kit:${this.id}`,
       name: this.name,
     });
 
@@ -82,8 +88,7 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   }
 
   async requestWalletConnect<T>(args: { chain?: string; request: any; deeplink?: string; name?: string; icon?: string }): Promise<T> {
-    const { openWCRequest } = await import("../ui/router");
-    return openWCRequest<T>({
+    return this.kit.router.openWCRequest<T>({
       deeplink: args.deeplink,
       name: args.name || "WalletConnect",
       icon: args.icon || WC_ICON,
@@ -104,40 +109,48 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
   abstract icon: string;
   abstract id: string;
 
-  protected setWallet(wallet: T) {
+  protected setWallet({ wallet, isNew }: { wallet: T; isNew: boolean }) {
+    wallet.kit = this.kit;
     const existing = this.wallets.find((t) => t.address === wallet.address);
     if (existing) return existing;
 
     runInAction(() => this.wallets.push(wallet));
-    this.events.emit("connect", { wallet, connector: this });
+    if (isNew) this.events.emit("new_connect", { wallet, connector: this });
+    else this.events.emit("restore_connect", { wallet, connector: this });
     return wallet;
   }
 
-  protected removeWallet() {
-    runInAction(() => {
-      const wallet = this.wallets.pop();
-      if (wallet) this.events.emit("disconnect", { wallet, connector: this });
-    });
+  removeWallet(wallet?: T) {
+    if (wallet) {
+      this.wallets = this.wallets.filter((t) => t !== wallet);
+      this.events.emit("disconnect", { wallet, connector: this });
+      return;
+    }
+
+    if (this.wallets.length === 0) return;
+    const deleted = this.wallets.pop()!;
+    this.events.emit("disconnect", { wallet: deleted, connector: this });
   }
 
-  protected removeAllWallets(): void {
-    runInAction(() => {
-      const wallets = this.wallets;
-      this.wallets = [];
-      wallets.forEach((wallet) => this.events.emit("disconnect", { wallet, connector: this }));
+  removeAllWallets(): void {
+    const wallets = this.wallets;
+    this.wallets = [];
+
+    wallets.forEach((wallet) => {
+      this.events.emit("disconnect", { wallet, connector: this });
     });
   }
 
   async setStorage(obj: { type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }) {
-    await this.storage.set(`wibe3:${this.id}`, JSON.stringify(obj));
+    await this.storage.set(`kit:${this.id}`, JSON.stringify(obj));
   }
 
   async removeStorage() {
-    await this.storage.remove(`wibe3:${this.id}`);
+    await this.storage.remove(`kit:${this.id}`);
   }
 
   async getStorage(): Promise<{ type?: string; id?: string; address?: string; publicKey?: string; [key: string]: any }> {
-    const data = await this.storage.get(`wibe3:${this.id}`);
+    const data = await this.storage.get(`kit:${this.id}`);
     if (!data) return {};
     return JSON.parse(data);
   }
@@ -146,9 +159,23 @@ export abstract class OmniConnector<T extends OmniWallet = OmniWallet, O = {}> {
     this.events.removeAllListeners();
   }
 
+  onRestoreConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
+    this.events.on("restore_connect", handler);
+    return () => this.events.off("restore_connect", handler);
+  }
+
+  onNewConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
+    this.events.on("new_connect", handler);
+    return () => this.events.off("new_connect", handler);
+  }
+
   onConnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {
-    this.events.on("connect", handler);
-    return () => this.events.off("connect", handler);
+    this.events.on("new_connect", handler);
+    this.events.on("restore_connect", handler);
+    return () => {
+      this.events.off("new_connect", handler);
+      this.events.off("restore_connect", handler);
+    };
   }
 
   onDisconnect(handler: (payload: { wallet: T; connector: OmniConnector<T, O> }) => void) {

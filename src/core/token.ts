@@ -1,6 +1,5 @@
 import { TokenResponse } from "@defuse-protocol/one-click-sdk-typescript";
 import { action, computed, makeObservable, observable } from "mobx";
-import { Asset, Networks } from "@stellar/stellar-base";
 
 import { Network, OmniToken, WalletType, chains } from "./chains";
 import { formatter } from "./utils";
@@ -22,7 +21,7 @@ export class Token {
   originalAddress!: string;
   originalChainSymbol: string;
 
-  constructor(public info: TokenResponse & { omni?: true }) {
+  constructor(public info: TokenResponse & { omni?: Network.Omni | Network.HotCraft }) {
     makeObservable(this, {
       info: observable,
       update: action,
@@ -31,13 +30,13 @@ export class Token {
 
     this.originalChainSymbol = info.blockchain;
     this.originalChain = chains.getByKey(info.blockchain)?.id || 0;
-    this.chain = info.omni ? -4 : chains.getByKey(info.blockchain)?.id || 0;
+    this.chain = info.omni ? info.omni : chains.getByKey(info.blockchain)?.id || 0;
 
     if (this.originalChain === Network.Near) {
       this.address = info.contractAddress === "wrap.near" ? "native" : info.contractAddress || "native";
       this.originalAddress = this.address;
     } else if (this.originalChain === Network.Stellar) {
-      this.address = info.contractAddress ? new Asset(info.symbol, info.contractAddress).contractId(Networks.PUBLIC) : "native";
+      this.address = info.contractAddress || "native";
       this.originalAddress = this.address;
     } else {
       this.address = info.contractAddress || "native";
@@ -54,6 +53,10 @@ export class Token {
     this.decimals = info.decimals;
   }
 
+  get isOmni() {
+    return this.chain === Network.Omni || this.chain === Network.HotCraft;
+  }
+
   update(info: TokenResponse & { omni?: true }) {
     this.info.priceUpdatedAt = info.priceUpdatedAt;
     this.info.price = info.price;
@@ -68,7 +71,7 @@ export class Token {
   }
 
   get originalChainIcon() {
-    if (this.originalChain === Network.Juno) return "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+    if (this.originalChain === Network.Juno) return "https://cryptologos.cc/logos/cosmos-atom-logo.svg";
     return `https://storage.herewallet.app/ft/${this.originalChain}:native.png`;
   }
 
@@ -85,7 +88,7 @@ export class Token {
   }
 
   get isMainOmni() {
-    if (this.chain !== Network.Omni) return false;
+    if (this.chain !== Network.Omni && this.chain !== Network.HotCraft) return false;
     return Object.values(OmniToken).some((token) => this.address === token);
   }
 
@@ -101,8 +104,8 @@ export class Token {
     if (this.chain === Network.Gonka) return 0.01;
     if (this.chain === Network.Juno) return 0.01;
 
+    if (this.isOmni) return 0;
     if (this.address !== "native") return 0;
-    if (this.chain === Network.Omni) return 0;
     if (this.chain === Network.Ton) return 0.01;
     if (this.chain === Network.Stellar) return 0;
     if (this.chain === Network.Solana) return 0.001;
@@ -114,7 +117,7 @@ export class Token {
   }
 
   get icon() {
-    if (this.chain === Network.Omni) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
+    if (this.isOmni) return `https://storage.herewallet.app/ft/${this.originalChain}:${this.originalAddress.toLowerCase()}.png`;
     return `https://storage.herewallet.app/ft/${this.id.toLowerCase()}.png`;
   }
 
@@ -130,5 +133,10 @@ export class Token {
     const n = typeof t === "number" ? t : formatter.formatAmount(t ?? 0, this.decimals);
     if (n * rate < min) return "0";
     return formatter.amount(n * rate);
+  }
+
+  static async resolveStellarContractId(symbol: string, issuer: string): Promise<string> {
+    const { Asset, Networks } = await import("@stellar/stellar-base");
+    return new Asset(symbol, issuer).contractId(Networks.PUBLIC);
   }
 }

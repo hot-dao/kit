@@ -162,6 +162,7 @@ class SolanaWallet extends OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee: ReviewFee }): Promise<string> {
+    if (args.token.isOmni) return await super.transfer(args);
     const { instructions } = await this.buildTranferInstructions(args.token, args.amount, args.receiver, args.gasFee);
     return await this.sendTransaction(instructions);
   }

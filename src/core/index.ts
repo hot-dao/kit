@@ -1,7 +1,9 @@
 export { rpc as nearRpc, TGAS } from "../near/rpc";
 
 export { OmniToken, WalletType, Network } from "./chains";
-
+export { OmniWallet } from "./OmniWallet";
+export { OmniConnector } from "./OmniConnector";
+export { api } from "./api";
 export { chains } from "./chains";
 export { createHotBridge, HotBridge, ReviewFee } from "./bridge";
 export { Exchange } from "./exchange";

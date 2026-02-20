@@ -1,9 +1,9 @@
 import { hex } from "@scure/base";
 import { action, makeObservable, observable } from "mobx";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
+import { Network, OmniToken, WalletType } from "./chains";
 import { Commitment } from "./types";
-import { WalletType } from "./chains";
 import { Intents } from "./Intents";
 import { ReviewFee } from "./bridge";
 import { Token } from "./token";
@@ -11,6 +11,7 @@ import { api } from "./api";
 
 export abstract class OmniWallet {
   balances: Record<string, bigint> = {};
+  kit?: HotKit;
 
   abstract address: string;
   abstract publicKey?: string;
@@ -22,8 +23,8 @@ export abstract class OmniWallet {
     makeObservable(this, { balances: observable, setBalance: action });
   }
 
-  intents(wibe3?: HotConnector) {
-    return new Intents(wibe3).attachWallet(this);
+  intents(kit?: HotKit) {
+    return new Intents(kit).attachWallet(this);
   }
 
   setBalance(id: string, balance: bigint) {
@@ -66,18 +67,22 @@ export abstract class OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {
-    throw new Error("Method not implemented.");
+    if (args.token.chain !== Network.Omni) throw new Error("Invalid token chain");
+    return await this.intents()
+      .transfer({ amount: args.amount, recipient: args.receiver, token: args.token.omniAddress as OmniToken })
+      .execute();
   }
 
   async fetchBalance(chain: number, address: string): Promise<bigint> {
-    if (chain !== -4) return 0n;
+    if (chain !== Network.Omni) return 0n;
     if (!this.omniAddress) return 0n;
+
     const balances = await Intents.getIntentsBalances([address], this.omniAddress);
     return this.setBalance(`${chain}:${address}`, balances[address] || 0n);
   }
 
   async fetchBalances(chain: number, whitelist: string[] = []): Promise<Record<string, bigint>> {
-    if (chain === -4) {
+    if (chain === Network.Omni) {
       if (!this.omniAddress) return {};
       const list = whitelist.length > 0 ? whitelist : await Intents.getIntentsAssets(this.omniAddress);
       const balances = await Intents.getIntentsBalances(list, this.omniAddress);
@@ -89,7 +94,6 @@ export abstract class OmniWallet {
     const { balances } = await res.json();
 
     if (Object.keys(balances).length === 0) throw "No balances found";
-
     Object.entries(balances).forEach(([address, balance]) => this.setBalance(`${chain}:${address}`, BigInt(balance as string)));
     const native = await this.fetchBalance(chain, "native").catch(() => 0n);
     return { ...balances, native };
@@ -110,9 +114,8 @@ export abstract class OmniWallet {
       return (await api.auth(signed, seed)) as T;
     };
 
-    if (typeof window === "undefined") return await authFn();
-    const { openAuthPopup } = await import("../ui/connect/AuthPopup");
-    return openAuthPopup(this, authFn);
+    if (this.kit == null) return await authFn();
+    return this.kit.router.openAuthPopup(this, authFn);
   }
 
   async waitUntilOmniBalance(need: Record<string, bigint>, receiver = this.omniAddress, attempts = 0) {

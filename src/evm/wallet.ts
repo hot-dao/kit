@@ -111,6 +111,8 @@ class EvmWallet extends OmniWallet {
   }
 
   async transfer(args: { token: Token; receiver: string; amount: bigint; comment?: string; gasFee?: ReviewFee }): Promise<string> {
+    if (args.token.isOmni) return await super.transfer(args);
+
     if (args.token.address === "native") {
       return await this.sendTransaction({
         ...args.gasFee?.evmGas,

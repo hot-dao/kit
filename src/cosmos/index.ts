@@ -1,10 +1,10 @@
 import CosmosConnector from "./connector";
 import CosmosWallet from "./wallet";
 
-import { HotConnector } from "../HotConnector";
+import { HotKit } from "../HotKit";
 
 export { CosmosConnector, CosmosWallet };
 
 export default ({ chainId }: { chainId?: string } = {}) =>
-  async (wibe3: HotConnector) =>
-    new CosmosConnector(wibe3, chainId);
+  async (kit: HotKit) =>
+    new CosmosConnector(kit, chainId);

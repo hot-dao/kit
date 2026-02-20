@@ -57,7 +57,7 @@ jobs:
         id: zip
         shell: bash
         run: |
-          ZIP_NAME="wibe3-${{ steps.pkg.outputs.version }}.zip"
+          ZIP_NAME="kit-${{ steps.pkg.outputs.version }}.zip"
           git archive -o "$ZIP_NAME" HEAD .
           echo "zip=$ZIP_NAME" >> $GITHUB_OUTPUT
 

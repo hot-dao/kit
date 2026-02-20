@@ -1,10 +1,16 @@
 {
   "name": "@hot-labs/kit",
-  "version": "1.4.21",
+  "version": "1.6.3",
   "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
+  "sideEffects": [
+    "./build/evm/injected.js",
+    "./build/solana/injected/index.js",
+    "./build/ton/injected.js",
+    "./build/ui/router.js"
+  ],
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "exports": {
@@ -18,7 +24,9 @@
     "./stellar": "./build/stellar/index.js",
     "./ton": "./build/ton/index.js",
     "./tron": "./build/tron/index.js",
-    "./core": "./build/core/index.js"
+    "./hocraft": "./build/hocraft/index.js",
+    "./core": "./build/core/index.js",
+    "./ui": "./build/ui/index.js"
   },
   "directories": {
     "build": "build"
@@ -34,11 +42,13 @@
     "@keplr-wallet/provider-extension": "^0.12.291",
     "@solana/spl-token": "^0.4.14",
     "@solana/wallet-standard-features": "^1.3.0",
+    "ethers": "^6.15.0",
     "@stellar/freighter-api": "^6.0.1",
     "@ton-api/client": "^0.4.0",
     "@ton/core": "^0.62.0",
     "@ton/crypto": "^3.3.0",
     "@tonconnect/ui": "^2.2.0",
+    "@stellar/stellar-base": "^14.0.0",
     "@wallet-standard/base": "^1.1.0",
     "@wallet-standard/features": "^1.1.0"
   },
@@ -53,7 +63,7 @@
     "@noble/hashes": "^2.0.1",
     "@scure/base": "^2.0.0",
     "@walletconnect/universal-provider": "^2.23.0",
-    "ethers": "^6.15.0",
+
     "mobx": "^6.15.0",
     "mobx-react-lite": "^4.1.1",
     "qr-code-styling": "^1.9.2",

@@ -1,7 +1,7 @@
 import { runInAction } from "mobx";
 
 import HOT from "../hot-wallet/iframe";
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 
 import { Network, WalletType } from "../core/chains";
 import { ConnectorType, OmniConnector, WC_ICON } from "../core/OmniConnector";
@@ -15,8 +15,8 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   name = "EVM Wallet";
   id = "evm";
 
-  constructor(wibe3: HotConnector) {
-    super(wibe3);
+  constructor(kit: HotKit) {
+    super(kit);
 
     window.addEventListener<any>("eip6963:announceProvider", async (provider) => {
       if (this.options.find((t) => t.name === provider.detail.info.name || t.id === provider.detail.info.uuid)) return;
@@ -38,7 +38,11 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
 
       const connected = await this.getConnectedWallet();
       if (connected.type === "wallet" && connected.id === provider.detail.info.rdns) {
-        this.connectWallet(provider.detail.info.rdns, provider.detail.provider);
+        this.connectWallet({
+          id: provider.detail.info.rdns,
+          provider: provider.detail.provider,
+          isNew: false,
+        });
       }
     });
 
@@ -60,12 +64,12 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
       ?.then(async () => {
         const selected = await this.getConnectedWallet();
         if (selected.id !== "walletconnect") return;
-        this.setupWalletConnect();
+        this.setupWalletConnect({ isNew: false });
       })
       .catch(() => {});
   }
 
-  async setupWalletConnect(): Promise<EvmWallet> {
+  async setupWalletConnect({ isNew }: { isNew: boolean }): Promise<EvmWallet> {
     const wc = await this.wc;
     if (!wc) throw new Error("WalletConnect not found");
 
@@ -73,29 +77,30 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
     if (!address) throw new Error("Account not found");
 
     this.setStorage({ type: "walletconnect" });
-    return this.setWallet(
-      new EvmWallet(this, address, {
-        request: async (request: any) => this.requestWalletConnect<any>({ request }),
-      })
-    );
+
+    const wallet = new EvmWallet(this, address, {
+      request: async (request: any) => this.requestWalletConnect<any>({ request }),
+    });
+
+    return this.setWallet({ wallet, isNew });
   }
 
-  async connectWallet(id: string, provider: EvmProvider) {
+  async connectWallet({ id, provider, isNew }: { id: string; provider: EvmProvider; isNew: boolean }) {
     try {
       if (this.wallets.length > 0) this.removeWallet();
-
       const [address] = await provider.request({ method: "eth_requestAccounts" });
       if (!address) throw "No address found";
       this.setStorage({ type: "wallet", id });
 
       const handler = async (data: string[]) => {
         provider.off?.("accountsChanged", handler as any);
-        if (data.length > 0) this.connectWallet(id, provider);
+        if (data.length > 0) this.connectWallet({ id, provider, isNew });
         else this.disconnect();
       };
 
       provider.on?.("accountsChanged", handler);
-      return this.setWallet(new EvmWallet(this, address, provider));
+      const wallet = new EvmWallet(this, address, provider);
+      return this.setWallet({ wallet, isNew });
     } catch (e) {
       this.disconnect();
       throw e;
@@ -110,7 +115,7 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
   async connect(id: string) {
     if (id === "walletconnect") {
       return await this.connectWalletConnect({
-        onConnect: () => this.setupWalletConnect(),
+        onConnect: () => this.setupWalletConnect({ isNew: true }),
         namespaces: {
           eip155: {
             methods: ["eth_sendTransaction", "eth_signTransaction", "eth_sign", "personal_sign", "eth_signTypedData"],
@@ -126,7 +131,11 @@ class EvmConnector extends OmniConnector<EvmWallet, { provider: EvmProvider }> {
     const wallet = this.options.find((t) => t.id === id);
     if (!wallet) throw new Error("Wallet not found");
 
-    return await this.connectWallet(id, wallet.provider);
+    return await this.connectWallet({
+      provider: wallet.provider,
+      isNew: true,
+      id,
+    });
   }
 
   async disconnect() {

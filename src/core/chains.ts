@@ -8,9 +8,11 @@ export enum OmniToken {
   SOL = "nep141:sol.omft.near",
   BNB = "nep245:v2_1.omni.hot.tg:56_11111111111111111111",
   ADI = "nep245:v2_1.omni.hot.tg:36900_11111111111111111111",
+  ZEC = "nep141:zec.omft.near",
 }
 
 export enum WalletType {
+  HotCraft = -1030,
   NEAR = 1010,
   EVM = 1,
   OMNI = -4,
@@ -35,6 +37,7 @@ export enum WalletType {
 export enum Network {
   Omni_v1 = 0,
   Omni = -4,
+  HotCraft = -1030,
 
   Zcash = -5,
   Btc = -6,
@@ -291,7 +294,7 @@ const chainsRepository: Record<number, ChainConfig> = {
     id: Network.Zcash,
     key: "zec",
     name: "Zcash",
-    testAddress: "t1Q20340340340340340340340340340340340340",
+    testAddress: "t14oHp2v54vfmdgQ3v3SNuQga8JKHTNi2a1",
     logo: "https://storage.herewallet.app/ft/-5:native.png",
     currency: { id: "native", symbol: "ZEC", decimals: 8, logo: logo(Network.Zcash) },
     rpc: rpc(Network.Zcash),
@@ -363,9 +366,19 @@ const chainsRepository: Record<number, ChainConfig> = {
     name: "Omni",
     testAddress: "root.near",
     logo: "https://tgapp.herewallet.app/images/hot/hot-icon.png",
-    currency: { id: "native", symbol: "OMNI", decimals: 6, logo: logo(Network.Omni) },
+    currency: { id: "native", symbol: "OMNI", decimals: 24, logo: logo(Network.Omni) },
     rpc: rpc(Network.Omni),
     type: WalletType.OMNI,
+  },
+  [Network.HotCraft]: {
+    id: Network.HotCraft,
+    key: "hotcraft",
+    name: "HotCraft",
+    testAddress: "root.near",
+    logo: "https://hotcraft.art/favicon-beige.ico",
+    currency: { id: "native", symbol: "HOTCRAFT", decimals: 24, logo: logo(Network.HotCraft) },
+    rpc: rpc(Network.HotCraft),
+    type: WalletType.HotCraft,
   },
   [Network.Cardano]: {
     id: Network.Cardano,

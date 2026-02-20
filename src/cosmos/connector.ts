@@ -1,7 +1,7 @@
 import { Keplr } from "@keplr-wallet/provider-extension";
 import { StdSignature } from "@keplr-wallet/types";
 import { TxRaw } from "@keplr-wallet/proto-types/cosmos/tx/v1beta1/tx";
-import UniversalProvider from "@walletconnect/universal-provider";
+import type UniversalProvider from "@walletconnect/universal-provider";
 import { StargateClient } from "@cosmjs/stargate";
 import { base64, hex } from "@scure/base";
 import { runInAction } from "mobx";
@@ -11,12 +11,13 @@ import { chains, WalletType } from "../core/chains";
 import { OmniWallet } from "../core/OmniWallet";
 import { api } from "../core/api";
 
-import type { HotConnector } from "../HotConnector";
+import type { HotKit } from "../HotKit";
 import { signAndSendTx } from "./helpers";
 import CosmosWallet from "./wallet";
 
 declare global {
   interface Window {
+    gonkaWallet?: Keplr;
     keplr?: Keplr;
     leap?: Keplr;
   }
@@ -24,12 +25,19 @@ declare global {
 
 const wallets: Record<string, OmniConnectorOption> = {
   gonkaWallet: {
-    name: "Gonka Wallet",
+    name: "GG Wallet",
+    icon: "https://avatars.githubusercontent.com/u/260310621?v=4",
+    download: "https://chromewebstore.google.com/detail/gg-wallet/elicodfmaffbndngiifcpmammicgjidd",
+    type: "extension",
+    id: "gonkaWallet",
+  },
+  tgGonkaWallet: {
+    name: "Gonka Telegram Wallet",
     icon: "https://gonka-wallet.startonus.com/images/logo.png",
     download: "https://t.me/gonka_wallet",
     deeplink: "https://wallet.gonka.top/wc?wc=",
     type: "external",
-    id: "gonkaWallet",
+    id: "tgGonkaWallet",
   },
   keplr: {
     name: "Keplr Wallet",
@@ -56,8 +64,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
   isSupported = true;
   id = "cosmos";
 
-  constructor(wibe3: HotConnector, readonly chainId = "gonka-mainnet") {
-    super(wibe3);
+  constructor(kit: HotKit, readonly chainId = "gonka-mainnet") {
+    super(kit);
 
     this.options = Object.values(wallets);
     Keplr.getKeplr().then((keplr) => {
@@ -73,12 +81,24 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
       if (data.type === "keplr") {
         const keplr = await Keplr.getKeplr();
-        if (keplr) this.setKeplrWallet(keplr, data[this.chainId]);
-        else this.disconnect();
+        if (keplr) await this.createKeplrWallet({ wallet: keplr, account: data[this.chainId], isNew: false });
+        else await this.disconnect();
+      }
+
+      if (data.type === "gonkaWallet" && window.gonkaWallet) {
+        await this.createKeplrWallet({
+          wallet: window.gonkaWallet,
+          account: data[this.chainId],
+          isNew: false,
+        });
       }
 
       if (data.type === "leap" && window.leap) {
-        this.setKeplrWallet(window.leap, data[this.chainId]);
+        await this.createKeplrWallet({
+          wallet: window.leap,
+          account: data[this.chainId],
+          isNew: false,
+        });
       }
     });
 
@@ -94,13 +114,13 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
 
         const selected = await this.getStorage();
         if (selected.type !== "walletconnect") return;
-        await this.setupWalletConnect(selected.id as "keplr" | "leap");
+        await this.createWalletConnect({ id: selected.id as "keplr" | "leap", isNew: false });
       })
       .catch(() => {});
   }
 
   get icon() {
-    return chains.getByKey(this.chainId)?.logo || "https://legacy.cosmos.network/presskit/cosmos-brandmark-dynamic-dark.svg";
+    return chains.getByKey(this.chainId)?.logo || "";
   }
 
   get name() {
@@ -116,7 +136,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return chains.getByType(WalletType.COSMOS).map((t) => t.key);
   }
 
-  async getAccountFromWalletConnect(wc: UniversalProvider, chainId: string, id?: "keplr" | "leap" | "gonkaWallet") {
+  async getAccountFromWalletConnect(wc: UniversalProvider, chainId: string, id?: keyof typeof wallets) {
     const properties = JSON.parse(wc.session?.sessionProperties?.keys || "{}");
     const account = properties?.find?.((t: any) => t.chainId === chainId);
 
@@ -143,7 +163,7 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return { publicKey: hex.encode(base64.decode(data[0].pubkey)), address: data[0].address };
   }
 
-  async setupWalletConnect(id?: "keplr" | "leap" | "gonkaWallet"): Promise<CosmosWallet> {
+  async createWalletConnect({ id, isNew }: { id?: keyof typeof wallets; isNew: boolean }): Promise<CosmosWallet> {
     const wc = await this.wc;
     if (!wc) throw new Error("WalletConnect not found");
 
@@ -213,41 +233,41 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       },
     });
 
-    return this.setWallet(wallet);
+    return this.setWallet({ wallet, isNew });
   }
 
-  async setKeplrWallet(keplr: Keplr, data: { address: string; publicKey: string }) {
-    const account = await keplr.getKey("cosmoshub-4");
-    return this.setWallet(
-      new CosmosWallet({
-        account: data,
-        cosmos: { address: account.bech32Address, publicKey: hex.encode(account.pubKey) },
-        chainId: this.chainId,
-        disableOmni: true,
+  async createKeplrWallet({ wallet, account, isNew }: { wallet: Keplr; account: { address: string; publicKey: string }; isNew: boolean }) {
+    const cosmosAccount = await wallet.getKey("cosmoshub-4");
+    const instance = new CosmosWallet({
+      account,
+      cosmos: { address: cosmosAccount.bech32Address, publicKey: hex.encode(cosmosAccount.pubKey) },
+      chainId: this.chainId,
+      disableOmni: true,
 
-        disconnect: () => keplr.disable(),
+      disconnect: () => wallet.disable(),
 
-        signMessage: async (chainId: string, address: string, message: string) => {
-          return await keplr.signArbitrary(chainId, address, message);
-        },
+      signMessage: async (chainId: string, address: string, message: string) => {
+        return await wallet.signArbitrary(chainId, address, message);
+      },
 
-        sendTransaction: async (signDoc: any) => {
-          await keplr.enable(this.chains);
-          const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
-          return await signAndSendTx(keplr, rpcEndpoint, api.apiKey, signDoc);
-        },
+      sendTransaction: async (signDoc: any) => {
+        await wallet.enable(this.chains);
+        const rpcEndpoint = chains.getByKey(signDoc.chainId)?.rpc || "";
+        return await signAndSendTx(wallet, rpcEndpoint, api.apiKey, signDoc);
+      },
 
-        signAmino: async (chainId: string, address: string, signDoc: any) => {
-          return await keplr.signAmino(chainId, address, signDoc);
-        },
-      })
-    );
+      signAmino: async (chainId: string, address: string, signDoc: any) => {
+        return await wallet.signAmino(chainId, address, signDoc);
+      },
+    });
+
+    return this.setWallet({ wallet: instance, isNew });
   }
 
-  async connectGonkaWallet(): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
+  async connectGonkaTelegramWallet(): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
     const result = await this.connectWalletConnect({
-      onConnect: async () => await this.setupWalletConnect("gonkaWallet"),
-      deeplink: wallets["gonkaWallet"].deeplink,
+      onConnect: async () => await this.createWalletConnect({ id: "tgGonkaWallet", isNew: true }),
+      deeplink: wallets["tgGonkaWallet"].deeplink,
       namespaces: {
         cosmos: {
           chains: [...new Set([`cosmos:${this.chainId}`, "cosmos:cosmoshub-4"])],
@@ -262,10 +282,10 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     return result;
   }
 
-  async connectKeplr(type: "keplr" | "leap" | "gonkaWallet", extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
-    if (!extension) {
+  async connectKeplr(type: keyof typeof wallets, extension?: Keplr): Promise<OmniWallet | { qrcode: string; deeplink?: string; task: Promise<OmniWallet> }> {
+    if (!extension && wallets[type].deeplink != null) {
       return await this.connectWalletConnect({
-        onConnect: async () => await this.setupWalletConnect(type),
+        onConnect: async () => await this.createWalletConnect({ id: type, isNew: true }),
         deeplink: wallets[type].deeplink,
         namespaces: {
           cosmos: {
@@ -277,6 +297,8 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
         },
       });
     }
+
+    if (!extension) throw new Error("Extension not found");
 
     if (this.chainId === "gonka-mainnet") {
       await extension.experimentalSuggestChain({
@@ -298,13 +320,13 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
     const chainAccount = { address: account.bech32Address, publicKey: hex.encode(account.pubKey) };
     const cosmosAccountData = { address: cosmosAccount.bech32Address, publicKey: hex.encode(cosmosAccount.pubKey) };
     await this.setStorage({ type, [this.chainId]: chainAccount, "cosmoshub-4": cosmosAccountData });
-    return await this.setKeplrWallet(extension, chainAccount);
+    return await this.createKeplrWallet({ wallet: extension, account: chainAccount, isNew: true });
   }
 
   async connect(id: string) {
     if (id === "walletconnect") {
       return await this.connectWalletConnect({
-        onConnect: async () => await this.setupWalletConnect(),
+        onConnect: async () => await this.createWalletConnect({ isNew: true }),
         namespaces: {
           cosmos: {
             chains: [...new Set([`cosmos:${this.chainId}`, "cosmos:cosmoshub-4"])],
@@ -316,8 +338,12 @@ export default class CosmosConnector extends OmniConnector<CosmosWallet> {
       });
     }
 
+    if (id === "tgGonkaWallet") {
+      return await this.connectGonkaTelegramWallet();
+    }
+
     if (id === "gonkaWallet") {
-      return await this.connectGonkaWallet();
+      return await this.connectKeplr("gonkaWallet", window.gonkaWallet);
     }
 
     if (id === "keplr") {

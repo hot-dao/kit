@@ -2,16 +2,16 @@ import { useState } from "react";
 import Popup from "../Popup";
 import { PopupButton } from "../styles";
 import { Connector } from "./ConnectWallet";
-import { HotConnector } from "../../HotConnector";
+import { HotKit } from "../../HotKit";
 import { chains, WalletType } from "../../core";
 
-const ConnectPrimaryWallet = ({ hot, onClose }: { hot: HotConnector; onClose: () => void }) => {
+const ConnectPrimaryWallet = ({ kit, onClose }: { kit: HotKit; onClose: () => void }) => {
   const [openConnect, setOpenConnect] = useState(false);
 
   return (
     <Popup onClose={onClose} header={<p>Connect main wallet</p>}>
       {openConnect ? (
-        <Connector widget={true} walletType={WalletType.OMNI} hot={hot} onClose={onClose} />
+        <Connector widget={true} walletType={WalletType.OMNI} kit={kit} onClose={onClose} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: 300 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, marginTop: 48 }}>
