@@ -1,6 +1,6 @@
 {
   "name": "@hot-labs/kit",
-  "version": "1.6.3",
+  "version": "1.6.5",
   "description": "HOT Labs Kit is chain agnostic connector with omni payments",
   "license": "ISC",
   "author": "",
@@ -63,7 +63,6 @@
     "@noble/hashes": "^2.0.1",
     "@scure/base": "^2.0.0",
     "@walletconnect/universal-provider": "^2.23.0",
-
     "mobx": "^6.15.0",
     "mobx-react-lite": "^4.1.1",
     "qr-code-styling": "^1.9.2",
