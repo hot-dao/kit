@@ -83,6 +83,7 @@ export class HotKit {
       stellar: computed,
       ton: computed,
       cosmos: computed,
+      tron: computed,
     });
 
     api.apiKey = options?.apiKey ?? "";
@@ -196,6 +197,10 @@ export class HotKit {
 
   get cosmos(): CosmosWallet | null {
     return this.wallets.find((w) => w.type === WalletType.COSMOS) as CosmosWallet | null;
+  }
+
+  get tron(): TronWallet | null {
+    return this.wallets.find((w) => w.type === WalletType.Tron) as TronWallet | null;
   }
 
   isCosmosWallet(wallet?: OmniWallet): wallet is CosmosWallet {
